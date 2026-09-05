@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import {
   DollarSign,
@@ -12,15 +12,26 @@ import {
   Sparkles,
   Truck,
   Plus,
+  Database,
+  ExternalLink,
+  RefreshCw,
+  CheckCircle2,
 } from 'lucide-react';
 import { useStore } from '../../context/StoreContext';
 
 export default function AdminOverviewPage() {
-  const { products, orders, categories, coupons } = useStore();
+  const { products, orders, categories, coupons, supabaseStatus, syncCatalogToSupabase } = useStore();
+  const [syncing, setSyncing] = useState(false);
 
   const totalRevenue = orders.reduce((sum, o) => sum + o.total, 0);
   const totalOrdersCount = orders.length;
   const totalProductsCount = products.length;
+
+  const handleSyncSupabase = async () => {
+    setSyncing(true);
+    await syncCatalogToSupabase();
+    setSyncing(false);
+  };
 
   const statusColors: Record<string, string> = {
     New: 'bg-amber-100 text-amber-800',
@@ -65,6 +76,57 @@ export default function AdminOverviewPage() {
           >
             <span>Create Promo Coupon</span>
           </Link>
+        </div>
+      </div>
+
+      {/* Supabase Cloud Live Integration Status Banner */}
+      <div className="rounded-3xl bg-gradient-to-r from-[#0C3B2E] to-[#164E3D] text-white p-6 shadow-md border border-[#C5A059]/30">
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div className="flex items-start gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-white/10 flex items-center justify-center shrink-0 border border-white/20">
+              <Database className="w-6 h-6 text-[#D4AF37]" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h3 className="font-serif-title text-lg font-bold text-white">
+                  Supabase Cloud Database
+                </h3>
+                <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 ${
+                  supabaseStatus.connected
+                    ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                    : 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                }`}>
+                  <span className={`w-1.5 h-1.5 rounded-full ${supabaseStatus.connected ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
+                  {supabaseStatus.connected ? 'Connected' : 'Connecting'}
+                </span>
+              </div>
+              <p className="text-xs text-[#B4C9BF] mt-0.5">
+                Project Ref: <code className="bg-black/20 px-1.5 py-0.5 rounded text-[#D4AF37] font-mono text-[11px]">{supabaseStatus.projectRef}</code>
+                {' · '}{supabaseStatus.message}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2.5 w-full md:w-auto">
+            <button
+              onClick={handleSyncSupabase}
+              disabled={syncing}
+              className="flex-1 md:flex-initial px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#D4AF37] to-[#C5A059] text-[#08281F] font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 hover:brightness-105 transition-all cursor-pointer shadow-sm disabled:opacity-50"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${syncing ? 'animate-spin' : ''}`} />
+              <span>{syncing ? 'Syncing...' : 'Sync Catalog to Supabase'}</span>
+            </button>
+            <a
+              href={`https://supabase.com/dashboard/project/${supabaseStatus.projectRef}/sql`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-3.5 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-semibold flex items-center gap-1.5 transition-colors border border-white/20"
+              title="Open Supabase SQL Editor"
+            >
+              <span>SQL Editor</span>
+              <ExternalLink className="w-3.5 h-3.5 text-[#D4AF37]" />
+            </a>
+          </div>
         </div>
       </div>
 

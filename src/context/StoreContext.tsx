@@ -21,6 +21,14 @@ import {
   initialAddresses,
   initialUser,
 } from '../data/mockData';
+import {
+  isSupabaseConfigured,
+  checkSupabaseConnection,
+  getProductsFromSupabase,
+  getCategoriesFromSupabase,
+  saveOrderToSupabase,
+  seedCatalogToSupabase,
+} from '../lib/supabase';
 
 interface ToastState {
   id: string;
@@ -44,6 +52,15 @@ interface StoreContextType {
   toast: ToastState | null;
   isSearchOpen: boolean;
   setIsSearchOpen: (open: boolean) => void;
+
+  // Supabase Cloud Integration
+  supabaseStatus: {
+    connected: boolean;
+    message: string;
+    projectRef: string;
+    tablesFound?: string[];
+  };
+  syncCatalogToSupabase: () => Promise<{ success: boolean; message: string }>;
 
   // Storefront Actions
   showToast: (title: string, desc?: string, type?: 'success' | 'info' | 'error') => void;
@@ -106,6 +123,32 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
   const [toast, setToast] = useState<ToastState | null>(null);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+
+  // Supabase Cloud Status & Initialization
+  const [supabaseStatus, setSupabaseStatus] = useState<{
+    connected: boolean;
+    message: string;
+    projectRef: string;
+    tablesFound?: string[];
+  }>({
+    connected: false,
+    message: 'Testing connection to Supabase cloud...',
+    projectRef: 'bhzjtyyxgtoasvpbvfsn',
+  });
+
+  useEffect(() => {
+    checkSupabaseConnection().then((status) => {
+      setSupabaseStatus(status);
+      if (status.connected && status.tablesFound?.includes('products')) {
+        getProductsFromSupabase().then((prods) => {
+          if (prods && prods.length > 0) setProducts(prods);
+        });
+        getCategoriesFromSupabase().then((cats) => {
+          if (cats && cats.length > 0) setCategories(cats);
+        });
+      }
+    });
+  }, []);
 
   // Load from localStorage on mount
   useEffect(() => {
@@ -381,6 +424,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setOrders(prev => [newOrder, ...prev]);
     clearCart();
     showToast('Order Placed!', `Your Order #${newOrderId} has been confirmed.`, 'success');
+
+    // Sync order to Supabase cloud in background
+    saveOrderToSupabase(newOrder).catch(err =>
+      console.warn('Supabase saveOrder background sync:', err)
+    );
+
     return newOrder;
   };
 
@@ -512,6 +561,19 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     showToast('Address Deleted', undefined, 'info');
   };
 
+  const syncCatalogToSupabase = async () => {
+    showToast('Syncing with Supabase...', 'Uploading catalog to cloud database.', 'info');
+    const result = await seedCatalogToSupabase(categories, products);
+    if (result.success) {
+      showToast('Supabase Synced!', result.message, 'success');
+      const freshStatus = await checkSupabaseConnection();
+      setSupabaseStatus(freshStatus);
+    } else {
+      showToast('Supabase Notice', result.message, 'info');
+    }
+    return result;
+  };
+
   return (
     <StoreContext.Provider
       value={{
@@ -529,6 +591,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         toast,
         isSearchOpen,
         setIsSearchOpen,
+        supabaseStatus,
+        syncCatalogToSupabase,
         showToast,
         addToCart,
         updateCartQty,
