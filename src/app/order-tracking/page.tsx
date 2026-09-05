@@ -33,10 +33,8 @@ function OrderTrackingContent() {
       if (found) {
         setSelectedOrder(found);
       } else {
-        setSelectedOrder(orders[0] || null);
+        setErrorMsg(`No active consignment found matching Order ID "${initialId}".`);
       }
-    } else if (orders.length > 0) {
-      setSelectedOrder(orders[0]);
     }
   }, [initialId, orders]);
 

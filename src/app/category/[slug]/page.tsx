@@ -243,7 +243,13 @@ function CategoryContent({ slug }: { slug: string }) {
             </button>
 
             {/* Individual Subcategories with Photos */}
-            {currentCategory.subcatImages.map((sub) => {
+            {((currentCategory?.subcatImages && currentCategory.subcatImages.length > 0)
+              ? currentCategory.subcatImages
+              : (currentCategory?.subcategories || []).filter((s) => s !== 'All').map((s) => ({
+                  name: s,
+                  image: currentCategory?.bannerImage || currentCategory?.heroImage || '',
+                }))
+            ).map((sub) => {
               const isSelected = selectedSubcategory === sub.name;
               return (
                 <button

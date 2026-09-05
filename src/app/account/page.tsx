@@ -92,7 +92,7 @@ export default function AccountPage() {
           My Account
         </h1>
         <p className="text-xs sm:text-sm text-[#2C4A3E] mt-1">
-          Welcome back, {user.name} · Purnya Circle Member
+          Welcome back, {user.name || 'Patron'} · Purnya Circle Member
         </p>
       </div>
 
@@ -101,11 +101,11 @@ export default function AccountPage() {
         <aside className="lg:col-span-3 bg-white p-6 rounded-3xl border border-[#E2DBD0] shadow-sm space-y-6">
           <div className="flex items-center gap-3 pb-6 border-b border-[#EFEBE3]">
             <div className="w-12 h-12 rounded-full bg-[#FAF8F5] border border-[#E2DBD0] flex items-center justify-center text-[#C5A059] font-serif-title font-bold text-lg shadow-xs">
-              {user.name.charAt(0)}
+              {user.name ? user.name.charAt(0).toUpperCase() : 'P'}
             </div>
             <div className="min-w-0">
-              <p className="font-serif-title text-base font-bold text-[#0B241C] truncate">{user.name}</p>
-              <p className="text-[11px] text-[#5A7469] truncate">{user.email}</p>
+              <p className="font-serif-title text-base font-bold text-[#0B241C] truncate">{user.name || 'Purnya Patron'}</p>
+              <p className="text-[11px] text-[#5A7469] truncate">{user.email || 'care@purnya.in'}</p>
             </div>
           </div>
 
@@ -392,12 +392,25 @@ export default function AccountPage() {
                 </form>
               )}
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {addresses.map((addr) => (
-                  <div
-                    key={addr.id}
-                    className="p-5 rounded-2xl border border-[#E2DBD0] bg-[#FAF8F5]/60 relative flex flex-col justify-between space-y-3"
+              {addresses.length === 0 ? (
+                <div className="text-center py-12 space-y-3 bg-[#FAF8F5]/40 rounded-2xl border border-dashed border-[#E2DBD0]">
+                  <MapPin className="w-8 h-8 text-[#C5A059] mx-auto opacity-70" />
+                  <p className="text-sm font-semibold text-[#0B241C]">No addresses saved yet</p>
+                  <p className="text-xs text-[#5A7469]">Add your preferred shipping address for faster doorstep delivery.</p>
+                  <button
+                    onClick={() => setIsAddingAddress(true)}
+                    className="inline-block px-6 py-2 rounded-full bg-[#0C3B2E] text-white text-xs font-semibold cursor-pointer shadow-xs hover:bg-[#164E3D] transition-all"
                   >
+                    Add Delivery Address
+                  </button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {addresses.map((addr) => (
+                    <div
+                      key={addr.id}
+                      className="p-5 rounded-2xl border border-[#E2DBD0] bg-[#FAF8F5]/60 relative flex flex-col justify-between space-y-3"
+                    >
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
                         <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-[#0C3B2E] text-white">
@@ -425,9 +438,10 @@ export default function AccountPage() {
                         <span>Remove</span>
                       </button>
                     </div>
-                  </div>
-                ))}
-              </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 

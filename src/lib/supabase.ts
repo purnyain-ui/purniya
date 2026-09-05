@@ -89,7 +89,25 @@ export async function getProductsFromSupabase(): Promise<Product[] | null> {
     if (error || !data || data.length === 0) {
       return null;
     }
-    return data as Product[];
+    return data.map((p: any) => ({
+      id: p.id,
+      name: p.name,
+      category: p.category,
+      categorySlug: p.categorySlug || p.category_slug,
+      subcategory: p.subcategory || '',
+      price: Number(p.price),
+      originalPrice: p.originalPrice || p.original_price ? Number(p.originalPrice || p.original_price) : undefined,
+      image: p.image || (Array.isArray(p.images) && p.images[0]) || '',
+      images: Array.isArray(p.images) && p.images.length > 0 ? p.images : [p.image || ''],
+      rating: p.rating ? Number(p.rating) : 4.9,
+      reviewsCount: p.reviewsCount || p.reviews_count || 0,
+      description: p.description || '',
+      stock: p.stock !== undefined ? Number(p.stock) : 50,
+      status: p.status || 'Active',
+      badge: p.badge || undefined,
+      featured: Boolean(p.featured),
+      createdAt: p.created_at || p.createdAt,
+    })) as Product[];
   } catch (err) {
     console.warn('Supabase getProducts error:', err);
     return null;
@@ -110,7 +128,16 @@ export async function getCategoriesFromSupabase(): Promise<CategoryMeta[] | null
     if (error || !data || data.length === 0) {
       return null;
     }
-    return data as CategoryMeta[];
+    return data.map((c: any) => ({
+      id: c.id,
+      slug: c.slug,
+      title: c.title,
+      subtitle: c.subtitle || '',
+      heroImage: c.heroImage || c.hero_image || '',
+      bannerImage: c.bannerImage || c.banner_image || '',
+      subcategories: c.subcategories || ['All'],
+      subcatImages: c.subcatImages || c.subcat_images || [],
+    })) as CategoryMeta[];
   } catch (err) {
     console.warn('Supabase getCategories error:', err);
     return null;

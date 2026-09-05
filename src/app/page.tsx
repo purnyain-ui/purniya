@@ -233,7 +233,10 @@ export default function HomePage() {
 
                       {/* Circular Subcategory Cards with Direct Subcategory Links */}
                       <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-none">
-                        {cat.subcatImages.slice(0, 6).map((sub) => (
+                        {((cat.subcatImages && cat.subcatImages.length > 0)
+                          ? cat.subcatImages
+                          : (cat.subcategories || []).filter((s) => s !== 'All').map((s) => ({ name: s, image: cat.bannerImage || cat.heroImage }))
+                        ).slice(0, 6).map((sub) => (
                           <Link
                             key={sub.name}
                             href={`/category/${cat.slug}?sub=${encodeURIComponent(sub.name)}`}
@@ -442,62 +445,56 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* 7. CUSTOMER TESTIMONIALS */}
+      {/* 7. AUTHENTIC PURNYA CRAFTSMANSHIP STANDARDS */}
       <section className="bg-[#EBF3EF]/60 border-y border-[#E2DBD0] py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-xl mx-auto mb-12 space-y-2">
             <span className="text-xs font-bold uppercase tracking-[0.25em] text-[#C5A059]">
-              Voices of Delight
+              The Purnya Standard
             </span>
             <h2 className="font-serif-title text-3xl sm:text-4xl font-bold text-[#0B241C]">
-              Loved by Our Circle
+              Artisanal Integrity in Every Creation
             </h2>
+            <p className="text-xs sm:text-sm text-[#2C4A3E]">
+              From conscious sourcing to anti-tarnish protective sealing, our commitment to mindful luxury is uncompromising.
+            </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="bg-white p-7 rounded-2xl border border-[#E2DBD0] shadow-xs space-y-4">
-              <div className="flex text-[#C5A059]">
-                {[...Array(5)].map((_, i) => (
-                  <Star key={i} className="w-4 h-4 fill-current" />
-                ))}
+            <div className="bg-white p-7 rounded-2xl border border-[#E2DBD0] shadow-xs space-y-3">
+              <div className="w-10 h-10 rounded-xl bg-[#EBF3EF] flex items-center justify-center text-[#0C3B2E] font-serif-title font-bold text-lg">
+                18K
               </div>
-              <p className="text-xs sm:text-sm text-[#2C4A3E] italic leading-relaxed">
-                "The Sand Wax Candle is a masterstroke! It burns so cleanly without any soot and the Oud & Vanilla scent fills my entire home. Delivery was super fast too."
+              <h3 className="font-serif-title text-base font-bold text-[#0B241C]">
+                Gold Vermeil &amp; Anti-Tarnish Sealing
+              </h3>
+              <p className="text-xs text-[#2C4A3E] leading-relaxed">
+                Handcrafted jewellery plated with genuine 18-karat gold over hypoallergenic brass and finished with proprietary nano-ceramic sealing.
               </p>
-              <div className="border-t border-[#EFEBE3] pt-3 flex items-center justify-between">
-                <span className="text-xs font-bold text-[#0B241C]">Ananya Deshmukh</span>
-                <span className="text-[11px] text-[#5A7469]">Mumbai · Verified Buyer</span>
-              </div>
             </div>
 
-            <div className="bg-white p-7 rounded-2xl border border-[#E2DBD0] shadow-xs space-y-4">
-              <div className="flex text-[#C5A059]">
-                {[...Array(5)].map((_, i) => (
-                  <Star key={i} className="w-4 h-4 fill-current" />
-                ))}
+            <div className="bg-white p-7 rounded-2xl border border-[#E2DBD0] shadow-xs space-y-3">
+              <div className="w-10 h-10 rounded-xl bg-[#EBF3EF] flex items-center justify-center text-[#0C3B2E] font-serif-title font-bold text-lg">
+                100%
               </div>
-              <p className="text-xs sm:text-sm text-[#2C4A3E] italic leading-relaxed">
-                "I ordered the 18K Pearl Choker and the celebration gift hamper for my sister's wedding. The packaging felt like Cartier, and the jewelry quality was exceptional."
+              <h3 className="font-serif-title text-base font-bold text-[#0B241C]">
+                Clean Natural Sand Wax Formulations
+              </h3>
+              <p className="text-xs text-[#2C4A3E] leading-relaxed">
+                Granulated plant-based sand and pearl wax that burns soot-free with pure cotton wicks and distilled aromatic botanicals.
               </p>
-              <div className="border-t border-[#EFEBE3] pt-3 flex items-center justify-between">
-                <span className="text-xs font-bold text-[#0B241C]">Rohit Mehta</span>
-                <span className="text-[11px] text-[#5A7469]">Bengaluru · Verified Buyer</span>
-              </div>
             </div>
 
-            <div className="bg-white p-7 rounded-2xl border border-[#E2DBD0] shadow-xs space-y-4">
-              <div className="flex text-[#C5A059]">
-                {[...Array(5)].map((_, i) => (
-                  <Star key={i} className="w-4 h-4 fill-current" />
-                ))}
+            <div className="bg-white p-7 rounded-2xl border border-[#E2DBD0] shadow-xs space-y-3">
+              <div className="w-10 h-10 rounded-xl bg-[#EBF3EF] flex items-center justify-center text-[#0C3B2E] font-serif-title font-bold text-lg">
+                Origin
               </div>
-              <p className="text-xs sm:text-sm text-[#2C4A3E] italic leading-relaxed">
-                "The Kashmiri Saffron tea and raw honey have become part of my daily morning ritual. Authentic organic wellness delivered with pristine care."
+              <h3 className="font-serif-title text-base font-bold text-[#0B241C]">
+                Direct Single-Origin Ethical Sourcing
+              </h3>
+              <p className="text-xs text-[#2C4A3E] leading-relaxed">
+                Herbal wellness infusions and handcrafted stoneware produced in ethical artisan cooperatives with traceable, conscious materials.
               </p>
-              <div className="border-t border-[#EFEBE3] pt-3 flex items-center justify-between">
-                <span className="text-xs font-bold text-[#0B241C]">Dr. Gayatri Sen</span>
-                <span className="text-[11px] text-[#5A7469]">New Delhi · Verified Buyer</span>
-              </div>
             </div>
           </div>
         </div>

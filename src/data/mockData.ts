@@ -705,117 +705,12 @@ export const initialHeroSlides: HeroSlide[] = [
 ];
 
 export const initialUser: UserProfile = {
-  name: 'Priya Sharma',
-  email: 'priya.sharma@gmail.com',
-  phone: '+91 98765 43210',
+  name: '',
+  email: '',
+  phone: '',
 };
 
-export const initialAddresses: Address[] = [
-  {
-    id: 'addr-1',
-    label: 'Home',
-    fullName: 'Priya Sharma',
-    phone: '+91 98765 43210',
-    addressLine: '42, Rose Garden Lane, 4th Block, Koramangala',
-    city: 'Bengaluru',
-    state: 'Karnataka',
-    pincode: '560034',
-    isDefault: true,
-  },
-  {
-    id: 'addr-2',
-    label: 'Office',
-    fullName: 'Priya Sharma',
-    phone: '+91 98765 43210',
-    addressLine: 'Level 5, WeWork Prestige Tech Park, Marathahalli-Sarjapur Ring Rd',
-    city: 'Bengaluru',
-    state: 'Karnataka',
-    pincode: '560103',
-    isDefault: false,
-  },
-];
+export const initialAddresses: Address[] = [];
 
-export const initialOrders: Order[] = [
-  {
-    id: 'PUR-2026-8492',
-    date: '02 Mar 2026',
-    status: 'Shipped',
-    items: [
-      {
-        id: 'j1',
-        name: '18K Gold Plated Baroque Pearl Necklace',
-        price: 2499,
-        quantity: 1,
-        image: 'https://images.unsplash.com/photo-1599643477877-530eb83abc8e?w=600&fit=crop&auto=format',
-        category: 'Jewellery & Accessories',
-        variant: 'Yellow Gold',
-      },
-      {
-        id: 'c1',
-        name: 'Purnya Signature Sand Wax Candle',
-        price: 1299,
-        quantity: 1,
-        image: 'https://images.unsplash.com/photo-1602523961358-f9f03218ccda?w=600&fit=crop&auto=format',
-        category: 'Candle & Home Fragrance',
-        variant: 'Oud & Vanilla',
-      },
-    ],
-    subtotal: 3798,
-    discount: 379,
-    shipping: 0,
-    total: 3419,
-    customer: {
-      name: 'Priya Sharma',
-      email: 'priya.sharma@gmail.com',
-      phone: '+91 98765 43210',
-    },
-    shippingAddress: initialAddresses[0],
-    paymentMethod: 'UPI',
-    trackingNumber: 'BD-849201948IN',
-    courierPartner: 'BlueDart Express',
-    estimatedDelivery: '07 Mar 2026',
-    trackingHistory: [
-      { status: 'Order Placed', time: '02 Mar, 10:30 AM', location: 'Purnya Online Store', completed: true },
-      { status: 'Order Verified & Packed', time: '02 Mar, 04:15 PM', location: 'Purnya Central Warehouse, Bengaluru', completed: true },
-      { status: 'Dispatched with BlueDart', time: '03 Mar, 09:40 AM', location: 'Bengaluru Hub', completed: true },
-      { status: 'In Transit to Destination Hub', time: '04 Mar, 02:10 PM', location: 'Koramangala Facility', completed: true },
-      { status: 'Out for Delivery', time: 'Expected 07 Mar', location: 'Local Courier', completed: false },
-      { status: 'Delivered', time: 'Pending', location: 'Delivery Address', completed: false },
-    ],
-  },
-  {
-    id: 'PUR-2026-7310',
-    date: '18 Feb 2026',
-    status: 'Delivered',
-    items: [
-      {
-        id: 'g1',
-        name: 'The Royal Purnya Lifestyle Celebration Hamper',
-        price: 3999,
-        quantity: 1,
-        image: 'https://images.unsplash.com/photo-1549465220-1a8b9238f839?w=600&fit=crop&auto=format',
-        category: 'Gift & Stationery',
-        variant: 'Wedding Keepsake',
-      },
-    ],
-    subtotal: 3999,
-    discount: 500,
-    shipping: 0,
-    total: 3499,
-    customer: {
-      name: 'Priya Sharma',
-      email: 'priya.sharma@gmail.com',
-      phone: '+91 98765 43210',
-    },
-    shippingAddress: initialAddresses[0],
-    paymentMethod: 'Credit / Debit Card',
-    trackingNumber: 'DEL-73109210IN',
-    courierPartner: 'Delhivery Surface',
-    estimatedDelivery: '22 Feb 2026',
-    trackingHistory: [
-      { status: 'Order Placed', time: '18 Feb, 02:15 PM', location: 'Purnya Store', completed: true },
-      { status: 'Packed & Dispatched', time: '19 Feb, 11:00 AM', location: 'Bengaluru Warehouse', completed: true },
-      { status: 'Delivered', time: '22 Feb, 04:30 PM', location: 'Customer Doorstep', completed: true },
-    ],
-  },
-];
+export const initialOrders: Order[] = [];
+

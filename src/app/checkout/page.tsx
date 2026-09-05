@@ -31,15 +31,15 @@ export default function CheckoutPage() {
     placeOrder,
   } = useStore();
 
-  const [customerName, setCustomerName] = useState(user.name || 'Priya Sharma');
-  const [customerEmail, setCustomerEmail] = useState(user.email || 'priya.sharma@gmail.com');
-  const [customerPhone, setCustomerPhone] = useState(user.phone || '+91 98765 43210');
+  const [customerName, setCustomerName] = useState(user.name || '');
+  const [customerEmail, setCustomerEmail] = useState(user.email || '');
+  const [customerPhone, setCustomerPhone] = useState(user.phone || '');
 
   const defaultAddr = addresses.find((a) => a.isDefault) || addresses[0];
-  const [addressLine, setAddressLine] = useState(defaultAddr?.addressLine || '42, Rose Garden Lane, 4th Block');
-  const [city, setCity] = useState(defaultAddr?.city || 'Bengaluru');
-  const [state, setState] = useState(defaultAddr?.state || 'Karnataka');
-  const [pincode, setPincode] = useState(defaultAddr?.pincode || '560034');
+  const [addressLine, setAddressLine] = useState(defaultAddr?.addressLine || '');
+  const [city, setCity] = useState(defaultAddr?.city || '');
+  const [state, setState] = useState(defaultAddr?.state || '');
+  const [pincode, setPincode] = useState(defaultAddr?.pincode || '');
 
   const [paymentMethod, setPaymentMethod] = useState<Order['paymentMethod']>('UPI');
   const [confirmedOrder, setConfirmedOrder] = useState<Order | null>(null);

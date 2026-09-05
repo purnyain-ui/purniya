@@ -157,7 +157,25 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (savedProducts) setProducts(JSON.parse(savedProducts));
 
       const savedCategories = localStorage.getItem('purnya_categories');
-      if (savedCategories) setCategories(JSON.parse(savedCategories));
+      if (savedCategories) {
+        try {
+          const parsed = JSON.parse(savedCategories);
+          const sanitized = initialCategories.map((initCat) => {
+            const found = parsed.find((p: any) => p.slug === initCat.slug);
+            return {
+              ...initCat,
+              ...(found || {}),
+              subcategories: found?.subcategories || initCat.subcategories,
+              subcatImages: (found?.subcatImages && found.subcatImages.length > 0)
+                ? found.subcatImages
+                : initCat.subcatImages,
+            };
+          });
+          setCategories(sanitized);
+        } catch {
+          setCategories(initialCategories);
+        }
+      }
 
       const savedCart = localStorage.getItem('purnya_cart');
       if (savedCart) setCart(JSON.parse(savedCart));
@@ -166,12 +184,21 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (savedWishlist) {
         setWishlist(JSON.parse(savedWishlist));
       } else {
-        // Pre-fill initial wishlist for nice demo experience
-        setWishlist([initialProducts[0], initialProducts[8], initialProducts[12]]);
+        setWishlist([]);
       }
 
       const savedOrders = localStorage.getItem('purnya_orders');
-      if (savedOrders) setOrders(JSON.parse(savedOrders));
+      if (savedOrders) {
+        try {
+          const parsedOrders: Order[] = JSON.parse(savedOrders);
+          const cleanOrders = parsedOrders.filter(
+            (o) => o.id !== 'PUR-2026-8492' && o.id !== 'PUR-2026-7310' && o.customer?.name !== 'Priya Sharma'
+          );
+          setOrders(cleanOrders);
+        } catch {
+          setOrders([]);
+        }
+      }
 
       const savedCoupons = localStorage.getItem('purnya_coupons');
       if (savedCoupons) setCoupons(JSON.parse(savedCoupons));
@@ -183,10 +210,31 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (savedAnnouncement) setAnnouncement(savedAnnouncement);
 
       const savedAddresses = localStorage.getItem('purnya_addresses');
-      if (savedAddresses) setAddresses(JSON.parse(savedAddresses));
+      if (savedAddresses) {
+        try {
+          const parsedAddrs: Address[] = JSON.parse(savedAddresses);
+          const cleanAddrs = parsedAddrs.filter(
+            (a) => a.fullName !== 'Priya Sharma' && !a.addressLine?.includes('Rose Garden Lane')
+          );
+          setAddresses(cleanAddrs);
+        } catch {
+          setAddresses([]);
+        }
+      }
 
       const savedUser = localStorage.getItem('purnya_user');
-      if (savedUser) setUser(JSON.parse(savedUser));
+      if (savedUser) {
+        try {
+          const parsed = JSON.parse(savedUser);
+          if (parsed.name === 'Priya Sharma') {
+            setUser({ name: '', email: '', phone: '' });
+          } else {
+            setUser(parsed);
+          }
+        } catch {
+          setUser({ name: '', email: '', phone: '' });
+        }
+      }
     } catch (e) {
       console.warn('LocalStorage load error', e);
     }
@@ -501,7 +549,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               ...cat,
               subcategories: [...cat.subcategories, subcategoryName],
               subcatImages: [
-                ...cat.subcatImages,
+                ...(cat.subcatImages || []),
                 {
                   name: subcategoryName,
                   image: 'https://images.unsplash.com/photo-1599643477877-530eb83abc8e?w=200&fit=crop&auto=format',

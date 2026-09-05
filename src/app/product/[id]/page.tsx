@@ -421,21 +421,13 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
                   </div>
                 </div>
 
-                <div className="space-y-4">
-                  <div className="p-4 rounded-xl border border-[#E2DBD0] space-y-2">
-                    <div className="flex justify-between items-center text-xs">
-                      <span className="font-bold text-[#0B241C]">Pooja Kulkarni</span>
-                      <span className="text-[#5A7469]">3 days ago</span>
-                    </div>
-                    <div className="flex text-[#C5A059]">
-                      {[...Array(5)].map((_, i) => (
-                        <Star key={i} className="w-3 h-3 fill-current" />
-                      ))}
-                    </div>
-                    <p className="text-xs text-[#2C4A3E]">
-                      "Absolute perfection! The finish, texture, and packaging are breathtaking. Will definitely be purchasing more gifts from Purnya."
-                    </p>
-                  </div>
+                <div className="p-6 rounded-2xl border border-[#E2DBD0] bg-[#FAF8F5]/60 text-center space-y-3">
+                  <p className="text-xs font-semibold text-[#0B241C]">
+                    Customer reviews for this creation are collected post-delivery.
+                  </p>
+                  <p className="text-[11px] text-[#5A7469] max-w-md mx-auto">
+                    Every patron receives a verified review invitation link upon order fulfillment to ensure 100% authentic feedback.
+                  </p>
                 </div>
               </div>
             )}
