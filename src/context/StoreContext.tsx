@@ -86,12 +86,14 @@ interface StoreContextType {
   cartCount: number;
   wishlistCount: number;
 
-  // Admin Actions
   addProduct: (newProd: Omit<Product, 'id'>) => Product;
   updateProduct: (id: string, updates: Partial<Product>) => void;
   deleteProduct: (id: string) => void;
   updateOrderStatus: (orderId: string, status: OrderStatus, trackingNumber?: string, courierPartner?: string) => void;
-  addCategorySubcategory: (categorySlug: string, subcategoryName: string) => void;
+  addCategorySubcategory: (categorySlug: string, subcategoryName: string, image?: string) => void;
+  updateCategorySubcategory: (categorySlug: string, oldName: string, newName: string, newImage?: string) => void;
+  removeCategorySubcategory: (categorySlug: string, subcategoryName: string) => void;
+  updateCategory: (categorySlug: string, updates: Partial<CategoryMeta>) => void;
   addCoupon: (coupon: Coupon) => void;
   toggleCoupon: (code: string) => void;
   updateHeroSlide: (slide: HeroSlide) => void;
@@ -540,7 +542,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   // Admin Category Actions
-  const addCategorySubcategory = (categorySlug: string, subcategoryName: string) => {
+  const addCategorySubcategory = (categorySlug: string, subcategoryName: string, image?: string) => {
+    const fallbackImg = image || 'https://images.unsplash.com/photo-1599643477877-530eb83abc8e?w=200&fit=crop&auto=format';
     setCategories(prev =>
       prev.map(cat => {
         if (cat.slug === categorySlug) {
@@ -552,7 +555,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 ...(cat.subcatImages || []),
                 {
                   name: subcategoryName,
-                  image: 'https://images.unsplash.com/photo-1599643477877-530eb83abc8e?w=200&fit=crop&auto=format',
+                  image: fallbackImg,
                 },
               ],
             };
@@ -562,6 +565,60 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       })
     );
     showToast('Subcategory Added', `${subcategoryName} added to ${categorySlug}.`);
+  };
+
+  const updateCategorySubcategory = (
+    categorySlug: string,
+    oldName: string,
+    newName: string,
+    newImage?: string
+  ) => {
+    setCategories(prev =>
+      prev.map(cat => {
+        if (cat.slug === categorySlug) {
+          const updatedSubs = cat.subcategories.map(s => (s === oldName ? newName : s));
+          const updatedImages = (cat.subcatImages || []).map(item => {
+            if (item.name === oldName) {
+              return {
+                name: newName,
+                image: newImage || item.image,
+              };
+            }
+            return item;
+          });
+          return {
+            ...cat,
+            subcategories: updatedSubs,
+            subcatImages: updatedImages,
+          };
+        }
+        return cat;
+      })
+    );
+    showToast('Subcategory Updated', `${newName} configuration saved.`);
+  };
+
+  const removeCategorySubcategory = (categorySlug: string, subcategoryName: string) => {
+    setCategories(prev =>
+      prev.map(cat => {
+        if (cat.slug === categorySlug) {
+          return {
+            ...cat,
+            subcategories: cat.subcategories.filter(s => s !== subcategoryName),
+            subcatImages: (cat.subcatImages || []).filter(item => item.name !== subcategoryName),
+          };
+        }
+        return cat;
+      })
+    );
+    showToast('Subcategory Removed', `${subcategoryName} deleted from ${categorySlug}.`);
+  };
+
+  const updateCategory = (categorySlug: string, updates: Partial<CategoryMeta>) => {
+    setCategories(prev =>
+      prev.map(cat => (cat.slug === categorySlug ? { ...cat, ...updates } : cat))
+    );
+    showToast('Category Updated', 'Category details and imagery updated.');
   };
 
   // Admin Coupons
@@ -662,6 +719,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         deleteProduct,
         updateOrderStatus,
         addCategorySubcategory,
+        updateCategorySubcategory,
+        removeCategorySubcategory,
+        updateCategory,
         addCoupon,
         toggleCoupon,
         updateHeroSlide,

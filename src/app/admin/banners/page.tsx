@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Image as ImageIcon, Sparkles, Save, Edit3, Eye } from 'lucide-react';
+import { Image as ImageIcon, Sparkles, Save, Edit3, Eye, Upload } from 'lucide-react';
 import { useStore } from '../../../context/StoreContext';
 import { HeroSlide } from '../../../types';
 
@@ -192,15 +192,49 @@ export default function AdminBannersPage() {
               </div>
             </div>
 
-            <div className="space-y-1">
-              <label className="font-semibold text-[#2C4A3E]">Image URL</label>
-              <input
-                type="url"
-                required
-                value={editingSlide.image}
-                onChange={(e) => setEditingSlide({ ...editingSlide, image: e.target.value })}
-                className="w-full p-3 rounded-xl border border-[#E2DBD0]"
-              />
+            <div className="space-y-2">
+              <label className="font-semibold text-[#2C4A3E]">Slide Image (Local Upload or URL)</label>
+
+              {editingSlide.image && (
+                <div className="relative aspect-[16/9] rounded-xl overflow-hidden border border-[#E2DBD0]">
+                  <img src={editingSlide.image} alt="Slide Preview" className="w-full h-full object-cover" />
+                </div>
+              )}
+
+              <div className="p-3.5 rounded-2xl border-2 border-dashed border-[#E2DBD0] hover:border-[#C5A059] bg-[#FAF8F5] text-center relative cursor-pointer">
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      const reader = new FileReader();
+                      reader.onload = (loadEvt) => {
+                        const result = loadEvt.target?.result as string;
+                        setEditingSlide({ ...editingSlide, image: result });
+                      };
+                      reader.readAsDataURL(file);
+                    }
+                  }}
+                  className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                />
+                <div className="space-y-1">
+                  <Upload className="w-5 h-5 text-[#C5A059] mx-auto" />
+                  <p className="font-bold text-[#0B241C] text-xs">Upload Slide Image from Computer</p>
+                  <p className="text-[10px] text-[#5A7469]">Supports high-res PNG, JPG, WEBP</p>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] text-[#5A7469] mb-1">Or paste Image URL:</label>
+                <input
+                  type="url"
+                  required
+                  value={editingSlide.image}
+                  onChange={(e) => setEditingSlide({ ...editingSlide, image: e.target.value })}
+                  className="w-full p-2.5 rounded-xl border border-[#E2DBD0] text-xs"
+                />
+              </div>
             </div>
 
             <div className="flex justify-end gap-2 pt-3 border-t border-[#EFEBE3]">

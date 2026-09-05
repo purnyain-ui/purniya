@@ -4,7 +4,6 @@ import React, { useState } from 'react';
 import {
   Settings,
   Globe,
-  CreditCard,
   ShieldCheck,
   Building,
   Save,
@@ -22,7 +21,7 @@ import { useStore } from '../../../context/StoreContext';
 
 export default function AdminSettingsPage() {
   const { showToast } = useStore();
-  const [activeTab, setActiveTab] = useState<'general' | 'seo' | 'payments' | 'security'>('general');
+  const [activeTab, setActiveTab] = useState<'general' | 'seo' | 'security'>('general');
 
   // General Settings State
   const [storeName, setStoreName] = useState('Purnya');
@@ -44,14 +43,6 @@ export default function AdminSettingsPage() {
   const [ogImage, setOgImage] = useState('https://images.unsplash.com/photo-1617038220319-276d3cfab638?w=1200&fit=crop&auto=format');
   const [gscTag, setGscTag] = useState('google-site-verification=purnya-brand-official-2026');
 
-  // Payment Gateway Settings (SOW Section 13)
-  const [razorpayKeyId, setRazorpayKeyId] = useState('rzp_live_purnya_official_prod');
-  const [razorpayEnabled, setRazorpayEnabled] = useState(true);
-  const [upiEnabled, setUpiEnabled] = useState(true);
-  const [cardsEnabled, setCardsEnabled] = useState(true);
-  const [codEnabled, setCodEnabled] = useState(true);
-  const [codMaxLimit, setCodMaxLimit] = useState(15000);
-
   // Security Settings (SOW Section 25)
   const [enforceHttps, setEnforceHttps] = useState(true);
   const [twoFactorAuth, setTwoFactorAuth] = useState(true);
@@ -71,7 +62,7 @@ export default function AdminSettingsPage() {
             Website Settings & SEO Configuration
           </h1>
           <p className="text-xs sm:text-sm text-[#2C4A3E]">
-            Manage brand profile, SEO meta tags, payment gateway integrations, and store security (SOW Section 19, 23 & 25).
+            Manage brand profile, SEO meta tags, and store security (SOW Section 19, 23 & 25).
           </p>
         </div>
 
@@ -90,7 +81,6 @@ export default function AdminSettingsPage() {
         {[
           { id: 'general', label: 'Store Identity & GST', icon: <Building className="w-4 h-4" /> },
           { id: 'seo', label: 'SEO & Meta Readiness', icon: <Globe className="w-4 h-4" /> },
-          { id: 'payments', label: 'Payment Gateways', icon: <CreditCard className="w-4 h-4" /> },
           { id: 'security', label: 'Security & Access Control', icon: <ShieldCheck className="w-4 h-4" /> },
         ].map((tab) => (
           <button
@@ -276,99 +266,7 @@ export default function AdminSettingsPage() {
           </div>
         )}
 
-        {/* Tab 3: Payment Gateways (SOW Section 13) */}
-        {activeTab === 'payments' && (
-          <div className="bg-white p-6 sm:p-8 rounded-3xl border border-[#E2DBD0] shadow-sm space-y-6">
-            <div className="border-b border-[#EFEBE3] pb-4">
-              <h2 className="font-serif-title text-lg font-bold text-[#0B241C]">
-                Payment Gateways & Methods
-              </h2>
-              <p className="text-xs text-[#5A7469]">
-                Configure digital checkout providers including UPI, Razorpay, Cards, and Cash on Delivery (SOW Section 13).
-              </p>
-            </div>
-
-            <div className="space-y-4 text-xs">
-              <div className="p-4 rounded-2xl bg-[#FAF8F5] border border-[#E2DBD0] flex items-center justify-between">
-                <div>
-                  <p className="font-bold text-[#0B241C]">Razorpay Online Payment Gateway</p>
-                  <p className="text-[11px] text-[#5A7469]">Processes Cards, Net Banking, and Wallet transactions.</p>
-                </div>
-                <input
-                  type="checkbox"
-                  checked={razorpayEnabled}
-                  onChange={(e) => setRazorpayEnabled(e.target.checked)}
-                  className="w-4 h-4 text-[#C5A059] rounded cursor-pointer"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block font-bold text-[#0B241C] mb-1.5">Razorpay Key ID</label>
-                  <input
-                    type="text"
-                    value={razorpayKeyId}
-                    onChange={(e) => setRazorpayKeyId(e.target.value)}
-                    className="w-full px-3.5 py-2.5 bg-[#FAF8F5] border border-[#E2DBD0] rounded-xl font-mono text-[#0B241C] focus:outline-none focus:border-[#C5A059]"
-                  />
-                </div>
-
-                <div>
-                  <label className="block font-bold text-[#0B241C] mb-1.5">Razorpay Key Secret</label>
-                  <input
-                    type="password"
-                    value="••••••••••••••••••••••••"
-                    disabled
-                    className="w-full px-3.5 py-2.5 bg-gray-100 border border-[#E2DBD0] rounded-xl font-mono text-gray-500 cursor-not-allowed"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-2">
-                <div className="p-4 rounded-2xl bg-[#FAF8F5] border border-[#E2DBD0] flex items-center justify-between">
-                  <div>
-                    <p className="font-bold text-[#0B241C]">UPI (GPay / PhonePe)</p>
-                    <p className="text-[10px] text-[#5A7469]">Instant zero-fee QR & VPA</p>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={upiEnabled}
-                    onChange={(e) => setUpiEnabled(e.target.checked)}
-                    className="w-4 h-4 text-[#C5A059] rounded cursor-pointer"
-                  />
-                </div>
-
-                <div className="p-4 rounded-2xl bg-[#FAF8F5] border border-[#E2DBD0] flex items-center justify-between">
-                  <div>
-                    <p className="font-bold text-[#0B241C]">Credit / Debit Cards</p>
-                    <p className="text-[10px] text-[#5A7469]">Visa, RuPay, Mastercard</p>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={cardsEnabled}
-                    onChange={(e) => setCardsEnabled(e.target.checked)}
-                    className="w-4 h-4 text-[#C5A059] rounded cursor-pointer"
-                  />
-                </div>
-
-                <div className="p-4 rounded-2xl bg-[#FAF8F5] border border-[#E2DBD0] flex items-center justify-between">
-                  <div>
-                    <p className="font-bold text-[#0B241C]">Cash on Delivery (COD)</p>
-                    <p className="text-[10px] text-[#5A7469]">Cap: ₹{codMaxLimit}</p>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={codEnabled}
-                    onChange={(e) => setCodEnabled(e.target.checked)}
-                    className="w-4 h-4 text-[#C5A059] rounded cursor-pointer"
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Tab 4: Security & Access Control (SOW Section 25) */}
+        {/* Tab 3: Security & Access Control (SOW Section 25) */}
         {activeTab === 'security' && (
           <div className="bg-white p-6 sm:p-8 rounded-3xl border border-[#E2DBD0] shadow-sm space-y-6">
             <div className="border-b border-[#EFEBE3] pb-4">
