@@ -1,37 +1,30 @@
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import Link from 'next/link';
 import {
-  DollarSign,
   ShoppingBag,
   Package,
   Users,
   TrendingUp,
-  ArrowUpRight,
   Sparkles,
   Truck,
   Plus,
-  Database,
-  ExternalLink,
-  RefreshCw,
+  ArrowRight,
+  ShieldCheck,
   CheckCircle2,
+  AlertCircle,
 } from 'lucide-react';
 import { useStore } from '../../context/StoreContext';
 
 export default function AdminOverviewPage() {
-  const { products, orders, categories, coupons, supabaseStatus, syncCatalogToSupabase } = useStore();
-  const [syncing, setSyncing] = useState(false);
+  const { products, orders, categories, coupons } = useStore();
 
   const totalRevenue = orders.reduce((sum, o) => sum + o.total, 0);
   const totalOrdersCount = orders.length;
   const totalProductsCount = products.length;
-
-  const handleSyncSupabase = async () => {
-    setSyncing(true);
-    await syncCatalogToSupabase();
-    setSyncing(false);
-  };
+  const pendingOrders = orders.filter((o) => o.status === 'New' || o.status === 'Processing');
+  const lowStockCount = products.filter((p) => p.stock <= 15).length;
 
   const statusColors: Record<string, string> = {
     New: 'bg-amber-100 text-amber-800',
@@ -40,6 +33,7 @@ export default function AdminOverviewPage() {
     'Out for Delivery': 'bg-indigo-100 text-indigo-800',
     Delivered: 'bg-emerald-100 text-emerald-800',
     Cancelled: 'bg-rose-100 text-rose-800',
+    Returned: 'bg-orange-100 text-orange-800',
   };
 
   // Category product distribution
@@ -58,7 +52,7 @@ export default function AdminOverviewPage() {
             Executive Overview
           </h1>
           <p className="text-xs sm:text-sm text-[#2C4A3E]">
-            Real-time analytics across all five Purnya categories and customer orders.
+            Real-time management dashboard across all five Purnya lifestyle categories and store operations.
           </p>
         </div>
 
@@ -76,56 +70,53 @@ export default function AdminOverviewPage() {
           >
             <span>Create Promo Coupon</span>
           </Link>
+          <Link
+            href="/admin/orders"
+            className="px-4 py-2 rounded-xl bg-[#FAF8F5] hover:bg-[#EFEBE3] text-[#0B241C] border border-[#E2DBD0] text-xs font-semibold flex items-center gap-1.5 transition-colors"
+          >
+            <Truck className="w-3.5 h-3.5 text-[#C5A059]" />
+            <span>Fulfillment Hub</span>
+          </Link>
         </div>
       </div>
 
-      {/* Supabase Cloud Live Integration Status Banner */}
-      <div className="rounded-3xl bg-gradient-to-r from-[#0C3B2E] to-[#164E3D] text-white p-6 shadow-md border border-[#C5A059]/30">
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-          <div className="flex items-start gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-white/10 flex items-center justify-center shrink-0 border border-white/20">
-              <Database className="w-6 h-6 text-[#D4AF37]" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <h3 className="font-serif-title text-lg font-bold text-white">
-                  Supabase Cloud Database
-                </h3>
-                <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 ${
-                  supabaseStatus.connected
-                    ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
-                    : 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
-                }`}>
-                  <span className={`w-1.5 h-1.5 rounded-full ${supabaseStatus.connected ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
-                  {supabaseStatus.connected ? 'Connected' : 'Connecting'}
-                </span>
-              </div>
-              <p className="text-xs text-[#B4C9BF] mt-0.5">
-                Project Ref: <code className="bg-black/20 px-1.5 py-0.5 rounded text-[#D4AF37] font-mono text-[11px]">{supabaseStatus.projectRef}</code>
-                {' · '}{supabaseStatus.message}
-              </p>
-            </div>
+      {/* Operational Highlights Strip */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center gap-3.5">
+          <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center shrink-0">
+            <CheckCircle2 className="w-5 h-5" />
           </div>
+          <div>
+            <p className="text-xs font-bold text-emerald-950 uppercase tracking-wider">Store Status</p>
+            <p className="text-sm font-semibold text-emerald-900">Online · 5 Category Boutiques Active</p>
+          </div>
+        </div>
 
-          <div className="flex items-center gap-2.5 w-full md:w-auto">
-            <button
-              onClick={handleSyncSupabase}
-              disabled={syncing}
-              className="flex-1 md:flex-initial px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#D4AF37] to-[#C5A059] text-[#08281F] font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 hover:brightness-105 transition-all cursor-pointer shadow-sm disabled:opacity-50"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${syncing ? 'animate-spin' : ''}`} />
-              <span>{syncing ? 'Syncing...' : 'Sync Catalog to Supabase'}</span>
-            </button>
-            <a
-              href={`https://supabase.com/dashboard/project/${supabaseStatus.projectRef}/sql`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="px-3.5 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-semibold flex items-center gap-1.5 transition-colors border border-white/20"
-              title="Open Supabase SQL Editor"
-            >
-              <span>SQL Editor</span>
-              <ExternalLink className="w-3.5 h-3.5 text-[#D4AF37]" />
-            </a>
+        <div className={`p-4 rounded-2xl border flex items-center gap-3.5 ${
+          pendingOrders.length > 0 ? 'bg-amber-50 border-amber-200' : 'bg-[#FAF8F5] border-[#E2DBD0]'
+        }`}>
+          <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center shrink-0">
+            <ShoppingBag className="w-5 h-5" />
+          </div>
+          <div>
+            <p className="text-xs font-bold text-[#0B241C] uppercase tracking-wider">Fulfillment Queue</p>
+            <p className="text-sm font-semibold text-[#0B241C]">
+              {pendingOrders.length} {pendingOrders.length === 1 ? 'Order' : 'Orders'} Awaiting Dispatch
+            </p>
+          </div>
+        </div>
+
+        <div className={`p-4 rounded-2xl border flex items-center gap-3.5 ${
+          lowStockCount > 0 ? 'bg-rose-50 border-rose-200' : 'bg-[#FAF8F5] border-[#E2DBD0]'
+        }`}>
+          <div className="w-10 h-10 rounded-xl bg-rose-100 text-rose-800 flex items-center justify-center shrink-0">
+            <AlertCircle className="w-5 h-5" />
+          </div>
+          <div>
+            <p className="text-xs font-bold text-[#0B241C] uppercase tracking-wider">Inventory Health</p>
+            <p className="text-sm font-semibold text-[#0B241C]">
+              {lowStockCount > 0 ? `${lowStockCount} SKUs Low on Stock` : 'Healthy Across All Lines'}
+            </p>
           </div>
         </div>
       </div>
@@ -234,32 +225,42 @@ export default function AdminOverviewPage() {
             </Link>
           </div>
 
-          <div className="divide-y divide-[#EFEBE3] text-xs">
-            {orders.slice(0, 4).map((ord) => (
-              <div key={ord.id} className="py-3.5 first:pt-0 flex items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold text-[#0B241C]">{ord.id}</span>
-                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${statusColors[ord.status] || 'bg-gray-100 text-gray-800'}`}>
-                      {ord.status}
-                    </span>
+          {orders.length === 0 ? (
+            <div className="py-8 text-center space-y-2">
+              <ShoppingBag className="w-8 h-8 text-[#C5A059] mx-auto opacity-50" />
+              <p className="text-xs font-bold text-[#0B241C]">No Customer Orders Yet</p>
+              <p className="text-[11px] text-[#5A7469] max-w-xs mx-auto">
+                Orders placed on any of the five boutique storefronts will appear here in real-time.
+              </p>
+            </div>
+          ) : (
+            <div className="divide-y divide-[#EFEBE3] text-xs">
+              {orders.slice(0, 4).map((ord) => (
+                <div key={ord.id} className="py-3.5 first:pt-0 flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-[#0B241C]">{ord.id}</span>
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${statusColors[ord.status] || 'bg-gray-100 text-gray-800'}`}>
+                        {ord.status}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-[#5A7469] truncate">
+                      {ord.customer.name} · {ord.items.length} items · {ord.date}
+                    </p>
                   </div>
-                  <p className="text-[11px] text-[#5A7469] truncate">
-                    {ord.customer.name} · {ord.items.length} items · {ord.date}
-                  </p>
+                  <div className="text-right shrink-0">
+                    <span className="font-bold text-[#0B241C]">₹{ord.total.toLocaleString('en-IN')}</span>
+                    <Link
+                      href="/admin/orders"
+                      className="block text-[11px] text-[#C5A059] hover:underline"
+                    >
+                      Manage
+                    </Link>
+                  </div>
                 </div>
-                <div className="text-right shrink-0">
-                  <span className="font-bold text-[#0B241C]">₹{ord.total.toLocaleString('en-IN')}</span>
-                  <Link
-                    href="/admin/orders"
-                    className="block text-[11px] text-[#C5A059] hover:underline"
-                  >
-                    Manage
-                  </Link>
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>

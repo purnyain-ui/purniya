@@ -17,6 +17,11 @@ import {
   X,
   Bell,
   Search,
+  Users,
+  Truck,
+  RotateCcw,
+  BarChart3,
+  Settings,
 } from 'lucide-react';
 import { useStore } from '../../context/StoreContext';
 
@@ -38,8 +43,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       badge: pendingOrdersCount > 0 ? pendingOrdersCount : undefined,
     },
     { name: 'Inventory & Stock', href: '/admin/inventory', icon: <Boxes className="w-4 h-4" /> },
+    { name: 'Customers & Patrons', href: '/admin/customers', icon: <Users className="w-4 h-4" /> },
+    { name: 'Shipping & Logistics', href: '/admin/shipping', icon: <Truck className="w-4 h-4" /> },
+    { name: 'Returns & Exchanges', href: '/admin/returns', icon: <RotateCcw className="w-4 h-4" /> },
     { name: 'Offers & Coupons', href: '/admin/coupons', icon: <Ticket className="w-4 h-4" /> },
     { name: 'Banners & Content', href: '/admin/banners', icon: <ImageIcon className="w-4 h-4" /> },
+    { name: 'Reports & Analytics', href: '/admin/reports', icon: <BarChart3 className="w-4 h-4" /> },
+    { name: 'Settings & SEO', href: '/admin/settings', icon: <Settings className="w-4 h-4" /> },
   ];
 
   return (
@@ -58,15 +68,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         }`}
       >
-        <div className="p-6 space-y-6">
+        <div className="p-5 flex flex-col h-full overflow-hidden">
           {/* Admin Header */}
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between pb-5 border-b border-[#144234] shrink-0">
             <Link href="/admin" className="flex items-center gap-2.5">
               <div className="w-9 h-9 rounded-full overflow-hidden bg-[#FAF8F5] border border-[#C5A059] flex items-center justify-center p-0.5 shrink-0">
                 <img src="/purnya-logo.png" alt="Purnya" className="w-full h-full object-contain" />
               </div>
               <div>
-                <span className="font-serif-title font-bold text-lg tracking-wider text-white block leading-tight">
+                <span className="font-serif-title font-bold text-base tracking-wider text-white block leading-tight">
                   PURNYA
                 </span>
                 <span className="block text-[9px] uppercase tracking-widest text-[#D4AF37] font-bold">
@@ -82,8 +92,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             </button>
           </div>
 
-          {/* Navigation Links */}
-          <nav className="space-y-1 text-xs font-semibold">
+          {/* Navigation Links - Scrollable */}
+          <nav className="flex-1 overflow-y-auto py-4 space-y-1 text-xs font-semibold pr-1 custom-scrollbar">
             {navItems.map((item) => {
               const isActive = pathname === item.href;
               return (
@@ -91,18 +101,18 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   key={item.href}
                   href={item.href}
                   onClick={() => setSidebarOpen(false)}
-                  className={`flex items-center justify-between p-3 rounded-xl transition-all ${
+                  className={`flex items-center justify-between px-3 py-2.5 rounded-xl transition-all ${
                     isActive
                       ? 'bg-[#C5A059] text-[#1E130D] font-bold shadow-md'
                       : 'text-[#C9BDB0] hover:bg-white/5 hover:text-white'
                   }`}
                 >
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2.5">
                     {item.icon}
-                    <span>{item.name}</span>
+                    <span className="truncate">{item.name}</span>
                   </div>
                   {item.badge && (
-                    <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500 text-black">
+                    <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500 text-black shrink-0">
                       {item.badge}
                     </span>
                   )}
@@ -110,20 +120,20 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               );
             })}
           </nav>
-        </div>
 
-        {/* Bottom Storefront Link */}
-        <div className="p-6 border-t border-[#382317]">
-          <Link
-            href="/"
-            className="flex items-center justify-between p-3 rounded-xl bg-white/5 hover:bg-white/10 text-white text-xs font-semibold transition-all border border-white/10"
-          >
-            <span className="flex items-center gap-2">
-              <ExternalLink className="w-4 h-4 text-[#D4AF37]" />
-              <span>Back to Storefront</span>
-            </span>
-            <span className="text-[10px] text-[#5A7469]">Live</span>
-          </Link>
+          {/* Bottom Storefront Link */}
+          <div className="pt-3 border-t border-[#144234] shrink-0">
+            <Link
+              href="/"
+              className="flex items-center justify-between p-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-white text-xs font-semibold transition-all border border-white/10"
+            >
+              <span className="flex items-center gap-2">
+                <ExternalLink className="w-3.5 h-3.5 text-[#D4AF37]" />
+                <span>Storefront</span>
+              </span>
+              <span className="text-[10px] text-emerald-400 font-bold bg-emerald-950/60 px-1.5 py-0.5 rounded border border-emerald-500/30">Live</span>
+            </Link>
+          </div>
         </div>
       </aside>
 
