@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
@@ -21,7 +21,7 @@ import {
   Truck,
   RotateCcw,
   BarChart3,
-  Settings,
+  LogOut,
 } from 'lucide-react';
 import { useStore } from '../../context/StoreContext';
 
@@ -29,6 +29,48 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const pathname = usePathname();
   const { orders } = useStore();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    if (pathname === '/admin/login') {
+      setIsAuthenticated(true);
+      return;
+    }
+    const auth = typeof window !== 'undefined' && localStorage.getItem('purnya_admin_authenticated') === 'true';
+    if (!auth) {
+      window.location.href = '/admin/login';
+    } else {
+      setIsAuthenticated(true);
+    }
+  }, [pathname]);
+
+  const handleAdminLogout = () => {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('purnya_admin_authenticated');
+      localStorage.removeItem('purnya_admin_session');
+      window.location.href = '/admin/login';
+    }
+  };
+
+  // If viewing admin login page, bypass admin navigation layout
+  if (pathname === '/admin/login') {
+    return <>{children}</>;
+  }
+
+  // Authentication validation splash
+  if (isAuthenticated === null) {
+    return (
+      <div className="min-h-screen bg-[#08281F] flex flex-col items-center justify-center text-[#FAF8F5]">
+        <div className="w-10 h-10 border-2 border-[#C5A059] border-t-transparent rounded-full animate-spin mb-4" />
+        <span className="font-serif-title text-base font-bold tracking-widest text-[#FAF8F5] block">
+          PURNYA
+        </span>
+        <p className="text-[10px] uppercase tracking-widest text-[#D4AF37] font-semibold mt-1">
+          Verifying Merchant Studio Access...
+        </p>
+      </div>
+    );
+  }
 
   const pendingOrdersCount = orders.filter((o) => o.status === 'New' || o.status === 'Processing').length;
 
@@ -49,7 +91,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     { name: 'Offers & Coupons', href: '/admin/coupons', icon: <Ticket className="w-4 h-4" /> },
     { name: 'Banners & Content', href: '/admin/banners', icon: <ImageIcon className="w-4 h-4" /> },
     { name: 'Reports & Analytics', href: '/admin/reports', icon: <BarChart3 className="w-4 h-4" /> },
-    { name: 'Settings & SEO', href: '/admin/settings', icon: <Settings className="w-4 h-4" /> },
   ];
 
   return (
@@ -121,8 +162,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             })}
           </nav>
 
-          {/* Bottom Storefront Link */}
-          <div className="pt-3 border-t border-[#144234] shrink-0">
+          {/* Bottom Storefront & Sign Out */}
+          <div className="pt-3 border-t border-[#144234] shrink-0 space-y-1.5">
             <Link
               href="/"
               className="flex items-center justify-between p-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-white text-xs font-semibold transition-all border border-white/10"
@@ -133,6 +174,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               </span>
               <span className="text-[10px] text-emerald-400 font-bold bg-emerald-950/60 px-1.5 py-0.5 rounded border border-emerald-500/30">Live</span>
             </Link>
+
+            <button
+              type="button"
+              onClick={handleAdminLogout}
+              className="w-full flex items-center gap-2 p-2 rounded-xl text-rose-300 hover:text-rose-100 hover:bg-rose-950/40 text-xs font-semibold transition-all border border-rose-900/30 cursor-pointer"
+            >
+              <LogOut className="w-3.5 h-3.5 text-rose-400" />
+              <span>Sign Out Admin</span>
+            </button>
           </div>
         </div>
       </aside>
@@ -170,6 +220,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 <p className="text-xs font-bold text-[#0B241C] leading-tight">Admin Console</p>
                 <p className="text-[10px] text-emerald-700 font-semibold">● Operational</p>
               </div>
+              <button
+                type="button"
+                onClick={handleAdminLogout}
+                title="Sign out of Admin Console"
+                className="ml-2 p-1.5 text-[#5A7469] hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
             </div>
           </div>
         </header>

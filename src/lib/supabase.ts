@@ -1,23 +1,34 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { Product, CategoryMeta, Order } from '../types';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://bhzjtyyxgtoasvpbvfsn.supabase.co';
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJoemp0eXl4Z3RvYXN2cGJ2ZnNuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg2MTU5NzIsImV4cCI6MjEwNDE5MTk3Mn0.6zBYhb5Cyjvywo8cp7e_Aik_a9kDIhzluzPl_uDNpsU';
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
 export const isSupabaseConfigured = Boolean(
   supabaseUrl &&
-  supabaseUrl.startsWith('https://') &&
   supabaseAnonKey &&
-  supabaseAnonKey.length > 20
+  supabaseUrl.startsWith('https://')
 );
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    persistSession: true,
-    autoRefreshToken: true,
-    detectSessionInUrl: true,
-  },
-});
+function getProjectRef(url?: string): string {
+  if (!url) return '';
+  try {
+    const hostname = new URL(url).hostname;
+    return hostname.split('.')[0] || '';
+  } catch {
+    return '';
+  }
+}
+
+export const supabase: SupabaseClient = isSupabaseConfigured
+  ? createClient(supabaseUrl, supabaseAnonKey, {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true,
+      },
+    })
+  : (null as unknown as SupabaseClient);
 
 /**
  * Health check to verify connection to Supabase cloud
@@ -28,7 +39,9 @@ export async function checkSupabaseConnection(): Promise<{
   projectRef: string;
   tablesFound?: string[];
 }> {
-  if (!isSupabaseConfigured) {
+  const projectRef = getProjectRef(supabaseUrl);
+
+  if (!isSupabaseConfigured || !supabase) {
     return {
       connected: false,
       message: 'Supabase environment credentials not configured.',
@@ -43,7 +56,7 @@ export async function checkSupabaseConnection(): Promise<{
       return {
         connected: false,
         message: `Auth check failed: ${error.message}`,
-        projectRef: 'bhzjtyyxgtoasvpbvfsn',
+        projectRef,
       };
     }
 
@@ -63,14 +76,14 @@ export async function checkSupabaseConnection(): Promise<{
       message: prodError
         ? `Connected to Supabase Cloud! (Schema pending creation: ${prodError.message})`
         : 'Connected to Supabase Cloud with live schema!',
-      projectRef: 'bhzjtyyxgtoasvpbvfsn',
+      projectRef,
       tablesFound,
     };
   } catch (err: any) {
     return {
       connected: false,
       message: err?.message || 'Failed to connect to Supabase.',
-      projectRef: 'bhzjtyyxgtoasvpbvfsn',
+      projectRef,
     };
   }
 }
@@ -185,6 +198,13 @@ export async function seedCatalogToSupabase(
   categories: CategoryMeta[],
   products: Product[]
 ): Promise<{ success: boolean; message: string }> {
+  if (!isSupabaseConfigured || !supabase) {
+    return {
+      success: false,
+      message: 'Supabase environment credentials not configured.',
+    };
+  }
+
   try {
     // 1. Insert categories
     const { error: catError } = await supabase
@@ -251,5 +271,73 @@ export async function seedCatalogToSupabase(
       success: false,
       message: err?.message || 'Failed to seed catalog to Supabase.',
     };
+  }
+}
+
+/**
+ * Supabase User Sign Up
+ */
+export async function signUpWithSupabase(
+  email: string,
+  password: string,
+  metadata: { name: string; phone?: string }
+): Promise<{ success: boolean; user?: any; error?: string }> {
+  if (!isSupabaseConfigured || !supabase) {
+    return { success: false, error: 'Supabase credentials not configured in environment.' };
+  }
+  try {
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          name: metadata.name,
+          phone: metadata.phone || '',
+          role: 'customer',
+        },
+      },
+    });
+    if (error) {
+      return { success: false, error: error.message };
+    }
+    return { success: true, user: data.user };
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Failed to complete sign up.' };
+  }
+}
+
+/**
+ * Supabase User Sign In
+ */
+export async function signInWithSupabase(
+  email: string,
+  password: string
+): Promise<{ success: boolean; user?: any; error?: string }> {
+  if (!isSupabaseConfigured || !supabase) {
+    return { success: false, error: 'Supabase credentials not configured in environment.' };
+  }
+  try {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+    if (error) {
+      return { success: false, error: error.message };
+    }
+    return { success: true, user: data.user };
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Failed to sign in.' };
+  }
+}
+
+/**
+ * Supabase User Sign Out
+ */
+export async function signOutFromSupabase(): Promise<void> {
+  if (!isSupabaseConfigured || !supabase) return;
+  try {
+    await supabase.auth.signOut();
+  } catch (err) {
+    console.warn('Supabase signOut error:', err);
   }
 }

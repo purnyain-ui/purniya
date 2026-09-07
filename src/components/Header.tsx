@@ -24,7 +24,7 @@ function HeaderContent() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const currentSub = searchParams?.get('sub') || 'All';
-  const { announcement, cartCount, wishlistCount, setIsSearchOpen, categories } = useStore();
+  const { announcement, cartCount, wishlistCount, setIsSearchOpen, categories, user } = useStore();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [otherBoutiquesOpen, setOtherBoutiquesOpen] = useState(false);
 
@@ -241,12 +241,18 @@ function HeaderContent() {
 
             {/* Account */}
             <Link
-              href="/account"
-              className="p-2.5 text-[#2C4A3E] hover:text-[#0C3B2E] hover:bg-[#EBF3EF] rounded-full transition-all"
-              aria-label="Customer Account"
-              title="My Account"
+              href={user?.email ? '/account' : '/login'}
+              className="p-2 text-[#2C4A3E] hover:text-[#0C3B2E] hover:bg-[#EBF3EF] rounded-full transition-all flex items-center gap-1.5"
+              aria-label={user?.email ? 'Customer Account' : 'Sign In'}
+              title={user?.email ? `Account (${user.name || user.email})` : 'Sign In / Register'}
             >
-              <User className="w-5 h-5" />
+              {user?.name ? (
+                <div className="w-6 h-6 rounded-full bg-[#08281F] text-[#FAF8F5] font-bold text-[10px] flex items-center justify-center border border-[#C5A059] shadow-xs">
+                  {user.name.charAt(0).toUpperCase()}
+                </div>
+              ) : (
+                <User className="w-5 h-5" />
+              )}
             </Link>
 
             {/* Wishlist with Badge */}
@@ -396,12 +402,12 @@ function HeaderContent() {
                   <span>Track Your Order</span>
                 </Link>
                 <Link
-                  href="/account"
+                  href={user?.email ? '/account' : '/login'}
                   onClick={() => setMobileMenuOpen(false)}
                   className="flex items-center gap-3 py-2 px-3 text-sm text-[#2C4A3E] hover:text-[#0C3B2E]"
                 >
                   <User className="w-4 h-4 text-[#C5A059]" />
-                  <span>My Account</span>
+                  <span>{user?.email ? `My Account (${user.name || 'Member'})` : 'Sign In / Register'}</span>
                 </Link>
                 <Link
                   href="/admin"

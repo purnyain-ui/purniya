@@ -99,6 +99,8 @@ interface StoreContextType {
   updateHeroSlide: (slide: HeroSlide) => void;
   updateAnnouncement: (text: string) => void;
   updateUser: (profile: Partial<UserProfile>) => void;
+  loginUser: (profile: UserProfile) => void;
+  logoutUser: () => void;
   addAddress: (address: Omit<Address, 'id'>) => void;
   updateAddress: (id: string, address: Partial<Address>) => void;
   deleteAddress: (id: string) => void;
@@ -135,7 +137,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }>({
     connected: false,
     message: 'Testing connection to Supabase cloud...',
-    projectRef: 'bhzjtyyxgtoasvpbvfsn',
+    projectRef: '',
   });
 
   useEffect(() => {
@@ -650,6 +652,16 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     showToast('Profile Updated', 'Personal information saved.');
   };
 
+  const loginUser = (profile: UserProfile) => {
+    setUser(profile);
+    showToast('Welcome to Purnya', `Signed in as ${profile.name || profile.email}`);
+  };
+
+  const logoutUser = () => {
+    setUser({ name: '', email: '', phone: '' });
+    showToast('Signed Out', 'You have been safely signed out.', 'info');
+  };
+
   const addAddress = (address: Omit<Address, 'id'>) => {
     const id = `addr-${Date.now()}`;
     setAddresses(prev => [...prev, { ...address, id }]);
@@ -727,6 +739,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         updateHeroSlide,
         updateAnnouncement,
         updateUser,
+        loginUser,
+        logoutUser,
         addAddress,
         updateAddress,
         deleteAddress,

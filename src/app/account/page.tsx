@@ -21,7 +21,7 @@ import { useStore } from '../../context/StoreContext';
 import { Address } from '../../types';
 
 export default function AccountPage() {
-  const { user, updateUser, orders, addresses, addAddress, deleteAddress, showToast } = useStore();
+  const { user, updateUser, orders, addresses, addAddress, deleteAddress, showToast, logoutUser } = useStore();
   const [activeTab, setActiveTab] = useState<'profile' | 'orders' | 'addresses' | 'returns'>('orders');
 
   // Edit Profile modal state
@@ -83,6 +83,41 @@ export default function AccountPage() {
     Cancelled: 'bg-rose-100 text-rose-800 border-rose-300',
     Returned: 'bg-gray-100 text-gray-800 border-gray-300',
   };
+
+  if (!user.email && !user.name) {
+    return (
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-16 sm:py-24 text-center">
+        <div className="bg-white rounded-3xl p-8 sm:p-14 border border-[#E8E1D5] shadow-xl space-y-6">
+          <div className="w-16 h-16 rounded-2xl bg-[#08281F] text-[#D4AF37] mx-auto flex items-center justify-center border border-[#C5A059]">
+            <User className="w-8 h-8" />
+          </div>
+          <div className="space-y-2 max-w-md mx-auto">
+            <h1 className="font-serif-title text-3xl font-bold text-[#0B241C]">
+              Access Your Purnya Circle Account
+            </h1>
+            <p className="text-xs sm:text-sm text-[#5A7469] leading-relaxed">
+              Sign in to track orders, manage bespoke delivery addresses, and enjoy privileged member benefits.
+            </p>
+          </div>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+            <Link
+              href="/login"
+              className="w-full sm:w-auto px-8 py-3.5 rounded-xl bg-[#08281F] hover:bg-[#0C3B2E] text-white font-bold text-xs sm:text-sm tracking-wide shadow-md transition-all flex items-center justify-center gap-2"
+            >
+              <span>Sign In to Account</span>
+              <ChevronRight className="w-4 h-4 text-[#D4AF37]" />
+            </Link>
+            <Link
+              href="/signup"
+              className="w-full sm:w-auto px-8 py-3.5 rounded-xl border border-[#08281F] text-[#08281F] hover:bg-[#FAF8F5] font-bold text-xs sm:text-sm transition-all"
+            >
+              Join Purnya Circle
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-16 space-y-8">
@@ -154,6 +189,18 @@ export default function AccountPage() {
               </div>
               <ChevronRight className="w-3.5 h-3.5 opacity-60" />
             </Link>
+
+            <button
+              type="button"
+              onClick={logoutUser}
+              className="w-full flex items-center justify-between p-3 rounded-xl text-rose-700 hover:bg-rose-50 transition-all border border-rose-200 mt-2 cursor-pointer"
+            >
+              <div className="flex items-center gap-3">
+                <LogOut className="w-4 h-4 text-rose-600" />
+                <span>Sign Out</span>
+              </div>
+              <ChevronRight className="w-3.5 h-3.5 opacity-60" />
+            </button>
           </nav>
         </aside>
 
