@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Product,
   CategoryMeta,
@@ -22,12 +22,13 @@ import {
   initialUser,
 } from '../data/mockData';
 import {
-  isSupabaseConfigured,
   checkSupabaseConnection,
   getProductsFromSupabase,
   getCategoriesFromSupabase,
   saveOrderToSupabase,
   seedCatalogToSupabase,
+  upsertProductToSupabase,
+  deleteProductFromSupabase,
 } from '../lib/supabase';
 
 interface ToastState {
@@ -104,6 +105,7 @@ interface StoreContextType {
   addAddress: (address: Omit<Address, 'id'>) => void;
   updateAddress: (id: string, address: Partial<Address>) => void;
   deleteAddress: (id: string) => void;
+  refreshCatalog: () => Promise<void>;
 }
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
@@ -141,108 +143,195 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   });
 
   useEffect(() => {
+    // Fetch real categories directly from Supabase immediately on mount
+    getCategoriesFromSupabase().then((cats) => {
+      if (cats && cats.length > 0) {
+        setCategories(cats);
+        try {
+          localStorage.setItem('purnya_categories', JSON.stringify(cats));
+        } catch (e) {
+          console.warn('LocalStorage save error:', e);
+        }
+      }
+    });
+
     checkSupabaseConnection().then((status) => {
       setSupabaseStatus(status);
-      if (status.connected && status.tablesFound?.includes('products')) {
-        getProductsFromSupabase().then((prods) => {
-          if (prods && prods.length > 0) setProducts(prods);
-        });
+      if (status.connected) {
         getCategoriesFromSupabase().then((cats) => {
-          if (cats && cats.length > 0) setCategories(cats);
+          if (cats && cats.length > 0) {
+            setCategories(cats);
+            try {
+              localStorage.setItem('purnya_categories', JSON.stringify(cats));
+            } catch (e) {
+              console.warn('LocalStorage save error:', e);
+            }
+          }
         });
+
+        if (status.tablesFound?.includes('products')) {
+          getProductsFromSupabase().then((prods) => {
+            if (prods && prods.length > 0) setProducts(prods);
+          });
+        }
       }
     });
   }, []);
 
-  // Load from localStorage on mount
-  useEffect(() => {
+  const refreshCatalog = useCallback(async () => {
     try {
-      const savedProducts = localStorage.getItem('purnya_products');
-      if (savedProducts) setProducts(JSON.parse(savedProducts));
-
-      const savedCategories = localStorage.getItem('purnya_categories');
-      if (savedCategories) {
+      const [prods, cats] = await Promise.all([
+        getProductsFromSupabase(),
+        getCategoriesFromSupabase(),
+      ]);
+      if (prods && prods.length > 0) {
+        setProducts(prods);
         try {
-          const parsed = JSON.parse(savedCategories);
-          const sanitized = initialCategories.map((initCat) => {
-            const found = parsed.find((p: any) => p.slug === initCat.slug);
-            return {
-              ...initCat,
-              ...(found || {}),
-              subcategories: found?.subcategories || initCat.subcategories,
-              subcatImages: (found?.subcatImages && found.subcatImages.length > 0)
-                ? found.subcatImages
-                : initCat.subcatImages,
-            };
-          });
-          setCategories(sanitized);
-        } catch {
-          setCategories(initialCategories);
-        }
+          localStorage.setItem('purnya_products', JSON.stringify(prods));
+        } catch {}
       }
-
-      const savedCart = localStorage.getItem('purnya_cart');
-      if (savedCart) setCart(JSON.parse(savedCart));
-
-      const savedWishlist = localStorage.getItem('purnya_wishlist');
-      if (savedWishlist) {
-        setWishlist(JSON.parse(savedWishlist));
-      } else {
-        setWishlist([]);
-      }
-
-      const savedOrders = localStorage.getItem('purnya_orders');
-      if (savedOrders) {
+      if (cats && cats.length > 0) {
+        setCategories(cats);
         try {
-          const parsedOrders: Order[] = JSON.parse(savedOrders);
-          const cleanOrders = parsedOrders.filter(
-            (o) => o.id !== 'PUR-2026-8492' && o.id !== 'PUR-2026-7310' && o.customer?.name !== 'Priya Sharma'
-          );
-          setOrders(cleanOrders);
-        } catch {
-          setOrders([]);
-        }
-      }
-
-      const savedCoupons = localStorage.getItem('purnya_coupons');
-      if (savedCoupons) setCoupons(JSON.parse(savedCoupons));
-
-      const savedBanners = localStorage.getItem('purnya_banners');
-      if (savedBanners) setBanners(JSON.parse(savedBanners));
-
-      const savedAnnouncement = localStorage.getItem('purnya_announcement');
-      if (savedAnnouncement) setAnnouncement(savedAnnouncement);
-
-      const savedAddresses = localStorage.getItem('purnya_addresses');
-      if (savedAddresses) {
-        try {
-          const parsedAddrs: Address[] = JSON.parse(savedAddresses);
-          const cleanAddrs = parsedAddrs.filter(
-            (a) => a.fullName !== 'Priya Sharma' && !a.addressLine?.includes('Rose Garden Lane')
-          );
-          setAddresses(cleanAddrs);
-        } catch {
-          setAddresses([]);
-        }
-      }
-
-      const savedUser = localStorage.getItem('purnya_user');
-      if (savedUser) {
-        try {
-          const parsed = JSON.parse(savedUser);
-          if (parsed.name === 'Priya Sharma') {
-            setUser({ name: '', email: '', phone: '' });
-          } else {
-            setUser(parsed);
-          }
-        } catch {
-          setUser({ name: '', email: '', phone: '' });
-        }
+          localStorage.setItem('purnya_categories', JSON.stringify(cats));
+        } catch {}
       }
     } catch (e) {
-      console.warn('LocalStorage load error', e);
+      console.warn('Refresh catalog error:', e);
     }
-    setMounted(true);
+  }, []);
+
+  // Listen for catalog updates from admin actions
+  useEffect(() => {
+    const handleCatalogUpdated = () => {
+      refreshCatalog();
+    };
+    window.addEventListener('purnya_catalog_updated', handleCatalogUpdated);
+    return () => window.removeEventListener('purnya_catalog_updated', handleCatalogUpdated);
+  }, [refreshCatalog]);
+
+  // Load from localStorage on mount safely
+  useEffect(() => {
+    queueMicrotask(() => {
+      try {
+        const savedProducts = localStorage.getItem('purnya_products');
+        if (savedProducts) {
+          try {
+            const parsedProds: Product[] = JSON.parse(savedProducts);
+            if (Array.isArray(parsedProds) && parsedProds.length > 0) {
+              const migrated = parsedProds.map((p) => {
+                const rawSlug = (p.categorySlug || '').trim().toLowerCase();
+                let newSlug = p.categorySlug;
+                let newCat = p.category;
+                if (rawSlug === 'jewellery') {
+                  newSlug = 'apparel';
+                  newCat = 'Jewellery & Accessories';
+                } else if (rawSlug === 'candles') {
+                  newSlug = 'Fragrance';
+                  newCat = 'Candle & Home';
+                } else if (rawSlug === 'home-decor' || rawSlug === 'lifestyle') {
+                  newSlug = 'Lifestyle';
+                  newCat = 'Home Décor & Lifestyle';
+                } else if (rawSlug === 'wellness') {
+                  newSlug = 'Wellness';
+                  newCat = 'Organic & Wellness';
+                } else if (rawSlug === 'gifts' || rawSlug === 'gift') {
+                  newSlug = 'Gift';
+                  newCat = 'Gift & Stationery';
+                }
+                return { ...p, categorySlug: newSlug, category: newCat };
+              });
+              setProducts(migrated);
+              try {
+                localStorage.setItem('purnya_products', JSON.stringify(migrated));
+              } catch {}
+            }
+          } catch {}
+        }
+
+        const savedCategories = localStorage.getItem('purnya_categories');
+        if (savedCategories) {
+          try {
+            const parsed = JSON.parse(savedCategories);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              // Exclude old dummy mock categories if present in browser storage
+              const hasLegacyMock = parsed.some((c) =>
+                ['jewellery', 'candles', 'home-decor'].includes((c.slug || '').toLowerCase().trim())
+              );
+              if (!hasLegacyMock) {
+                setCategories(parsed);
+              } else {
+                localStorage.removeItem('purnya_categories');
+              }
+            }
+          } catch {
+            // Keep current state
+          }
+        }
+
+        const savedCart = localStorage.getItem('purnya_cart');
+        if (savedCart) setCart(JSON.parse(savedCart));
+
+        const savedWishlist = localStorage.getItem('purnya_wishlist');
+        if (savedWishlist) {
+          setWishlist(JSON.parse(savedWishlist));
+        } else {
+          setWishlist([]);
+        }
+
+        const savedOrders = localStorage.getItem('purnya_orders');
+        if (savedOrders) {
+          try {
+            const parsedOrders: Order[] = JSON.parse(savedOrders);
+            const cleanOrders = parsedOrders.filter(
+              (o) => o.id !== 'PUR-2026-8492' && o.id !== 'PUR-2026-7310' && o.customer?.name !== 'Priya Sharma'
+            );
+            setOrders(cleanOrders);
+          } catch {
+            setOrders([]);
+          }
+        }
+
+        const savedCoupons = localStorage.getItem('purnya_coupons');
+        if (savedCoupons) setCoupons(JSON.parse(savedCoupons));
+
+        const savedBanners = localStorage.getItem('purnya_banners');
+        if (savedBanners) setBanners(JSON.parse(savedBanners));
+
+        const savedAnnouncement = localStorage.getItem('purnya_announcement');
+        if (savedAnnouncement) setAnnouncement(savedAnnouncement);
+
+        const savedAddresses = localStorage.getItem('purnya_addresses');
+        if (savedAddresses) {
+          try {
+            const parsedAddrs: Address[] = JSON.parse(savedAddresses);
+            const cleanAddrs = parsedAddrs.filter(
+              (a) => a.fullName !== 'Priya Sharma' && !a.addressLine?.includes('Rose Garden Lane')
+            );
+            setAddresses(cleanAddrs);
+          } catch {
+            setAddresses([]);
+          }
+        }
+
+        const savedUser = localStorage.getItem('purnya_user');
+        if (savedUser) {
+          try {
+            const parsed = JSON.parse(savedUser);
+            if (parsed.name === 'Priya Sharma') {
+              setUser({ name: '', email: '', phone: '' });
+            } else {
+              setUser(parsed);
+            }
+          } catch {
+            setUser({ name: '', email: '', phone: '' });
+          }
+        }
+      } catch (e) {
+        console.warn('LocalStorage load error', e);
+      }
+      setMounted(true);
+    });
   }, []);
 
   // Real-time synchronization across multiple open browser tabs/windows
@@ -491,16 +580,31 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const productWithId: Product = { ...newProd, id, createdAt: new Date().toISOString() };
     setProducts(prev => [productWithId, ...prev]);
     showToast('Product Created', `${productWithId.name} added to catalog.`);
+    upsertProductToSupabase(productWithId).catch(err =>
+      console.warn('Supabase product sync error:', err)
+    );
     return productWithId;
   };
 
   const updateProduct = (id: string, updates: Partial<Product>) => {
-    setProducts(prev => prev.map(p => (p.id === id ? { ...p, ...updates } : p)));
+    setProducts(prev => {
+      const updated = prev.map(p => (p.id === id ? { ...p, ...updates } : p));
+      const target = updated.find(p => p.id === id);
+      if (target) {
+        upsertProductToSupabase(target).catch(err =>
+          console.warn('Supabase product update sync error:', err)
+        );
+      }
+      return updated;
+    });
     showToast('Product Updated', 'Changes saved successfully.');
   };
 
   const deleteProduct = (id: string) => {
     setProducts(prev => prev.filter(p => p.id !== id));
+    deleteProductFromSupabase(id).catch(err =>
+      console.warn('Supabase product delete sync error:', err)
+    );
     showToast('Product Deleted', undefined, 'info');
   };
 
@@ -744,6 +848,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         addAddress,
         updateAddress,
         deleteAddress,
+        refreshCatalog,
       }}
     >
       {children}

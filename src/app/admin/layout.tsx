@@ -22,6 +22,7 @@ import {
   RotateCcw,
   BarChart3,
   LogOut,
+  Palette,
 } from 'lucide-react';
 import { useStore } from '../../context/StoreContext';
 
@@ -78,6 +79,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     { name: 'Dashboard Overview', href: '/admin', icon: <LayoutDashboard className="w-4 h-4" /> },
     { name: 'Products Catalog', href: '/admin/products', icon: <Package className="w-4 h-4" /> },
     { name: 'Categories & Subcats', href: '/admin/categories', icon: <Layers className="w-4 h-4" /> },
+    { name: 'Attributes & Badges', href: '/admin/attributes', icon: <Palette className="w-4 h-4" /> },
     {
       name: 'Orders Management',
       href: '/admin/orders',

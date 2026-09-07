@@ -8,14 +8,11 @@ import {
   ChevronRight,
   Sparkles,
   Filter,
-  X,
-  Star,
   Truck,
   ShieldCheck,
   RotateCcw,
   Headphones,
   CheckCircle2,
-  ArrowRight,
   ArrowUpRight,
 } from 'lucide-react';
 import { useStore } from '../../../context/StoreContext';
@@ -28,26 +25,35 @@ function CategoryContent({ slug }: { slug: string }) {
   const { categories, products } = useStore();
 
   const currentCategory = useMemo(() => {
-    return categories.find((c) => c.slug === slug) || categories[0];
+    const decodedSlug = decodeURIComponent(slug).trim().toLowerCase();
+    return (
+      categories.find((c) => (c.slug || '').trim().toLowerCase() === decodedSlug) ||
+      categories[0] ||
+      null
+    );
   }, [categories, slug]);
 
-  const [selectedSubcategory, setSelectedSubcategory] = useState<string>(subQuery || 'All');
+  const [userSubcategory, setUserSubcategory] = useState<string | null>(null);
+  const selectedSubcategory = userSubcategory ?? (subQuery || 'All');
+  const setSelectedSubcategory = (val: string) => setUserSubcategory(val);
+
   const [selectedPriceRange, setSelectedPriceRange] = useState<string>('all');
   const [selectedBadge, setSelectedBadge] = useState<string>('all');
   const [sortBy, setSortBy] = useState<string>('featured');
   const [showFilterDrawer, setShowFilterDrawer] = useState(false);
 
-  // Sync subcategory when searchParams change
-  React.useEffect(() => {
-    if (subQuery) {
-      setSelectedSubcategory(subQuery);
-    }
-  }, [subQuery]);
-
   // Filter products
   const filteredProducts = useMemo(() => {
+    const targetSlug = decodeURIComponent(slug).trim().toLowerCase();
     return products
-      .filter((p) => p.categorySlug === slug)
+      .filter((p) => {
+        const pSlug = (p.categorySlug || '').trim().toLowerCase();
+        const matchesSlug = pSlug === targetSlug;
+        const matchesTitle =
+          currentCategory &&
+          p.category?.trim().toLowerCase() === currentCategory.title?.trim().toLowerCase();
+        return matchesSlug || matchesTitle;
+      })
       .filter((p) => {
         if (selectedSubcategory !== 'All' && p.subcategory !== selectedSubcategory) {
           return false;
@@ -64,20 +70,39 @@ function CategoryContent({ slug }: { slug: string }) {
         if (sortBy === 'rating') return (b.rating || 0) - (a.rating || 0);
         return 0; // featured default
       });
-  }, [products, slug, selectedSubcategory, selectedPriceRange, selectedBadge, sortBy]);
+  }, [products, slug, currentCategory, selectedSubcategory, selectedPriceRange, selectedBadge, sortBy]);
 
   // Category best sellers
   const categoryBestSellers = useMemo(() => {
+    const targetSlug = decodeURIComponent(slug).trim().toLowerCase();
     return products
-      .filter((p) => p.categorySlug === slug && (p.badge === 'Best Seller' || (p.rating && p.rating >= 4.8)))
+      .filter((p) => {
+        const pSlug = (p.categorySlug || '').trim().toLowerCase();
+        const matchesSlug = pSlug === targetSlug;
+        const matchesTitle =
+          currentCategory &&
+          p.category?.trim().toLowerCase() === currentCategory.title?.trim().toLowerCase();
+        return (matchesSlug || matchesTitle) && (p.badge === 'Best Seller' || (p.rating && p.rating >= 4.8));
+      })
       .slice(0, 4);
-  }, [products, slug]);
+  }, [products, slug, currentCategory]);
 
   // Category bespoke craftsmanship details
   const craftsmanshipData: Record<
     string,
     { headline: string; desc: string; highlights: string[]; image: string }
   > = {
+    apparel: {
+      headline: 'Artisanal Metallurgy & Anti-Tarnish Elegance',
+      desc: 'Every piece of Purnya Jewellery is cast from premium hypoallergenic alloys, finished with lustrous 18K micro-gold plating and sealed with an invisible protective nano-ceramic barrier to guard against moisture, perfume, and daily wear.',
+      highlights: [
+        'Skin-Safe Hypoallergenic & Nickel Free',
+        'Anti-Tarnish Protective Ceramic Seal',
+        'Ethically Sourced Genuine Freshwater Pearls',
+        'Hand-Set AAA Cubic Zirconia & Gemstones',
+      ],
+      image: 'https://images.unsplash.com/photo-1515562141589-67f0d0953a8e?w=800&fit=crop&auto=format',
+    },
     jewellery: {
       headline: 'Artisanal Metallurgy & Anti-Tarnish Elegance',
       desc: 'Every piece of Purnya Jewellery is cast from premium hypoallergenic alloys, finished with lustrous 18K micro-gold plating and sealed with an invisible protective nano-ceramic barrier to guard against moisture, perfume, and daily wear.',
@@ -89,6 +114,17 @@ function CategoryContent({ slug }: { slug: string }) {
       ],
       image: 'https://images.unsplash.com/photo-1515562141589-67f0d0953a8e?w=800&fit=crop&auto=format',
     },
+    fragrance: {
+      headline: 'Clean Sand Wax & Botanical Aromatic Architecture',
+      desc: 'Purnya Home Fragrances transform spaces into tranquil sanctuaries. Crafted using granulated sand wax and pure essential botanical extracts, our candles offer clean burns, zero paraffin soot, and refillable vessel longevity.',
+      highlights: [
+        '100% Natural Biodegradable Sand Wax',
+        'Lead-Free Organic Braided Cotton Wicks',
+        'Paraben & Phthalate-Free IFRA Essential Oils',
+        'Infinite Refill Concept with Minimal Waste',
+      ],
+      image: 'https://images.unsplash.com/photo-1602874801007-bd458cb6c975?w=800&fit=crop&auto=format',
+    },
     candles: {
       headline: 'Clean Sand Wax & Botanical Aromatic Architecture',
       desc: 'Purnya Home Fragrances transform spaces into tranquil sanctuaries. Crafted using granulated sand wax and pure essential botanical extracts, our candles offer clean burns, zero paraffin soot, and refillable vessel longevity.',
@@ -99,6 +135,17 @@ function CategoryContent({ slug }: { slug: string }) {
         'Infinite Refill Concept with Minimal Waste',
       ],
       image: 'https://images.unsplash.com/photo-1602874801007-bd458cb6c975?w=800&fit=crop&auto=format',
+    },
+    lifestyle: {
+      headline: 'Sculptural Stoneware & Curated Sanctuary Accents',
+      desc: 'From hand-thrown ceramic vases to organic travertine pedestals, our Home Décor collection bridges timeless Mediterranean architecture with modern Indian minimalism to elevate every corner of your home.',
+      highlights: [
+        'Hand-Thrown High-Fire Earthenware',
+        'Matte Textured Natural Glaze Finishes',
+        'Versatile Form Language for Modern Spaces',
+        'Durable Weight & Tactile Craftsmanship',
+      ],
+      image: 'https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?w=800&fit=crop&auto=format',
     },
     'home-decor': {
       headline: 'Sculptural Stoneware & Curated Sanctuary Accents',
@@ -122,6 +169,17 @@ function CategoryContent({ slug }: { slug: string }) {
       ],
       image: 'https://images.unsplash.com/photo-1556228578-0d85b1a4d571?w=800&fit=crop&auto=format',
     },
+    gift: {
+      headline: 'Bespoke Keepsakes & Celebratory Gift Hampers',
+      desc: 'Celebrate milestones, festive seasons, and corporate milestones with Purnya’s signature gift boxes. Handcrafted artisanal boxes lined in rich textures, sealed with wax crests and curated with multi-category luxury items.',
+      highlights: [
+        'Custom Foil Stamping & Handwritten Calligraphy',
+        'Luxury Satin & Textured Hardboard Presentation',
+        'Curated Across All Purnya Lifestyle Categories',
+        'Dedicated Corporate & Return Gifting Concierge',
+      ],
+      image: 'https://images.unsplash.com/photo-1513885535751-8b9238bd345a?w=800&fit=crop&auto=format',
+    },
     gifts: {
       headline: 'Bespoke Keepsakes & Celebratory Gift Hampers',
       desc: 'Celebrate milestones, festive seasons, and corporate milestones with Purnya’s signature gift boxes. Handcrafted artisanal boxes lined in rich textures, sealed with wax crests and curated with multi-category luxury items.',
@@ -135,14 +193,39 @@ function CategoryContent({ slug }: { slug: string }) {
     },
   };
 
-  const story = craftsmanshipData[slug] || craftsmanshipData.jewellery;
+  const normalizedSlug = decodeURIComponent(slug).trim().toLowerCase();
+  const currentCatSlug = (currentCategory?.slug || '').trim().toLowerCase();
+  const matchedStory = craftsmanshipData[normalizedSlug] || craftsmanshipData[currentCatSlug];
+
+  const story = matchedStory || {
+    headline: `${currentCategory?.title || 'Artisanal'} Craftsmanship & Heritage`,
+    desc: currentCategory?.subtitle || 'Every piece is crafted with utmost care, premium materials, and meticulous attention to detail.',
+    highlights: [
+      'Ethically Sourced & Artisanal Quality',
+      '100% Quality & Authenticity Guarantee',
+      'Direct Pan-India Express Delivery',
+      'Dedicated Concierge Customer Support',
+    ],
+    image: currentCategory?.bannerImage || currentCategory?.heroImage || '',
+  };
+
+  if (!currentCategory) {
+    return (
+      <div className="min-h-[60vh] flex flex-col items-center justify-center space-y-4">
+        <div className="w-10 h-10 border-2 border-[#C5A059] border-t-transparent rounded-full animate-spin" />
+        <p className="text-xs uppercase tracking-widest text-[#5A7469] font-semibold">
+          Loading Boutique Collection...
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-12 sm:space-y-16 pb-24">
       {/* 1. DEDICATED CATEGORY HERO BANNER (Full Standalone Website Feel) */}
       <section className="relative w-full min-h-[400px] sm:min-h-[460px] lg:min-h-[500px] bg-[#08281F] overflow-hidden flex items-center">
         <img
-          src={currentCategory.heroImage}
+          src={currentCategory.heroImage || currentCategory.bannerImage}
           alt={currentCategory.title}
           className="w-full h-full object-cover object-center absolute inset-0 opacity-45 scale-105 transition-transform duration-7000"
         />

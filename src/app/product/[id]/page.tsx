@@ -14,7 +14,6 @@ import {
   ChevronRight,
   Star,
   CheckCircle2,
-  Sparkles,
   ArrowUpRight,
 } from 'lucide-react';
 import { useStore } from '../../../context/StoreContext';
@@ -36,18 +35,23 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
   const [selectedVariants, setSelectedVariants] = useState<Record<string, string>>({});
   const [activeTab, setActiveTab] = useState<'desc' | 'specs' | 'care' | 'reviews'>('desc');
 
-  // Initialize default variants
-  React.useEffect(() => {
-    if (product?.variants) {
-      const defaults: Record<string, string> = {};
+  // Compute default variants safely without setState in effect
+  const defaultVariants = useMemo(() => {
+    const defaults: Record<string, string> = {};
+    if (product?.variants && Array.isArray(product.variants)) {
       product.variants.forEach((v) => {
-        if (v.options.length > 0) {
+        if (v && v.name && Array.isArray(v.options) && v.options.length > 0) {
           defaults[v.name] = v.options[0];
         }
       });
-      setSelectedVariants(defaults);
     }
+    return defaults;
   }, [product]);
+
+  const activeVariants = useMemo(
+    () => ({ ...defaultVariants, ...selectedVariants }),
+    [defaultVariants, selectedVariants]
+  );
 
   if (!product) {
     return (
@@ -77,11 +81,11 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
     : 0;
 
   const handleAddToCart = () => {
-    addToCart(product, quantity, selectedVariants);
+    addToCart(product, quantity, activeVariants);
   };
 
   const handleBuyNow = () => {
-    addToCart(product, quantity, selectedVariants);
+    addToCart(product, quantity, activeVariants);
     router.push('/checkout');
   };
 
@@ -204,34 +208,36 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
             {/* Category Specific Variants (SOW Section 9) */}
             {product.variants && product.variants.length > 0 && (
               <div className="space-y-4 pt-1">
-                {product.variants.map((v) => (
-                  <div key={v.name} className="space-y-2">
-                    <div className="flex justify-between text-xs">
-                      <span className="font-semibold uppercase tracking-wider text-[#2C4A3E]">
-                        Select {v.name}:
-                      </span>
-                      <span className="font-bold text-[#0B241C]">{selectedVariants[v.name]}</span>
+                {product.variants
+                  .filter((v) => v && v.name && Array.isArray(v.options) && v.options.length > 0)
+                  .map((v) => (
+                    <div key={v.name} className="space-y-2">
+                      <div className="flex justify-between text-xs">
+                        <span className="font-semibold uppercase tracking-wider text-[#2C4A3E]">
+                          Select {v.name}:
+                        </span>
+                        <span className="font-bold text-[#0B241C]">{activeVariants[v.name] || v.options[0]}</span>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {v.options.map((opt) => {
+                          const isSelected = (activeVariants[v.name] || v.options[0]) === opt;
+                          return (
+                            <button
+                              key={opt}
+                              onClick={() => setSelectedVariants((prev) => ({ ...prev, [v.name]: opt }))}
+                              className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all ${
+                                isSelected
+                                  ? 'bg-[#0C3B2E] text-white shadow-sm ring-2 ring-[#C5A059]'
+                                  : 'bg-[#FAF8F5] text-[#2C4A3E] hover:bg-[#EBF3EF] border border-[#E2DBD0]'
+                              }`}
+                            >
+                              {opt}
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
-                    <div className="flex flex-wrap gap-2">
-                      {v.options.map((opt) => {
-                        const isSelected = selectedVariants[v.name] === opt;
-                        return (
-                          <button
-                            key={opt}
-                            onClick={() => setSelectedVariants({ ...selectedVariants, [v.name]: opt })}
-                            className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all ${
-                              isSelected
-                                ? 'bg-[#0C3B2E] text-white shadow-sm ring-2 ring-[#C5A059]'
-                                : 'bg-[#FAF8F5] text-[#2C4A3E] hover:bg-[#EBF3EF] border border-[#E2DBD0]'
-                            }`}
-                          >
-                            {opt}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                ))}
+                  ))}
               </div>
             )}
 

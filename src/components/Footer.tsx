@@ -8,7 +8,7 @@ import { useStore } from '../context/StoreContext';
 
 export default function Footer() {
   const pathname = usePathname();
-  const { showToast } = useStore();
+  const { showToast, categories } = useStore();
   const [email, setEmail] = useState('');
 
   const isAdminRoute = pathname?.startsWith('/admin');
@@ -68,64 +68,22 @@ export default function Footer() {
           {/* Shop Col */}
           <div className="space-y-3">
             <h4 className="font-serif-title text-base font-semibold text-[#D4AF37] tracking-wider uppercase flex items-center gap-1.5">
-              <span>Shop Five Worlds</span>
+              <span>Shop Boutiques</span>
             </h4>
             <ul className="space-y-2.5 text-xs sm:text-sm text-[#B4C9BF]">
-              <li>
-                <Link
-                  href="/category/jewellery"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="hover:text-[#D4AF37] transition-colors flex items-center gap-1"
-                >
-                  <span>Jewellery & Accessories</span>
-                  <span className="text-[10px] opacity-70">↗</span>
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/category/candles"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="hover:text-[#D4AF37] transition-colors flex items-center gap-1"
-                >
-                  <span>Candle & Home Fragrance</span>
-                  <span className="text-[10px] opacity-70">↗</span>
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/category/home-decor"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="hover:text-[#D4AF37] transition-colors flex items-center gap-1"
-                >
-                  <span>Home Décor & Lifestyle</span>
-                  <span className="text-[10px] opacity-70">↗</span>
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/category/wellness"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="hover:text-[#D4AF37] transition-colors flex items-center gap-1"
-                >
-                  <span>Organic & Wellness</span>
-                  <span className="text-[10px] opacity-70">↗</span>
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/category/gifts"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="hover:text-[#D4AF37] transition-colors flex items-center gap-1"
-                >
-                  <span>Gift & Stationery</span>
-                  <span className="text-[10px] opacity-70">↗</span>
-                </Link>
-              </li>
+              {categories.map((cat) => (
+                <li key={cat.id || cat.slug}>
+                  <Link
+                    href={`/category/${cat.slug}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="hover:text-[#D4AF37] transition-colors flex items-center gap-1"
+                  >
+                    <span>{cat.title}</span>
+                    <span className="text-[10px] opacity-70">↗</span>
+                  </Link>
+                </li>
+              ))}
               <li className="pt-1">
                 <Link href="/new-arrivals" className="text-[#D4AF37] hover:underline font-semibold text-xs">
                   New Arrivals Collection →

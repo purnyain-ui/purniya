@@ -1,9 +1,4 @@
-export type MainCategorySlug = 
-  | 'jewellery' 
-  | 'candles' 
-  | 'home-decor' 
-  | 'wellness' 
-  | 'gifts';
+export type MainCategorySlug = string;
 
 export type ProductBadge = 'Best Seller' | 'New' | 'Trending' | 'Premium' | 'Organic' | 'Custom' | 'Festive' | 'Corporate' | 'Sale';
 
@@ -23,6 +18,7 @@ export interface Product {
   categorySlug: MainCategorySlug;
   subcategory: string; // e.g. "Necklace", "Sand Wax Candle"
   badge?: ProductBadge;
+  lifestyleTag?: string;
   image: string;
   images?: string[];
   description?: string;

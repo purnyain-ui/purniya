@@ -15,7 +15,6 @@ import {
   Sparkles,
   ChevronRight,
   ChevronDown,
-  ExternalLink,
   ArrowUpRight,
 } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
@@ -33,15 +32,15 @@ function HeaderContent() {
   // Detect if user is on a dedicated category website
   const isCategoryRoute = pathname?.startsWith('/category/');
   const currentCategorySlug = isCategoryRoute ? pathname.split('/')[2] : null;
-  const currentCategory = categories.find((c) => c.slug === currentCategorySlug);
+  const currentCategory = categories.find(
+    (c) => c.slug.trim().toLowerCase() === currentCategorySlug?.trim().toLowerCase()
+  );
 
-  const mainNavLinks = [
-    { name: 'Jewellery & Accessories', href: '/category/jewellery' },
-    { name: 'Candle & Home Fragrance', href: '/category/candles' },
-    { name: 'Home Décor & Lifestyle', href: '/category/home-decor' },
-    { name: 'Organic & Wellness', href: '/category/wellness' },
-    { name: 'Gift & Stationery', href: '/category/gifts' },
-  ];
+  // Dynamic navigation links directly from Supabase categories
+  const navLinks = categories.map((cat) => ({
+    name: cat.title,
+    href: `/category/${cat.slug}`,
+  }));
 
   if (isAdminRoute) return null;
 
@@ -204,7 +203,7 @@ function HeaderContent() {
               </>
             ) : (
               // Main Multi-Category Portal Navigation (Each opens in a new tab like an independent website!)
-              mainNavLinks.map((link) => {
+              navLinks.map((link) => {
                 const isActive = pathname === link.href;
                 return (
                   <Link
@@ -376,7 +375,7 @@ function HeaderContent() {
                 </div>
               ) : (
                 <div className="space-y-1">
-                  {mainNavLinks.map((link) => (
+                  {navLinks.map((link) => (
                     <Link
                       key={link.href}
                       href={link.href}

@@ -14,6 +14,7 @@ import {
   ShieldCheck,
   CheckCircle2,
   AlertCircle,
+  Palette,
 } from 'lucide-react';
 import { useStore } from '../../context/StoreContext';
 
@@ -69,6 +70,13 @@ export default function AdminOverviewPage() {
             className="px-4 py-2 rounded-xl bg-white hover:bg-[#FAF8F5] text-[#0B241C] border border-[#E2DBD0] text-xs font-semibold flex items-center gap-1.5 transition-colors"
           >
             <span>Create Promo Coupon</span>
+          </Link>
+          <Link
+            href="/admin/attributes"
+            className="px-4 py-2 rounded-xl bg-white hover:bg-[#FAF8F5] text-[#0B241C] border border-[#E2DBD0] text-xs font-semibold flex items-center gap-1.5 transition-colors"
+          >
+            <Palette className="w-3.5 h-3.5 text-[#C5A059]" />
+            <span>Colors & Tags</span>
           </Link>
           <Link
             href="/admin/orders"

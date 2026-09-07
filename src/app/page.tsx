@@ -11,8 +11,6 @@ import {
   RotateCcw,
   Headphones,
   Sparkles,
-  Star,
-  CheckCircle2,
 } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import ProductCard from '../components/ProductCard';
@@ -40,13 +38,13 @@ export default function HomePage() {
     scrollRef.current?.scrollBy({ left: 320, behavior: 'smooth' });
   };
 
-  const newArrivals = products
-    .filter((p) => p.badge === 'New' || p.badge === 'Trending')
-    .slice(0, 8);
+  const explicitArrivals = products.filter((p) => p.badge === 'New' || p.badge === 'Trending');
+  const newArrivals = explicitArrivals.length >= 4
+    ? explicitArrivals.slice(0, 8)
+    : [...explicitArrivals, ...products.filter((p) => p.badge !== 'New' && p.badge !== 'Trending')].slice(0, 8);
 
-  const bestSellers = products
-    .filter((p) => p.badge === 'Best Seller' || (p.rating && p.rating >= 4.9))
-    .slice(0, 4);
+  const matchedBestSellers = products.filter((p) => p.badge === 'Best Seller' || (p.rating && p.rating >= 4.8));
+  const bestSellers = matchedBestSellers.length >= 2 ? matchedBestSellers.slice(0, 4) : products.slice(0, 4);
 
   return (
     <div className="space-y-16 sm:space-y-24 pb-20">
@@ -93,14 +91,16 @@ export default function HomePage() {
                       <span>{slide.ctaText} ↗</span>
                       <ArrowRight className="w-4 h-4" />
                     </Link>
-                    <Link
-                      href="/category/candles"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="px-8 py-3.5 rounded-full bg-white/10 hover:bg-white/20 text-white font-semibold text-xs sm:text-sm uppercase tracking-widest backdrop-blur-md border border-white/25 transition-all"
-                    >
-                      Explore Candles &amp; Fragrance ↗
-                    </Link>
+                    {categories.length > 0 && (
+                      <Link
+                        href={`/category/${categories[0].slug}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-8 py-3.5 rounded-full bg-white/10 hover:bg-white/20 text-white font-semibold text-xs sm:text-sm uppercase tracking-widest backdrop-blur-md border border-white/25 transition-all"
+                      >
+                        Explore {categories[0].title} ↗
+                      </Link>
+                    )}
                   </div>
                 </div>
               </div>
@@ -149,7 +149,7 @@ export default function HomePage() {
             <span>Curated Lifestyle Worlds</span>
           </p>
           <h2 className="font-serif-title text-3xl sm:text-4xl lg:text-5xl font-bold text-[#0B241C]">
-            Explore Our Five Categories
+            Explore Our Boutiques
           </h2>
           <p className="text-sm text-[#2C4A3E]">
             Each category opens into its own dedicated landing page with focused subcategories, collections, and artisanal products.
@@ -160,8 +160,28 @@ export default function HomePage() {
         <div className="space-y-16">
           {categories.map((cat, idx) => {
             const catProducts = products
-              .filter((p) => p.categorySlug === cat.slug)
+              .filter((p) => {
+                const pSlug = (p.categorySlug || '').trim().toLowerCase();
+                const cSlug = (cat.slug || '').trim().toLowerCase();
+                const pCat = (p.category || '').trim().toLowerCase();
+                const cTitle = (cat.title || '').trim().toLowerCase();
+                return (
+                  pSlug === cSlug ||
+                  pCat === cTitle ||
+                  (cSlug === 'apparel' && (pSlug === 'jewellery' || pCat.includes('jewel') || pCat.includes('apparel'))) ||
+                  (cSlug === 'lifestyle' && (pSlug === 'home-decor' || pCat.includes('décor') || pCat.includes('decor') || pCat.includes('lifestyle'))) ||
+                  (cSlug === 'gift' && (pSlug === 'gifts' || pCat.includes('gift') || pCat.includes('stationery'))) ||
+                  (cSlug === 'fragrance' && (pSlug === 'candles' || pCat.includes('candle') || pCat.includes('fragrance') || pCat.includes('home'))) ||
+                  (cSlug === 'wellness' && (pSlug === 'wellness' || pCat.includes('wellness') || pCat.includes('organic')))
+                );
+              })
               .slice(0, 4);
+
+            const validSubcats = (
+              (cat.subcatImages && cat.subcatImages.length > 0)
+                ? cat.subcatImages
+                : (cat.subcategories || []).filter((s) => s !== 'All').map((s) => ({ name: s, image: cat.bannerImage || cat.heroImage }))
+            );
 
             return (
               <div
@@ -214,51 +234,50 @@ export default function HomePage() {
 
                   {/* Right: Quick-Shop Subcategories + Featured Products */}
                   <div className="lg:col-span-8 space-y-6">
-                    {/* Quick-Shop Subcategories (SOW 5.C-5.G) */}
-                    <div>
-                      <div className="flex items-center justify-between mb-3">
-                        <p className="text-xs font-bold uppercase tracking-wider text-[#5A7469]">
-                          Quick Shop Subcategories (Click to Open in New Tab)
-                        </p>
-                        <Link
-                          href={`/category/${cat.slug}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-xs font-semibold text-[#0C3B2E] hover:text-[#C5A059] flex items-center gap-1"
-                        >
-                          <span>Explore All ({cat.subcategories.length - 1}) ↗</span>
-                          <ArrowRight className="w-3 h-3" />
-                        </Link>
-                      </div>
-
-                      {/* Circular Subcategory Cards with Direct Subcategory Links */}
-                      <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-none">
-                        {((cat.subcatImages && cat.subcatImages.length > 0)
-                          ? cat.subcatImages
-                          : (cat.subcategories || []).filter((s) => s !== 'All').map((s) => ({ name: s, image: cat.bannerImage || cat.heroImage }))
-                        ).slice(0, 6).map((sub) => (
+                    {/* Quick-Shop Subcategories directly from Supabase */}
+                    {validSubcats.length > 0 && (
+                      <div>
+                        <div className="flex items-center justify-between mb-3">
+                          <p className="text-xs font-bold uppercase tracking-wider text-[#5A7469]">
+                            Quick Shop Subcategories
+                          </p>
                           <Link
-                            key={sub.name}
-                            href={`/category/${cat.slug}?sub=${encodeURIComponent(sub.name)}`}
+                            href={`/category/${cat.slug}`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="flex flex-col items-center gap-2 shrink-0 group"
-                            title={`Shop ${sub.name} in new tab`}
+                            className="text-xs font-semibold text-[#0C3B2E] hover:text-[#C5A059] flex items-center gap-1"
                           >
-                            <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full overflow-hidden border-2 border-[#E2DBD0] p-0.5 group-hover:border-[#0C3B2E] group-hover:shadow-md transition-all bg-[#EBF3EF] shadow-xs">
-                              <img
-                                src={sub.image}
-                                alt={sub.name}
-                                className="w-full h-full object-cover rounded-full group-hover:scale-110 transition-transform duration-300"
-                              />
-                            </div>
-                            <span className="text-[11px] font-semibold text-[#2C4A3E] group-hover:text-[#0C3B2E] text-center max-w-[84px] truncate">
-                              {sub.name}
-                            </span>
+                            <span>Explore All ({validSubcats.length}) ↗</span>
+                            <ArrowRight className="w-3 h-3" />
                           </Link>
-                        ))}
+                        </div>
+
+                        {/* Circular Subcategory Cards with Direct Subcategory Links */}
+                        <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-none">
+                          {validSubcats.slice(0, 6).map((sub) => (
+                            <Link
+                              key={sub.name}
+                              href={`/category/${cat.slug}?sub=${encodeURIComponent(sub.name)}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex flex-col items-center gap-2 shrink-0 group"
+                              title={`Shop ${sub.name} in new tab`}
+                            >
+                              <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full overflow-hidden border-2 border-[#E2DBD0] p-0.5 group-hover:border-[#0C3B2E] group-hover:shadow-md transition-all bg-[#EBF3EF] shadow-xs">
+                                <img
+                                  src={sub.image}
+                                  alt={sub.name}
+                                  className="w-full h-full object-cover rounded-full group-hover:scale-110 transition-transform duration-300"
+                                />
+                              </div>
+                              <span className="text-[11px] font-semibold text-[#2C4A3E] group-hover:text-[#0C3B2E] text-center max-w-[84px] truncate">
+                                {sub.name}
+                              </span>
+                            </Link>
+                          ))}
+                        </div>
                       </div>
-                    </div>
+                    )}
 
                     {/* Featured Mini Product Grid */}
                     <div>

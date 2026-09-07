@@ -6,7 +6,7 @@ import { Search, X, ArrowRight, Sparkles } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 
 export default function SearchModal() {
-  const { isSearchOpen, setIsSearchOpen, products } = useStore();
+  const { isSearchOpen, setIsSearchOpen, products, categories } = useStore();
   const [query, setQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const inputRef = useRef<HTMLInputElement>(null);
@@ -42,8 +42,19 @@ export default function SearchModal() {
         p.subcategory.toLowerCase().includes(query.toLowerCase()) ||
         p.category.toLowerCase().includes(query.toLowerCase());
 
+      const pSlug = (p.categorySlug || '').trim().toLowerCase();
+      const pCat = (p.category || '').trim().toLowerCase();
+      const selSlug = selectedCategory.trim().toLowerCase();
+
       const matchesCat =
-        selectedCategory === 'All' || p.categorySlug === selectedCategory;
+        selectedCategory === 'All' ||
+        pSlug === selSlug ||
+        pCat === selSlug ||
+        (selSlug === 'apparel' && (pSlug === 'jewellery' || pCat.includes('jewel'))) ||
+        (selSlug === 'fragrance' && (pSlug === 'candles' || pCat.includes('candle') || pCat.includes('fragrance'))) ||
+        (selSlug === 'lifestyle' && (pSlug === 'home-decor' || pCat.includes('decor') || pCat.includes('lifestyle'))) ||
+        (selSlug === 'gift' && (pSlug === 'gifts' || pCat.includes('gift') || pCat.includes('stationery'))) ||
+        (selSlug === 'wellness' && (pSlug === 'wellness' || pCat.includes('wellness') || pCat.includes('organic')));
 
       return matchesQuery && matchesCat;
     }).slice(0, 8);
@@ -65,7 +76,11 @@ export default function SearchModal() {
             type="text"
             value={query}
             onChange={e => setQuery(e.target.value)}
-            placeholder="Search across Jewellery, Candles, Home Décor, Wellness, Gifts..."
+            placeholder={
+              categories.length > 0
+                ? `Search across ${categories.map((c) => c.title).slice(0, 3).join(', ')}...`
+                : 'Search products, collections...'
+            }
             className="w-full bg-transparent text-base sm:text-lg text-[#0B241C] placeholder:text-[#5A7469] outline-none"
           />
           {query && (
@@ -84,19 +99,29 @@ export default function SearchModal() {
           </button>
         </div>
 
-        {/* Category Filters */}
+        {/* Dynamic Category Filters directly from Supabase */}
         <div className="px-4 py-3 bg-[#FAF8F5]/80 border-b border-[#E2DBD0] flex gap-2 overflow-x-auto text-xs scrollbar-none">
-          {['All', 'jewellery', 'candles', 'home-decor', 'wellness', 'gifts'].map(cat => (
+          <button
+            onClick={() => setSelectedCategory('All')}
+            className={`px-3.5 py-1.5 rounded-full whitespace-nowrap transition-all font-semibold uppercase tracking-wider text-[11px] ${
+              selectedCategory === 'All'
+                ? 'bg-[#0C3B2E] text-white shadow-sm ring-1 ring-[#C5A059]'
+                : 'bg-white text-[#2C4A3E] border border-[#E2DBD0] hover:border-[#0C3B2E]'
+            }`}
+          >
+            All Categories
+          </button>
+          {categories.map((cat) => (
             <button
-              key={cat}
-              onClick={() => setSelectedCategory(cat)}
+              key={cat.id || cat.slug}
+              onClick={() => setSelectedCategory(cat.slug)}
               className={`px-3.5 py-1.5 rounded-full whitespace-nowrap transition-all font-semibold uppercase tracking-wider text-[11px] ${
-                selectedCategory === cat
+                selectedCategory.trim().toLowerCase() === cat.slug.trim().toLowerCase()
                   ? 'bg-[#0C3B2E] text-white shadow-sm ring-1 ring-[#C5A059]'
                   : 'bg-white text-[#2C4A3E] border border-[#E2DBD0] hover:border-[#0C3B2E]'
               }`}
             >
-              {cat === 'All' ? 'All Worlds' : cat === 'home-decor' ? 'Home Décor' : cat.charAt(0).toUpperCase() + cat.slice(1)}
+              {cat.title}
             </button>
           ))}
         </div>
