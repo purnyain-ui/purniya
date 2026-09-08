@@ -23,8 +23,14 @@ import {
   BarChart3,
   LogOut,
   Palette,
+  Home,
+  CreditCard,
+  ChevronDown,
+  ChevronRight,
+  UserCheck, // Added icon for Admin Management
 } from 'lucide-react';
 import { useStore } from '../../context/StoreContext';
+import { verifyAdminSession, signOutFromSupabase } from '../../lib/supabase';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -32,25 +38,52 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
 
+  // Accordion state for Home Management dropdown
+  const [homeManagementOpen, setHomeManagementOpen] = useState(false);
+
+  // Auto-expand Home Management if the user visits a nested child route
+  useEffect(() => {
+    if (pathname.startsWith('/admin/home')) {
+      setHomeManagementOpen(true);
+    }
+  }, [pathname]);
+
   useEffect(() => {
     if (pathname === '/admin/login') {
       setIsAuthenticated(true);
       return;
     }
-    const auth = typeof window !== 'undefined' && localStorage.getItem('purnya_admin_authenticated') === 'true';
-    if (!auth) {
-      window.location.href = '/admin/login';
-    } else {
-      setIsAuthenticated(true);
-    }
+
+    let isCancelled = false;
+    verifyAdminSession().then((res) => {
+      if (isCancelled) return;
+      if (res.authenticated) {
+        setIsAuthenticated(true);
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('purnya_admin_authenticated', 'true');
+        }
+      } else {
+        setIsAuthenticated(false);
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('purnya_admin_authenticated');
+          localStorage.removeItem('purnya_admin_session');
+          window.location.href = '/admin/login';
+        }
+      }
+    });
+
+    return () => {
+      isCancelled = true;
+    };
   }, [pathname]);
 
-  const handleAdminLogout = () => {
+  const handleAdminLogout = async () => {
     if (typeof window !== 'undefined') {
       localStorage.removeItem('purnya_admin_authenticated');
       localStorage.removeItem('purnya_admin_session');
-      window.location.href = '/admin/login';
     }
+    await signOutFromSupabase();
+    window.location.href = '/admin/login';
   };
 
   // If viewing admin login page, bypass admin navigation layout
@@ -87,12 +120,20 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       badge: pendingOrdersCount > 0 ? pendingOrdersCount : undefined,
     },
     { name: 'Inventory & Stock', href: '/admin/inventory', icon: <Boxes className="w-4 h-4" /> },
+    { name: 'Payments Update', href: '/admin/payments', icon: <CreditCard className="w-4 h-4" /> },
     { name: 'Customers & Patrons', href: '/admin/customers', icon: <Users className="w-4 h-4" /> },
     { name: 'Shipping & Logistics', href: '/admin/shipping', icon: <Truck className="w-4 h-4" /> },
     { name: 'Returns & Exchanges', href: '/admin/returns', icon: <RotateCcw className="w-4 h-4" /> },
     { name: 'Offers & Coupons', href: '/admin/coupons', icon: <Ticket className="w-4 h-4" /> },
     { name: 'Banners & Content', href: '/admin/banners', icon: <ImageIcon className="w-4 h-4" /> },
     { name: 'Reports & Analytics', href: '/admin/reports', icon: <BarChart3 className="w-4 h-4" /> },
+    // Newly added Admin Management tab item:
+    { name: 'Admin Management', href: '/admin/management', icon: <UserCheck className="w-4 h-4" /> },
+  ];
+
+  const homeSubItems = [
+    { name: 'Middle Section', href: '/admin/home/middle-section' },
+    { name: 'Bottom Section', href: '/admin/home/bottom-section' },
   ];
 
   return (
@@ -137,7 +178,69 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
           {/* Navigation Links - Scrollable */}
           <nav className="flex-1 overflow-y-auto py-4 space-y-1 text-xs font-semibold pr-1 custom-scrollbar">
-            {navItems.map((item) => {
+            {/* Dashboard Overview */}
+            <Link
+              href="/admin"
+              onClick={() => setSidebarOpen(false)}
+              className={`flex items-center justify-between px-3 py-2.5 rounded-xl transition-all ${
+                pathname === '/admin'
+                  ? 'bg-[#C5A059] text-[#1E130D] font-bold shadow-md'
+                  : 'text-[#C9BDB0] hover:bg-white/5 hover:text-white'
+              }`}
+            >
+              <div className="flex items-center gap-2.5">
+                <LayoutDashboard className="w-4 h-4" />
+                <span className="truncate">Dashboard Overview</span>
+              </div>
+            </Link>
+
+            {/* Home Management Accordion Dropdown */}
+            <div className="space-y-1">
+              <button
+                type="button"
+                onClick={() => setHomeManagementOpen((prev) => !prev)}
+                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all ${
+                  pathname.startsWith('/admin/home')
+                    ? 'bg-white/10 text-white font-bold'
+                    : 'text-[#C9BDB0] hover:bg-white/5 hover:text-white'
+                }`}
+              >
+                <div className="flex items-center gap-2.5">
+                  <Home className="w-4 h-4" />
+                  <span className="truncate">Home Management</span>
+                </div>
+                {homeManagementOpen ? (
+                  <ChevronDown className="w-3.5 h-3.5 text-[#D4AF37]" />
+                ) : (
+                  <ChevronRight className="w-3.5 h-3.5 text-[#5A7469]" />
+                )}
+              </button>
+
+              {homeManagementOpen && (
+                <div className="pl-6 pr-1 py-1 space-y-1 border-l-2 border-[#144234] ml-4">
+                  {homeSubItems.map((sub) => {
+                    const isSubActive = pathname === sub.href;
+                    return (
+                      <Link
+                        key={sub.href}
+                        href={sub.href}
+                        onClick={() => setSidebarOpen(false)}
+                        className={`flex items-center px-3 py-2 rounded-lg text-[11px] transition-all ${
+                          isSubActive
+                            ? 'bg-[#C5A059] text-[#1E130D] font-bold shadow-sm'
+                            : 'text-[#A3B8B0] hover:text-white hover:bg-white/5'
+                        }`}
+                      >
+                        <span className="truncate">{sub.name}</span>
+                      </Link>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Remaining Nav Items */}
+            {navItems.slice(1).map((item) => {
               const isActive = pathname === item.href;
               return (
                 <Link

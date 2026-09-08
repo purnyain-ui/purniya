@@ -29,6 +29,7 @@ export default function CheckoutPage() {
     user,
     addresses,
     placeOrder,
+    showToast,
   } = useStore();
 
   const [customerName, setCustomerName] = useState(user.name || '');
@@ -47,9 +48,10 @@ export default function CheckoutPage() {
 
   useEffect(() => {
     if (!user?.email) {
-      router.push('/login');
+      showToast('Sign In to Place Order 💎', 'Please sign in to finalize delivery and place your order.', 'info');
+      router.push('/login?redirect=/checkout');
     }
-  }, [user?.email, router]);
+  }, [user?.email, router, showToast]);
 
   const handlePlaceOrder = (e: React.FormEvent) => {
     e.preventDefault();

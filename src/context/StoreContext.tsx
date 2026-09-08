@@ -29,6 +29,24 @@ import {
   seedCatalogToSupabase,
   upsertProductToSupabase,
   deleteProductFromSupabase,
+  getBannersFromSupabase,
+  upsertBannerToSupabase,
+  deleteBannerFromSupabase,
+  seedBannersToSupabase,
+  getAnnouncementFromSupabase,
+  saveAnnouncementToSupabase,
+  getAddressesFromSupabase,
+  saveAddressToSupabase,
+  updateAddressInSupabase,
+  deleteAddressFromSupabase,
+  getOrdersForCustomerFromSupabase,
+  getAllOrdersFromSupabase,
+  getCouponsFromSupabase,
+  saveCouponToSupabase,
+  toggleCouponInSupabase,
+  deleteCouponFromSupabase,
+  signOutFromSupabase,
+  supabase,
 } from '../lib/supabase';
 
 interface ToastState {
@@ -36,6 +54,14 @@ interface ToastState {
   title: string;
   desc?: string;
   type?: 'success' | 'info' | 'error';
+}
+
+export interface AuthModalState {
+  isOpen: boolean;
+  actionType?: 'order' | 'wishlist' | 'bag';
+  title?: string;
+  message?: string;
+  redirectUrl?: string;
 }
 
 interface StoreContextType {
@@ -51,6 +77,14 @@ interface StoreContextType {
   addresses: Address[];
   appliedCoupon: Coupon | null;
   toast: ToastState | null;
+  authModal: AuthModalState | null;
+  openAuthModal: (options?: {
+    actionType?: 'order' | 'wishlist' | 'bag';
+    title?: string;
+    message?: string;
+    redirectUrl?: string;
+  }) => void;
+  closeAuthModal: () => void;
   isSearchOpen: boolean;
   setIsSearchOpen: (open: boolean) => void;
 
@@ -96,8 +130,12 @@ interface StoreContextType {
   removeCategorySubcategory: (categorySlug: string, subcategoryName: string) => void;
   updateCategory: (categorySlug: string, updates: Partial<CategoryMeta>) => void;
   addCoupon: (coupon: Coupon) => void;
+  updateCoupon: (code: string, updates: Partial<Coupon>) => void;
   toggleCoupon: (code: string) => void;
+  deleteCoupon: (code: string) => void;
+  addHeroSlide: (slide: HeroSlide) => void;
   updateHeroSlide: (slide: HeroSlide) => void;
+  deleteHeroSlide: (id: string) => void;
   updateAnnouncement: (text: string) => void;
   updateUser: (profile: Partial<UserProfile>) => void;
   loginUser: (profile: UserProfile) => void;
@@ -128,7 +166,27 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [addresses, setAddresses] = useState<Address[]>(initialAddresses);
   const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
   const [toast, setToast] = useState<ToastState | null>(null);
+  const [authModal, setAuthModal] = useState<AuthModalState | null>(null);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+
+  const openAuthModal = (options?: {
+    actionType?: 'order' | 'wishlist' | 'bag';
+    title?: string;
+    message?: string;
+    redirectUrl?: string;
+  }) => {
+    setAuthModal({
+      isOpen: true,
+      actionType: options?.actionType || 'order',
+      title: options?.title,
+      message: options?.message,
+      redirectUrl: options?.redirectUrl || (typeof window !== 'undefined' ? window.location.pathname : '/'),
+    });
+  };
+
+  const closeAuthModal = () => {
+    setAuthModal(null);
+  };
 
   // Supabase Cloud Status & Initialization
   const [supabaseStatus, setSupabaseStatus] = useState<{
@@ -155,6 +213,36 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
     });
 
+    // Fetch real products with real uploaded images directly from Supabase immediately on mount
+    getProductsFromSupabase().then((prods) => {
+      if (prods && prods.length > 0) {
+        const dbIds = new Set(prods.map(p => p.id));
+        const remaining = initialProducts.filter(p => !dbIds.has(p.id));
+        const merged = [...prods, ...remaining];
+        setProducts(merged);
+        try {
+          localStorage.setItem('purnya_products', JSON.stringify(merged));
+        } catch (e) {
+          console.warn('LocalStorage save error:', e);
+        }
+      }
+    });
+
+    // Fetch all store orders from Supabase immediately on mount
+    getAllOrdersFromSupabase().then((dbOrders) => {
+      if (dbOrders && dbOrders.length > 0) {
+        setOrders(prev => {
+          const dbIds = new Set(dbOrders.map(o => o.id));
+          const localOnly = prev.filter(o => !dbIds.has(o.id));
+          const merged = [...dbOrders, ...localOnly];
+          try {
+            localStorage.setItem('purnya_orders', JSON.stringify(merged));
+          } catch { }
+          return merged;
+        });
+      }
+    });
+
     checkSupabaseConnection().then((status) => {
       setSupabaseStatus(status);
       if (status.connected) {
@@ -171,30 +259,193 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
         if (status.tablesFound?.includes('products')) {
           getProductsFromSupabase().then((prods) => {
-            if (prods && prods.length > 0) setProducts(prods);
+            if (prods && prods.length > 0) {
+              const dbIds = new Set(prods.map(p => p.id));
+              const remaining = initialProducts.filter(p => !dbIds.has(p.id));
+              const merged = [...prods, ...remaining];
+              setProducts(merged);
+              try {
+                localStorage.setItem('purnya_products', JSON.stringify(merged));
+              } catch { }
+            }
+          });
+        }
+
+        if (status.tablesFound?.includes('banners')) {
+          getAnnouncementFromSupabase().then((dbAnnouncement) => {
+            if (dbAnnouncement && dbAnnouncement.trim()) {
+              setAnnouncement(dbAnnouncement);
+              try {
+                localStorage.setItem('purnya_announcement', dbAnnouncement);
+              } catch { }
+            } else {
+              // Seed default announcement into Supabase
+              saveAnnouncementToSupabase('Free Express Shipping on Orders Above ₹999  |  Cash on Delivery Available Pan-India');
+            }
+          });
+
+          getBannersFromSupabase().then((dbBanners) => {
+            if (dbBanners && dbBanners.length > 0) {
+              setBanners(dbBanners);
+              try {
+                localStorage.setItem('purnya_banners', JSON.stringify(dbBanners));
+              } catch (e) {
+                console.warn('LocalStorage save error:', e);
+              }
+            } else if (dbBanners && dbBanners.length === 0) {
+              // Auto-seed default luxury banners if table is empty
+              seedBannersToSupabase(initialHeroSlides).then(() => {
+                setBanners(initialHeroSlides);
+                try {
+                  localStorage.setItem('purnya_banners', JSON.stringify(initialHeroSlides));
+                } catch { }
+              });
+            }
           });
         }
       }
     });
+
+    // Real-time Supabase Auth state listener & sync
+    if (supabase) {
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (session?.user) {
+          const u = session.user;
+          const meta = u.user_metadata || {};
+          const currentEmail = u.email || '';
+          const currentName = meta.name || meta.full_name || currentEmail.split('@')[0] || 'Patron';
+          const currentPhone = meta.phone || '';
+          const activeUser: UserProfile = {
+            name: currentName,
+            email: currentEmail,
+            phone: currentPhone,
+          };
+          setUser(activeUser);
+          try {
+            localStorage.setItem('purnya_user', JSON.stringify(activeUser));
+          } catch { }
+
+          // Fetch cloud addresses
+          getAddressesFromSupabase(currentEmail).then((cloudAddrs) => {
+            if (cloudAddrs && cloudAddrs.length > 0) {
+              setAddresses(cloudAddrs);
+              try {
+                localStorage.setItem('purnya_addresses', JSON.stringify(cloudAddrs));
+              } catch { }
+            }
+          });
+
+          // Fetch customer cloud orders
+          getOrdersForCustomerFromSupabase(currentEmail).then((cloudOrders) => {
+            if (cloudOrders && cloudOrders.length > 0) {
+              setOrders(prev => {
+                const dbIds = new Set(cloudOrders.map(o => o.id));
+                const localOnly = prev.filter(o => !dbIds.has(o.id));
+                const merged = [...cloudOrders, ...localOnly];
+                try {
+                  localStorage.setItem('purnya_orders', JSON.stringify(merged));
+                } catch { }
+                return merged;
+              });
+            }
+          });
+        }
+      });
+
+      const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
+        if ((event === 'SIGNED_IN' || event === 'USER_UPDATED') && session?.user) {
+          const u = session.user;
+          const meta = u.user_metadata || {};
+          const currentEmail = u.email || '';
+          const currentName = meta.name || meta.full_name || currentEmail.split('@')[0] || 'Patron';
+          const currentPhone = meta.phone || '';
+          const activeUser: UserProfile = {
+            name: currentName,
+            email: currentEmail,
+            phone: currentPhone,
+          };
+          setUser(activeUser);
+          try {
+            localStorage.setItem('purnya_user', JSON.stringify(activeUser));
+          } catch { }
+
+          const cloudAddrs = await getAddressesFromSupabase(currentEmail);
+          if (cloudAddrs && cloudAddrs.length > 0) {
+            setAddresses(cloudAddrs);
+            try {
+              localStorage.setItem('purnya_addresses', JSON.stringify(cloudAddrs));
+            } catch { }
+          }
+
+          const cloudOrders = await getOrdersForCustomerFromSupabase(currentEmail);
+          if (cloudOrders && cloudOrders.length > 0) {
+            setOrders(prev => {
+              const dbIds = new Set(cloudOrders.map(o => o.id));
+              const localOnly = prev.filter(o => !dbIds.has(o.id));
+              const merged = [...cloudOrders, ...localOnly];
+              try {
+                localStorage.setItem('purnya_orders', JSON.stringify(merged));
+              } catch { }
+              return merged;
+            });
+          }
+        } else if (event === 'SIGNED_OUT') {
+          setUser({ name: '', email: '', phone: '' });
+          setAddresses([]);
+          try {
+            localStorage.removeItem('purnya_user');
+            localStorage.removeItem('purnya_addresses');
+          } catch { }
+        }
+      });
+
+      return () => {
+        authListener?.subscription?.unsubscribe();
+      };
+    }
   }, []);
 
   const refreshCatalog = useCallback(async () => {
     try {
-      const [prods, cats] = await Promise.all([
+      const [prods, cats, dbBanners, dbAnnouncement, dbCoupons] = await Promise.all([
         getProductsFromSupabase(),
         getCategoriesFromSupabase(),
+        getBannersFromSupabase(),
+        getAnnouncementFromSupabase(),
+        getCouponsFromSupabase(),
       ]);
       if (prods && prods.length > 0) {
-        setProducts(prods);
+        const dbIds = new Set(prods.map(p => p.id));
+        const remaining = initialProducts.filter(p => !dbIds.has(p.id));
+        const merged = [...prods, ...remaining];
+        setProducts(merged);
         try {
-          localStorage.setItem('purnya_products', JSON.stringify(prods));
-        } catch {}
+          localStorage.setItem('purnya_products', JSON.stringify(merged));
+        } catch { }
       }
       if (cats && cats.length > 0) {
         setCategories(cats);
         try {
           localStorage.setItem('purnya_categories', JSON.stringify(cats));
-        } catch {}
+        } catch { }
+      }
+      if (dbBanners && dbBanners.length > 0) {
+        setBanners(dbBanners);
+        try {
+          localStorage.setItem('purnya_banners', JSON.stringify(dbBanners));
+        } catch { }
+      }
+      if (dbAnnouncement && dbAnnouncement.trim()) {
+        setAnnouncement(dbAnnouncement);
+        try {
+          localStorage.setItem('purnya_announcement', dbAnnouncement);
+        } catch { }
+      }
+      if (dbCoupons && dbCoupons.length > 0) {
+        setCoupons(dbCoupons);
+        try {
+          localStorage.setItem('purnya_coupons', JSON.stringify(dbCoupons));
+        } catch { }
       }
     } catch (e) {
       console.warn('Refresh catalog error:', e);
@@ -221,7 +472,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             if (Array.isArray(parsedProds) && parsedProds.length > 0) {
               setProducts(parsedProds);
             }
-          } catch {}
+          } catch { }
         }
 
         const savedCategories = localStorage.getItem('purnya_categories');
@@ -249,6 +500,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         const savedOrders = localStorage.getItem('purnya_orders');
         if (savedOrders) {
           try {
+            const parsedOrders = JSON.parse(savedOrders);
             setOrders(parsedOrders);
           } catch {
             setOrders([]);
@@ -259,7 +511,18 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         if (savedCoupons) setCoupons(JSON.parse(savedCoupons));
 
         const savedBanners = localStorage.getItem('purnya_banners');
-        if (savedBanners) setBanners(JSON.parse(savedBanners));
+        if (savedBanners) {
+          try {
+            const parsed = JSON.parse(savedBanners);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              setBanners(parsed);
+            } else {
+              setBanners(initialHeroSlides);
+            }
+          } catch {
+            setBanners(initialHeroSlides);
+          }
+        }
 
         const savedAnnouncement = localStorage.getItem('purnya_announcement');
         if (savedAnnouncement) setAnnouncement(savedAnnouncement);
@@ -267,6 +530,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         const savedAddresses = localStorage.getItem('purnya_addresses');
         if (savedAddresses) {
           try {
+            const parsedAddrs = JSON.parse(savedAddresses);
             setAddresses(parsedAddrs);
           } catch {
             setAddresses([]);
@@ -276,7 +540,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         const savedUser = localStorage.getItem('purnya_user');
         if (savedUser) {
           try {
-            setUser(parsed);
+            const parsedUser = JSON.parse(savedUser);
+            setUser(parsedUser);
           } catch {
             setUser({ name: '', email: '', phone: '' });
           }
@@ -340,6 +605,17 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // Cart operations
   const addToCart = (product: Product, quantity = 1, variant?: Record<string, string>) => {
+    if (!user?.email) {
+      showToast('Sign In Required 🛍️', 'Please sign in to add pieces to your bag.', 'info');
+      openAuthModal({
+        actionType: 'bag',
+        title: 'Add to Your Bag 🛍️',
+        message: 'Please sign in to add pieces to your shopping bag and enjoy uninterrupted shopping.',
+        redirectUrl: typeof window !== 'undefined' ? window.location.pathname : '/',
+      });
+      return;
+    }
+
     setCart(prev => {
       const existingIndex = prev.findIndex(item => item.product.id === product.id);
       if (existingIndex > -1) {
@@ -350,7 +626,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
       return [...prev, { product, quantity, selectedVariant: variant }];
     });
-    showToast('Added to Cart', `${product.name} (Qty: ${quantity})`);
+    showToast('Added to Bag 🛍️', `${product.name} (Qty: ${quantity})`);
   };
 
   const updateCartQty = (productId: string, delta: number) => {
@@ -379,13 +655,24 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // Wishlist operations
   const toggleWishlist = (product: Product) => {
+    if (!user?.email) {
+      showToast('Sign In Required ✨', 'Please sign in to save pieces to your wishlist.', 'info');
+      openAuthModal({
+        actionType: 'wishlist',
+        title: 'Save to Your Wishlist ✨',
+        message: 'Please sign in to keep your favorite pieces saved in your personal wishlist collection across all your devices.',
+        redirectUrl: typeof window !== 'undefined' ? window.location.pathname : '/',
+      });
+      return;
+    }
+
     setWishlist(prev => {
       const exists = prev.some(item => item.id === product.id);
       if (exists) {
-        showToast('Removed from Wishlist', product.name, 'info');
+        showToast('Removed from Wishlist 💔', `"${product.name}" has been removed from your saved pieces.`, 'info');
         return prev.filter(item => item.id !== product.id);
       } else {
-        showToast('Saved to Wishlist', product.name, 'success');
+        showToast('Saved to Wishlist ✨', `"${product.name}" added to your cherished collection.`, 'success');
         return [...prev, product];
       }
     });
@@ -404,7 +691,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (!appliedCoupon) return 0;
     if (cartSubtotal < appliedCoupon.minOrderValue) return 0;
     if (appliedCoupon.discountType === 'percentage') {
-      return Math.round((cartSubtotal * appliedCoupon.discountValue) / 100);
+      const calculated = Math.round((cartSubtotal * appliedCoupon.discountValue) / 100);
+      return appliedCoupon.maxDiscount ? Math.min(calculated, appliedCoupon.maxDiscount) : calculated;
     }
     return Math.min(appliedCoupon.discountValue, cartSubtotal);
   }, [appliedCoupon, cartSubtotal]);
@@ -436,6 +724,26 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       return {
         success: false,
         message: `Minimum order value of ₹${found.minOrderValue} required for this coupon.`,
+      };
+    }
+
+    const now = new Date();
+    if (found.validFrom && new Date(found.validFrom) > now) {
+      return {
+        success: false,
+        message: `This coupon will be active starting ${new Date(found.validFrom).toLocaleDateString('en-IN')}.`,
+      };
+    }
+    if (found.validUntil && new Date(found.validUntil) < now) {
+      return {
+        success: false,
+        message: 'This promo code has expired.',
+      };
+    }
+    if (found.usageLimit && (found.usageCount || 0) >= found.usageLimit) {
+      return {
+        success: false,
+        message: 'This coupon has reached its maximum redemption limit.',
       };
     }
 
@@ -480,6 +788,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       items: orderItems,
       subtotal: cartSubtotal,
       discount: cartDiscount,
+      couponCode: appliedCoupon?.code,
       shipping: cartShipping,
       total: cartTotal,
       customer: details.customer,
@@ -517,6 +826,22 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     };
 
     setOrders(prev => [newOrder, ...prev]);
+
+    // Increment coupon usage count
+    if (appliedCoupon) {
+      setCoupons(prev =>
+        prev.map(c => {
+          if (c.code === appliedCoupon.code) {
+            const nextCount = (c.usageCount || 0) + 1;
+            const updated = { ...c, usageCount: nextCount };
+            saveCouponToSupabase(updated).catch(() => { });
+            return updated;
+          }
+          return c;
+        })
+      );
+    }
+
     clearCart();
     showToast('Order Placed!', `Your Order #${newOrderId} has been confirmed.`, 'success');
 
@@ -683,57 +1008,189 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // Admin Coupons
   const addCoupon = (coupon: Coupon) => {
-    setCoupons(prev => [coupon, ...prev]);
+    setCoupons(prev => [coupon, ...prev.filter(c => c.code !== coupon.code)]);
     showToast('Coupon Created', `Coupon code ${coupon.code} is active.`);
+    saveCouponToSupabase(coupon).catch(err => {
+      console.warn('Supabase coupon save error:', err);
+    });
+  };
+
+  const updateCoupon = (code: string, updates: Partial<Coupon>) => {
+    setCoupons(prev =>
+      prev.map(c => {
+        if (c.code === code) {
+          const updated = { ...c, ...updates };
+          saveCouponToSupabase(updated).catch(err => {
+            console.warn('Supabase coupon update error:', err);
+          });
+          return updated;
+        }
+        return c;
+      })
+    );
+    showToast('Coupon Updated', `Coupon code ${code} updated.`);
   };
 
   const toggleCoupon = (code: string) => {
     setCoupons(prev =>
-      prev.map(c => (c.code === code ? { ...c, isActive: !c.isActive } : c))
+      prev.map(c => {
+        if (c.code === code) {
+          const nextActive = !c.isActive;
+          toggleCouponInSupabase(code, nextActive).catch(err => {
+            console.warn('Supabase coupon toggle error:', err);
+          });
+          return { ...c, isActive: nextActive };
+        }
+        return c;
+      })
     );
   };
 
+  const deleteCoupon = (code: string) => {
+    setCoupons(prev => prev.filter(c => c.code !== code));
+    showToast('Coupon Deleted', `Coupon code ${code} removed.`);
+    deleteCouponFromSupabase(code).catch(err => {
+      console.warn('Supabase coupon delete error:', err);
+    });
+  };
+
   // Admin Banners
+  const addHeroSlide = (slide: HeroSlide) => {
+    setBanners(prev => [slide, ...prev]);
+    showToast('Banner Added', 'New homepage hero banner created.');
+    upsertBannerToSupabase(slide).catch((err) => {
+      console.warn('Supabase banner save error:', err);
+    });
+  };
+
   const updateHeroSlide = (slide: HeroSlide) => {
     setBanners(prev => prev.map(s => (s.id === slide.id ? slide : s)));
     showToast('Banner Updated', 'Homepage hero slide updated.');
+    upsertBannerToSupabase(slide).catch((err) => {
+      console.warn('Supabase banner update error:', err);
+    });
+  };
+
+  const deleteHeroSlide = (id: string) => {
+    setBanners(prev => prev.filter(s => s.id !== id));
+    showToast('Banner Deleted', 'Homepage hero slide removed.');
+    deleteBannerFromSupabase(id).catch((err) => {
+      console.warn('Supabase banner delete error:', err);
+    });
   };
 
   const updateAnnouncement = (text: string) => {
     setAnnouncement(text);
-    showToast('Announcement Updated', 'Store announcement bar refreshed.');
+    showToast('Announcement Updated', 'Store announcement bar refreshed and saved to database.');
+    saveAnnouncementToSupabase(text).catch((err) => {
+      console.warn('Supabase announcement save error:', err);
+    });
   };
 
   // User & Addresses
   const updateUser = (profile: Partial<UserProfile>) => {
-    setUser(prev => ({ ...prev, ...profile }));
+    setUser(prev => {
+      const merged = { ...prev, ...profile };
+      try {
+        localStorage.setItem('purnya_user', JSON.stringify(merged));
+      } catch { }
+      return merged;
+    });
     showToast('Profile Updated', 'Personal information saved.');
   };
 
   const loginUser = (profile: UserProfile) => {
     setUser(profile);
+    try {
+      localStorage.setItem('purnya_user', JSON.stringify(profile));
+    } catch { }
+
+    if (profile.email) {
+      getAddressesFromSupabase(profile.email).then((cloudAddrs) => {
+        if (cloudAddrs && cloudAddrs.length > 0) {
+          setAddresses(cloudAddrs);
+          try {
+            localStorage.setItem('purnya_addresses', JSON.stringify(cloudAddrs));
+          } catch { }
+        }
+      });
+      getOrdersForCustomerFromSupabase(profile.email).then((cloudOrders) => {
+        if (cloudOrders && cloudOrders.length > 0) {
+          setOrders(prev => {
+            const dbIds = new Set(cloudOrders.map(o => o.id));
+            const localOnly = prev.filter(o => !dbIds.has(o.id));
+            const merged = [...cloudOrders, ...localOnly];
+            try {
+              localStorage.setItem('purnya_orders', JSON.stringify(merged));
+            } catch { }
+            return merged;
+          });
+        }
+      });
+    }
     showToast('Welcome to Purnya', `Signed in as ${profile.name || profile.email}`);
   };
 
   const logoutUser = () => {
     setUser({ name: '', email: '', phone: '' });
+    setAddresses([]);
+    try {
+      localStorage.removeItem('purnya_user');
+      localStorage.removeItem('purnya_addresses');
+    } catch { }
+    signOutFromSupabase().catch(() => { });
     showToast('Signed Out', 'You have been safely signed out.', 'info');
   };
 
   const addAddress = (address: Omit<Address, 'id'>) => {
     const id = `addr-${Date.now()}`;
-    setAddresses(prev => [...prev, { ...address, id }]);
+    const newAddr: Address = { ...address, id };
+    setAddresses(prev => {
+      const updated = [newAddr, ...prev];
+      try {
+        localStorage.setItem('purnya_addresses', JSON.stringify(updated));
+      } catch { }
+      return updated;
+    });
     showToast('Address Saved', 'New delivery address added.');
+
+    if (user?.email) {
+      saveAddressToSupabase(newAddr, user.email).catch(err =>
+        console.warn('Supabase saveAddress error:', err)
+      );
+    }
   };
 
   const updateAddress = (id: string, updates: Partial<Address>) => {
-    setAddresses(prev => prev.map(a => (a.id === id ? { ...a, ...updates } : a)));
+    setAddresses(prev => {
+      const updated = prev.map(a => (a.id === id ? { ...a, ...updates } : a));
+      try {
+        localStorage.setItem('purnya_addresses', JSON.stringify(updated));
+      } catch { }
+      return updated;
+    });
     showToast('Address Updated', 'Saved delivery address updated.');
+
+    if (user?.email) {
+      updateAddressInSupabase(id, updates, user.email).catch(err =>
+        console.warn('Supabase updateAddress error:', err)
+      );
+    }
   };
 
   const deleteAddress = (id: string) => {
-    setAddresses(prev => prev.filter(a => a.id !== id));
+    setAddresses(prev => {
+      const updated = prev.filter(a => a.id !== id);
+      try {
+        localStorage.setItem('purnya_addresses', JSON.stringify(updated));
+      } catch { }
+      return updated;
+    });
     showToast('Address Deleted', undefined, 'info');
+
+    deleteAddressFromSupabase(id).catch(err =>
+      console.warn('Supabase deleteAddress error:', err)
+    );
   };
 
   const syncCatalogToSupabase = async () => {
@@ -764,6 +1221,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         addresses,
         appliedCoupon,
         toast,
+        authModal,
+        openAuthModal,
+        closeAuthModal,
         isSearchOpen,
         setIsSearchOpen,
         supabaseStatus,
@@ -793,8 +1253,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         removeCategorySubcategory,
         updateCategory,
         addCoupon,
+        updateCoupon,
         toggleCoupon,
+        deleteCoupon,
+        addHeroSlide,
         updateHeroSlide,
+        deleteHeroSlide,
         updateAnnouncement,
         updateUser,
         loginUser,

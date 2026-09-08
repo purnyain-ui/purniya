@@ -40,18 +40,28 @@ export default function WishlistPage() {
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
           {wishlist.map((prod) => (
-            <div key={prod.id} className="relative">
+            <div key={prod.id} className="relative flex flex-col justify-between">
               <ProductCard product={prod} />
-              <button
-                onClick={() => {
-                  addToCart(prod, 1);
-                  toggleWishlist(prod);
-                }}
-                className="w-full mt-2 py-2.5 px-4 rounded-xl bg-[#FAF8F5] hover:bg-[#0C3B2E] text-[#0B241C] hover:text-white border border-[#E2DBD0] text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors shadow-xs"
-              >
-                <ShoppingBag className="w-3.5 h-3.5 text-[#C5A059] group-hover:text-white" />
-                <span>Move to Cart</span>
-              </button>
+              <div className="grid grid-cols-2 gap-2 mt-2">
+                <button
+                  onClick={() => {
+                    addToCart(prod, 1);
+                    toggleWishlist(prod);
+                  }}
+                  className="py-2.5 px-3 rounded-xl bg-[#FAF8F5] hover:bg-[#0C3B2E] text-[#0B241C] hover:text-white border border-[#E2DBD0] text-[11px] font-semibold flex items-center justify-center gap-1.5 transition-colors shadow-xs cursor-pointer"
+                >
+                  <ShoppingBag className="w-3.5 h-3.5 text-[#C5A059]" />
+                  <span>Move to Bag</span>
+                </button>
+                <button
+                  onClick={() => toggleWishlist(prod)}
+                  className="py-2.5 px-3 rounded-xl bg-white hover:bg-rose-50 text-rose-600 border border-rose-200 text-[11px] font-semibold flex items-center justify-center gap-1.5 transition-colors shadow-xs cursor-pointer"
+                  title="Remove from wishlist"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Remove</span>
+                </button>
+              </div>
             </div>
           ))}
         </div>

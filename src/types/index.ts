@@ -81,6 +81,7 @@ export interface Order {
   items: OrderItem[];
   subtotal: number;
   discount: number;
+  couponCode?: string;
   shipping: number;
   total: number;
   customer: {
@@ -108,6 +109,10 @@ export interface Coupon {
   minOrderValue: number;
   isActive: boolean;
   description: string;
+  maxDiscount?: number;
+  usageLimit?: number;
+  validFrom?: string;
+  validUntil?: string;
   expiryDate?: string;
   usageCount?: number;
 }

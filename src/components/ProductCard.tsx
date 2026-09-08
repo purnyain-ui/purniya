@@ -14,7 +14,7 @@ interface ProductCardProps {
 
 export default function ProductCard({ product, compact = false }: ProductCardProps) {
   const router = useRouter();
-  const { toggleWishlist, isInWishlist, addToCart, user, showToast } = useStore();
+  const { toggleWishlist, isInWishlist, addToCart, user, openAuthModal } = useStore();
   const isWished = isInWishlist(product.id);
 
   const discount = product.originalPrice
@@ -56,15 +56,11 @@ export default function ProductCard({ product, compact = false }: ProductCardPro
         <button
           onClick={(e) => {
             e.preventDefault();
-            if (!user?.email) {
-              showToast('Login Required', 'Please login to save to your wishlist.', 'error');
-              router.push('/login');
-              return;
-            }
+            e.stopPropagation();
             toggleWishlist(product);
           }}
           aria-label="Wishlist"
-          className={`absolute top-3 right-3 w-8 h-8 rounded-full flex items-center justify-center backdrop-blur-md transition-all z-10 ${
+          className={`absolute top-3 right-3 w-8 h-8 rounded-full flex items-center justify-center backdrop-blur-md transition-all z-10 cursor-pointer ${
             isWished
               ? 'bg-rose-50 text-rose-600 shadow-md scale-105'
               : 'bg-white/85 text-[#2C4A3E] hover:bg-white hover:text-rose-600 hover:scale-105 shadow-xs'
@@ -78,14 +74,10 @@ export default function ProductCard({ product, compact = false }: ProductCardPro
           <button
             onClick={(e) => {
               e.preventDefault();
-              if (!user?.email) {
-                showToast('Login Required', 'Please login to add items to your bag.', 'error');
-                router.push('/login');
-                return;
-              }
+              e.stopPropagation();
               addToCart(product, 1);
             }}
-            className="w-full py-2.5 px-4 rounded-xl bg-white/95 hover:bg-[#0C3B2E] hover:text-white text-[#0B241C] font-semibold text-xs tracking-wider uppercase shadow-lg backdrop-blur-md flex items-center justify-center gap-2 transition-all border border-[#E2DBD0]"
+            className="w-full py-2.5 px-4 rounded-xl bg-white/95 hover:bg-[#0C3B2E] hover:text-white text-[#0B241C] font-semibold text-xs tracking-wider uppercase shadow-lg backdrop-blur-md flex items-center justify-center gap-2 transition-all border border-[#E2DBD0] cursor-pointer"
           >
             <ShoppingBag className="w-3.5 h-3.5 text-[#C5A059] group-hover:text-[#D4AF37]" />
             <span>Quick Add</span>

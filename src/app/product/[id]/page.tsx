@@ -24,7 +24,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
   const id = resolvedParams.id;
   const router = useRouter();
 
-  const { products, addToCart, toggleWishlist, isInWishlist, user, showToast } = useStore();
+  const { products, addToCart, toggleWishlist, isInWishlist, user, showToast, openAuthModal } = useStore();
 
   const product = useMemo(() => {
     return products.find((p) => p.id === id);
@@ -81,18 +81,17 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
     : 0;
 
   const handleAddToCart = () => {
-    if (!user?.email) {
-      showToast('Login Required', 'Please login to add items to your bag.', 'error');
-      router.push('/login');
-      return;
-    }
     addToCart(product, quantity, activeVariants);
   };
 
   const handleBuyNow = () => {
     if (!user?.email) {
-      showToast('Login Required', 'Please login to purchase items.', 'error');
-      router.push('/login');
+      openAuthModal({
+        actionType: 'order',
+        title: 'Sign In to Place Order 💎',
+        message: 'Please sign in to your Purnya Circle account to complete this order and finalize delivery.',
+        redirectUrl: '/checkout',
+      });
       return;
     }
     addToCart(product, quantity, activeVariants);
@@ -287,14 +286,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
                 </button>
 
                 <button
-                  onClick={() => {
-                    if (!user?.email) {
-                      showToast('Login Required', 'Please login to save to your wishlist.', 'error');
-                      router.push('/login');
-                      return;
-                    }
-                    toggleWishlist(product);
-                  }}
+                  onClick={() => toggleWishlist(product)}
                   aria-label="Add to Wishlist"
                   className={`w-13 h-13 rounded-xl border flex items-center justify-center transition-all ${
                     isWished

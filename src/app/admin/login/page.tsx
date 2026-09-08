@@ -18,7 +18,7 @@ import {
   HelpCircle,
 } from 'lucide-react';
 import { useStore } from '../../../context/StoreContext';
-import { signInWithSupabase, isSupabaseConfigured } from '../../../lib/supabase';
+import { signInWithSupabase, isSupabaseConfigured, supabase } from '../../../lib/supabase';
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -51,6 +51,28 @@ export default function AdminLoginPage() {
     if (isSupabaseConfigured && adminEmail.includes('@')) {
       const res = await signInWithSupabase(adminEmail.trim(), adminPassword);
       if (res.success && res.user) {
+        // Check if user has admin role via metadata or admin_users table
+        const userRole = res.user.user_metadata?.role;
+        let isAdmin = userRole === 'admin';
+
+        if (!isAdmin && supabase) {
+          const { data: adminRecord } = await supabase
+            .from('admin_users')
+            .select('id, email, role, is_active')
+            .eq('email', adminEmail.trim().toLowerCase())
+            .single();
+
+          if (adminRecord && adminRecord.is_active) {
+            isAdmin = true;
+          }
+        }
+
+        if (!isAdmin) {
+          setIsLoading(false);
+          setErrorMsg('Access denied. This account does not have administrator privileges.');
+          return;
+        }
+
         setIsSuccess(true);
         if (typeof window !== 'undefined') {
           localStorage.setItem('purnya_admin_authenticated', 'true');
@@ -60,6 +82,44 @@ export default function AdminLoginPage() {
               email: adminEmail.trim(),
               loginTime: new Date().toISOString(),
               role: 'Super Administrator',
+              authMethod: 'supabase',
+            })
+          );
+        }
+        showToast('Admin Authenticated', 'Welcome back to Purnya Merchant Studio.');
+        setTimeout(() => {
+          router.push('/admin');
+        }, 500);
+        return;
+      }
+
+      // Supabase auth failed — show the actual error
+      if (res.error) {
+        setIsLoading(false);
+        const friendlyError = res.error.toLowerCase().includes('invalid login credentials')
+          ? 'Invalid email or password. Please verify your credentials.'
+          : res.error;
+        setErrorMsg(friendlyError);
+        return;
+      }
+    }
+
+    // 2. Fallback preset credentials ONLY when Supabase is not configured
+    if (!isSupabaseConfigured) {
+      const isPresetAdmin =
+        adminEmail.toLowerCase() === 'admin@purnya.com' && adminPassword === 'purnya2026';
+
+      if (isPresetAdmin) {
+        setIsSuccess(true);
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('purnya_admin_authenticated', 'true');
+          localStorage.setItem(
+            'purnya_admin_session',
+            JSON.stringify({
+              email: adminEmail.trim(),
+              loginTime: new Date().toISOString(),
+              role: 'Super Administrator',
+              authMethod: 'preset',
             })
           );
         }
@@ -71,33 +131,8 @@ export default function AdminLoginPage() {
       }
     }
 
-    // 2. Default preset credential verification (admin@purnya.com / purnya2026)
-    const isPresetAdmin =
-      (adminEmail.toLowerCase() === 'admin@purnya.com' && adminPassword === 'purnya2026') ||
-      (adminEmail.toLowerCase().includes('admin') && adminPassword === 'purnya2026') ||
-      adminPassword === 'purnya2026';
-
-    if (isPresetAdmin) {
-      setIsSuccess(true);
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('purnya_admin_authenticated', 'true');
-        localStorage.setItem(
-          'purnya_admin_session',
-          JSON.stringify({
-            email: adminEmail.trim() || 'admin@purnya.com',
-            loginTime: new Date().toISOString(),
-            role: 'Super Administrator',
-          })
-        );
-      }
-      showToast('Admin Authenticated', 'Welcome back to Purnya Merchant Studio.');
-      setTimeout(() => {
-        router.push('/admin');
-      }, 500);
-    } else {
-      setIsLoading(false);
-      setErrorMsg('Invalid administrative credentials. Use admin@purnya.com / purnya2026 or your Supabase admin user.');
-    }
+    setIsLoading(false);
+    setErrorMsg('Invalid administrative credentials. Please use your authorized admin email and password.');
   };
 
 
@@ -255,6 +290,24 @@ export default function AdminLoginPage() {
                     <ArrowRight className="w-4 h-4" />
                   </>
                 )}
+              </button>
+
+              {/* Quick Access for Testing */}
+              <button
+                type="button"
+                onClick={() => {
+                  setAdminEmail('admin@purnya.com');
+                  setAdminPassword('purnya2026');
+                  setTimeout(() => {
+                    const form = document.querySelector('form');
+                    if (form) form.requestSubmit();
+                  }, 150);
+                }}
+                disabled={isLoading || isSuccess}
+                className="w-full py-2.5 px-4 rounded-xl bg-white/5 hover:bg-white/10 text-[#8BAAA0] hover:text-white text-[11px] font-semibold tracking-wide transition-all flex items-center justify-center gap-2 border border-white/10 hover:border-[#C5A059]/40 disabled:opacity-40 cursor-pointer"
+              >
+                <KeyRound className="w-3.5 h-3.5 text-[#C5A059]" />
+                <span>Quick Access · Dev Testing</span>
               </button>
 
 

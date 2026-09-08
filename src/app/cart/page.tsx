@@ -24,9 +24,11 @@ export default function CartPage() {
     cartDiscount,
     cartShipping,
     cartTotal,
+    appliedCoupon,
     applyCoupon,
     removeCoupon,
     user,
+    openAuthModal,
   } = useStore();
 
   const [couponInput, setCouponInput] = useState('');
@@ -302,13 +304,31 @@ export default function CartPage() {
                 </span>
               </div>
 
-              <Link
-                href={user?.email ? "/checkout" : "/login"}
-                className="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-[#D4AF37] to-[#C5A059] hover:from-[#E6C25B] hover:to-[#D4AF37] text-[#08281F] font-bold text-xs uppercase tracking-widest shadow-xl flex items-center justify-center gap-2 transition-all hover:scale-[1.01]"
-              >
-                <span>{user?.email ? 'Proceed to Checkout' : 'Login to Purchase'}</span>
-                <ArrowRight className="w-4 h-4" />
-              </Link>
+              {user?.email ? (
+                <Link
+                  href="/checkout"
+                  className="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-[#D4AF37] to-[#C5A059] hover:from-[#E6C25B] hover:to-[#D4AF37] text-[#08281F] font-bold text-xs uppercase tracking-widest shadow-xl flex items-center justify-center gap-2 transition-all hover:scale-[1.01]"
+                >
+                  <span>Proceed to Checkout</span>
+                  <ArrowRight className="w-4 h-4" />
+                </Link>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() =>
+                    openAuthModal({
+                      actionType: 'order',
+                      title: 'Sign In to Place Order 💎',
+                      message: 'Please sign in to your Purnya Circle account to finalize delivery and place your order.',
+                      redirectUrl: '/checkout',
+                    })
+                  }
+                  className="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-[#D4AF37] to-[#C5A059] hover:from-[#E6C25B] hover:to-[#D4AF37] text-[#08281F] font-bold text-xs uppercase tracking-widest shadow-xl flex items-center justify-center gap-2 transition-all hover:scale-[1.01] cursor-pointer"
+                >
+                  <span>Login to Place Order</span>
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+              )}
             </div>
           </div>
         </div>

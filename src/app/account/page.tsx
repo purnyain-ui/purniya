@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
   User,
@@ -18,6 +18,7 @@ import {
   Truck,
 } from 'lucide-react';
 import { useStore } from '../../context/StoreContext';
+import { supabase } from '../../lib/supabaseClient';
 import { Address } from '../../types';
 
 export default function AccountPage() {
@@ -44,10 +45,35 @@ export default function AccountPage() {
   const [selectedOrderForReturn, setSelectedOrderForReturn] = useState<string | null>(null);
   const [returnReason, setReturnReason] = useState('Size / fit did not meet expectations');
 
-  const handleSaveProfile = (e: React.FormEvent) => {
+  // Keep state in sync with user profile
+  useEffect(() => {
+    setProfileName(user.name || '');
+    setProfileEmail(user.email || '');
+    setProfilePhone(user.phone || '');
+    setNewName(user.name || '');
+    setNewPhone(user.phone || '');
+  }, [user]);
+
+  const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     updateUser({ name: profileName, email: profileEmail, phone: profilePhone });
     setIsEditingProfile(false);
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        await supabase.auth.updateUser({
+          data: { name: profileName, full_name: profileName, phone: profilePhone },
+        });
+        await supabase.from('profiles').update({
+          full_name: profileName,
+          phone: profilePhone,
+          updated_at: new Date().toISOString(),
+        }).eq('id', session.user.id);
+      }
+    } catch (err) {
+      console.warn('Supabase profile sync error:', err);
+    }
   };
 
   const handleSaveAddress = (e: React.FormEvent) => {

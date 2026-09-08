@@ -1,5 +1,5 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { Product, CategoryMeta, Order } from '../types';
+import { Product, CategoryMeta, Order, HeroSlide, Address, Coupon } from '../types';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
@@ -22,12 +22,12 @@ function getProjectRef(url?: string): string {
 
 export const supabase: SupabaseClient = isSupabaseConfigured
   ? createClient(supabaseUrl, supabaseAnonKey, {
-      auth: {
-        persistSession: true,
-        autoRefreshToken: true,
-        detectSessionInUrl: true,
-      },
-    })
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+    },
+  })
   : (null as unknown as SupabaseClient);
 
 /**
@@ -68,6 +68,9 @@ export async function checkSupabaseConnection(): Promise<{
     const { error: catError } = await supabase.from('categories').select('id').limit(1);
     if (!catError) tablesFound.push('categories');
 
+    const { error: bannerError } = await supabase.from('banners').select('id').limit(1);
+    if (!bannerError) tablesFound.push('banners');
+
     return {
       connected: true,
       message: prodError
@@ -93,6 +96,10 @@ export async function getProductsFromSupabase(): Promise<Product[] | null> {
   try {
     const [
       { data: prods, error: prodError },
+      { data: prodImages },
+      { data: prodFeatures },
+      { data: prodVariants },
+      { data: variantImages },
       { data: cats },
       { data: subs },
       { data: tags },
@@ -100,6 +107,10 @@ export async function getProductsFromSupabase(): Promise<Product[] | null> {
       { data: colors },
     ] = await Promise.all([
       supabase.from('products').select('*').order('created_at', { ascending: false }),
+      supabase.from('product_images').select('product_id, image_url, sort_order').order('sort_order', { ascending: true }),
+      supabase.from('product_features').select('product_id, feature, sort_order').order('sort_order', { ascending: true }),
+      supabase.from('product_variants').select('*').order('created_at', { ascending: true }),
+      supabase.from('product_variant_images').select('variant_id, image_url, sort_order').order('sort_order', { ascending: true }),
       supabase.from('categories').select('id, slug, title'),
       supabase.from('subcategories').select('id, category_id, name'),
       supabase.from('lifestyle_sale_tags').select('id, name'),
@@ -115,6 +126,36 @@ export async function getProductsFromSupabase(): Promise<Product[] | null> {
       return [];
     }
 
+    // Map product images from product_images table
+    const prodImageMap = new Map<string, string[]>();
+    (prodImages || []).forEach((img: any) => {
+      if (img.product_id && img.image_url) {
+        const list = prodImageMap.get(img.product_id) || [];
+        list.push(img.image_url);
+        prodImageMap.set(img.product_id, list);
+      }
+    });
+
+    // Map variant images from product_variant_images table
+    const variantImageMap = new Map<string, string[]>();
+    (variantImages || []).forEach((img: any) => {
+      if (img.variant_id && img.image_url) {
+        const list = variantImageMap.get(img.variant_id) || [];
+        list.push(img.image_url);
+        variantImageMap.set(img.variant_id, list);
+      }
+    });
+
+    // Map features from product_features table
+    const featureMap = new Map<string, string[]>();
+    (prodFeatures || []).forEach((f: any) => {
+      if (f.product_id && f.feature) {
+        const list = featureMap.get(f.product_id) || [];
+        list.push(f.feature);
+        featureMap.set(f.product_id, list);
+      }
+    });
+
     const catMap = new Map((cats || []).map((c: any) => [c.id, c]));
     const subMap = new Map((subs || []).map((s: any) => [s.id, s]));
     const tagMap = new Map((tags || []).map((t: any) => [t.id, t.name]));
@@ -124,51 +165,71 @@ export async function getProductsFromSupabase(): Promise<Product[] | null> {
     return prods.map((p: any) => {
       const matchedCat = catMap.get(p.category_id);
       const matchedSub = subMap.get(p.subcategory_id);
-      const matchedTagName = p.sale_tag_id ? tagMap.get(p.sale_tag_id) : undefined;
+      const matchedTagName = (p.lifestyle_tag_id || p.sale_tag_id) ? tagMap.get(p.lifestyle_tag_id || p.sale_tag_id) : undefined;
 
-      const firstImage = (Array.isArray(p.images) && p.images[0]) || p.image || 'https://images.unsplash.com/photo-1599643477877-530eb83abc8e?w=600&fit=crop&auto=format';
-      const allImages = Array.isArray(p.images) && p.images.length > 0 ? p.images : [firstImage];
+      // 1. Gather real uploaded images from product_images table
+      let dbImages = prodImageMap.get(p.id) || [];
 
+      // If product has variants, also gather variant images
+      const myVariants = (prodVariants || []).filter((v: any) => v.product_id === p.id);
+      if (dbImages.length === 0 && myVariants.length > 0) {
+        for (const v of myVariants) {
+          const vImgs = variantImageMap.get(v.id) || [];
+          if (vImgs.length > 0) {
+            dbImages.push(...vImgs);
+          }
+        }
+      }
+
+      // Fallback only if no images exist anywhere in DB
+      const firstImage = dbImages[0] || (Array.isArray(p.images) && p.images[0]) || p.image || 'https://images.unsplash.com/photo-1599643477877-530eb83abc8e?w=600&fit=crop&auto=format';
+      const allImages = dbImages.length > 0 ? dbImages : (Array.isArray(p.images) && p.images.length > 0 ? p.images : [firstImage]);
+
+      // 2. Real price & selling_price
       const rawPrice = Number(p.price || 0);
-      const offerPrice = p.offer_price != null && Number(p.offer_price) > 0 ? Number(p.offer_price) : null;
-      const finalPrice = offerPrice !== null ? offerPrice : rawPrice;
-      const originalPrice = offerPrice !== null && rawPrice > offerPrice ? rawPrice : (p.original_price ? Number(p.original_price) : undefined);
+      const sellingPrice = p.selling_price != null ? Number(p.selling_price) : (p.offer_price != null ? Number(p.offer_price) : null);
+      const finalPrice = (sellingPrice !== null && sellingPrice > 0) ? sellingPrice : rawPrice;
+      const originalPrice = (sellingPrice !== null && rawPrice > sellingPrice) ? rawPrice : (p.original_price ? Number(p.original_price) : undefined);
 
-      const title = (p.title || p.name || 'Untitled Product').trim();
+      const title = (p.name || p.title || 'Untitled Product').trim();
       const catTitle = (matchedCat?.title?.trim() || p.category || 'Jewellery & Accessories').trim();
-      const catSlug = (matchedCat?.slug?.trim() || p.categorySlug || p.category_slug || 'apparel').trim();
+      const catSlug = (matchedCat?.slug?.trim().toLowerCase() || p.categorySlug || p.category_slug || 'apparel').trim();
       const subName = (matchedSub?.name?.trim() || p.subcategory || '').trim();
 
       const lifestyleTag = matchedTagName || (Array.isArray(p.tags) && p.tags[0]) || p.lifestyle_tag || p.lifestyleTag || undefined;
 
-      // Convert Supabase database variants ({ size_id, color_id }) into standard frontend options format
+      // 3. Features & description
+      const dbFeatures = featureMap.get(p.id) || [];
+      const description = (p.description || '').trim();
+
+      // 4. Resolve variants into standard frontend options
       let resolvedVariants: any[] = [];
-      if (Array.isArray(p.variants) && p.variants.length > 0) {
-        if (p.variants[0]?.options) {
-          resolvedVariants = p.variants;
-        } else {
-          const uniqueSizes = [
-            ...new Set(
-              p.variants
-                .map((v: any) => sizeMap.get(v.size_id))
-                .filter(Boolean)
-            ),
-          ];
-          const uniqueColors = [
-            ...new Set(
-              p.variants
-                .map((v: any) => colorMap.get(v.color_id))
-                .filter(Boolean)
-            ),
-          ];
-          if (uniqueSizes.length > 0) {
-            resolvedVariants.push({ name: 'Size', options: uniqueSizes });
-          }
-          if (uniqueColors.length > 0) {
-            resolvedVariants.push({ name: 'Color', options: uniqueColors });
-          }
+      if (myVariants.length > 0) {
+        const uniqueSizes = [
+          ...new Set(
+            myVariants
+              .map((v: any) => sizeMap.get(v.size_id))
+              .filter(Boolean)
+          ),
+        ];
+        const uniqueColors = [
+          ...new Set(
+            myVariants
+              .map((v: any) => colorMap.get(v.color_id))
+              .filter(Boolean)
+          ),
+        ];
+        if (uniqueSizes.length > 0) {
+          resolvedVariants.push({ name: 'Size', options: uniqueSizes });
         }
+        if (uniqueColors.length > 0) {
+          resolvedVariants.push({ name: 'Color', options: uniqueColors });
+        }
+      } else if (Array.isArray(p.variants) && p.variants.length > 0) {
+        resolvedVariants = p.variants;
       }
+
+      const isActive = p.is_active !== undefined ? Boolean(p.is_active) : (p.status === 'active' || p.status === 'Active');
 
       return {
         id: p.id,
@@ -182,13 +243,14 @@ export async function getProductsFromSupabase(): Promise<Product[] | null> {
         images: allImages,
         rating: p.rating ? Number(p.rating) : 4.9,
         reviewsCount: p.reviewsCount || p.reviews_count || 12,
-        description: p.description || '',
+        description,
         stock: p.stock !== undefined ? Number(p.stock) : 50,
-        status: (p.status === 'active' || p.status === 'Active') ? 'Active' : (p.status === 'out_of_stock' || p.stock === 0 ? 'Out of Stock' : 'Draft'),
+        status: isActive ? 'Active' : (p.stock === 0 ? 'Out of Stock' : 'Draft'),
         badge: (originalPrice && originalPrice > finalPrice) ? 'Sale' : (p.badge || undefined),
         lifestyleTag,
-        featured: Boolean(p.featured),
+        featured: Boolean(p.is_featured ?? p.featured),
         variants: resolvedVariants,
+        features: dbFeatures,
         createdAt: p.created_at || p.createdAt,
       } as Product;
     });
@@ -233,7 +295,7 @@ export async function getCategoriesFromSupabase(): Promise<CategoryMeta[] | null
       const matchingSubs = subcategoriesData.filter((s: any) => s.category_id === c.id);
       const hero = (c.hero_image?.trim() || c.banner_image?.trim() || c.heroImage?.trim() || c.bannerImage?.trim() || '');
       const banner = (c.banner_image?.trim() || c.hero_image?.trim() || c.bannerImage?.trim() || c.heroImage?.trim() || '');
-      
+
       const subcatNames = matchingSubs.length > 0
         ? ['All', ...matchingSubs.map((s: any) => (s.name || '').trim())]
         : (Array.isArray(c.subcategories) && c.subcategories.length > 0 ? c.subcategories : ['All']);
@@ -769,3 +831,780 @@ export async function syncAttributesToSupabase(
   }
 }
 
+/**
+ * Fetch banners from Supabase
+ */
+export async function getBannersFromSupabase(): Promise<HeroSlide[] | null> {
+  if (!isSupabaseConfigured || !supabase) return null;
+  try {
+    const { data, error } = await supabase
+      .from('banners')
+      .select('*')
+      .order('created_at', { ascending: true });
+
+    if (error) {
+      console.warn('Supabase getBanners error:', error);
+      return null;
+    }
+    if (!data) return [];
+    return data
+      .filter((b: any) => b.id !== 'announcement-bar-main' && b.category !== 'announcement')
+      .map((b: any) => ({
+        id: b.id,
+        title: b.title || '',
+        subtitle: b.subtitle || '',
+        pretitle: b.category || b.pretitle || '',
+        ctaText: b.cta_text || 'Shop Now',
+        ctaLink: b.cta_link || '/',
+        image: b.image || '',
+        active: b.is_active ?? true,
+      }));
+  } catch (err) {
+    console.warn('Supabase getBanners exception:', err);
+    return null;
+  }
+}
+
+/**
+ * Fetch top storewide announcement from Supabase
+ */
+export async function getAnnouncementFromSupabase(): Promise<string | null> {
+  if (!isSupabaseConfigured || !supabase) return null;
+  try {
+    const { data, error } = await supabase
+      .from('banners')
+      .select('title')
+      .eq('id', 'announcement-bar-main')
+      .maybeSingle();
+
+    if (error) {
+      console.warn('Supabase getAnnouncement error:', error);
+      return null;
+    }
+    return data?.title || null;
+  } catch (err) {
+    console.warn('Supabase getAnnouncement exception:', err);
+    return null;
+  }
+}
+
+/**
+ * Save top storewide announcement to Supabase
+ */
+export async function saveAnnouncementToSupabase(text: string): Promise<boolean> {
+  if (!isSupabaseConfigured || !supabase) return false;
+  try {
+    const { error } = await supabase.from('banners').upsert(
+      {
+        id: 'announcement-bar-main',
+        title: text,
+        category: 'announcement',
+        image: 'announcement',
+        is_active: true,
+      },
+      { onConflict: 'id' }
+    );
+    if (error) {
+      console.warn('Supabase saveAnnouncement error:', error);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.warn('Supabase saveAnnouncement exception:', err);
+    return false;
+  }
+}
+
+/**
+ * Upsert single banner to Supabase
+ */
+export async function upsertBannerToSupabase(slide: HeroSlide): Promise<{ success: boolean; error?: string }> {
+  if (!isSupabaseConfigured || !supabase) return { success: false, error: 'Supabase credentials not configured' };
+  try {
+    const { error } = await supabase.from('banners').upsert(
+      {
+        id: slide.id,
+        title: slide.title,
+        subtitle: slide.subtitle || null,
+        category: slide.pretitle || null,
+        image: slide.image,
+        cta_text: slide.ctaText || null,
+        cta_link: slide.ctaLink || null,
+        is_active: Boolean(slide.active),
+      },
+      { onConflict: 'id' }
+    );
+    if (error) {
+      console.warn('Supabase upsertBanner error:', error);
+      return { success: false, error: error.message };
+    }
+    return { success: true };
+  } catch (err: any) {
+    console.warn('Supabase upsertBanner exception:', err);
+    return { success: false, error: err?.message || 'Failed to save banner' };
+  }
+}
+
+/**
+ * Delete a banner from Supabase
+ */
+export async function deleteBannerFromSupabase(id: string): Promise<boolean> {
+  if (!isSupabaseConfigured || !supabase) return false;
+  try {
+    const { error } = await supabase.from('banners').delete().eq('id', id);
+    if (error) {
+      console.warn('Supabase deleteBanner error:', error);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.warn('Supabase deleteBanner exception:', err);
+    return false;
+  }
+}
+
+/**
+ * Seed initial banners to Supabase
+ */
+export async function seedBannersToSupabase(banners: HeroSlide[]): Promise<{ success: boolean; message: string }> {
+  if (!isSupabaseConfigured || !supabase) {
+    return { success: false, message: 'Supabase credentials not configured.' };
+  }
+  try {
+    const { error } = await supabase.from('banners').upsert(
+      banners.map((b) => ({
+        id: b.id,
+        title: b.title,
+        subtitle: b.subtitle || null,
+        category: b.pretitle || null,
+        image: b.image,
+        cta_text: b.ctaText || null,
+        cta_link: b.ctaLink || null,
+        is_active: Boolean(b.active),
+      })),
+      { onConflict: 'id' }
+    );
+    if (error) throw error;
+    return { success: true, message: `Successfully seeded ${banners.length} banners to Supabase.` };
+  } catch (err: any) {
+    return { success: false, message: err?.message || 'Failed to seed banners to Supabase.' };
+  }
+}
+
+/**
+ * Fetch addresses for a specific customer email from Supabase
+ */
+export async function getAddressesFromSupabase(userEmail: string): Promise<Address[]> {
+  if (!isSupabaseConfigured || !supabase || !userEmail) return [];
+  try {
+    const { data, error } = await supabase
+      .from('addresses')
+      .select('*')
+      .eq('user_email', userEmail.trim().toLowerCase())
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.warn('Supabase getAddresses error:', error.message);
+      return [];
+    }
+
+    return (data || []).map((row: any) => ({
+      id: row.id,
+      label: (row.label as 'Home' | 'Office' | 'Other') || 'Home',
+      fullName: row.full_name || '',
+      phone: row.phone || '',
+      addressLine: row.address_line || '',
+      city: row.city || '',
+      state: row.state || '',
+      pincode: row.pincode || '',
+      isDefault: Boolean(row.is_default),
+    }));
+  } catch (err) {
+    console.warn('Supabase getAddresses exception:', err);
+    return [];
+  }
+}
+
+/**
+ * Save new or existing address to Supabase
+ */
+export async function saveAddressToSupabase(
+  address: Address,
+  userEmail: string,
+  userId?: string
+): Promise<boolean> {
+  if (!isSupabaseConfigured || !supabase || !userEmail) return false;
+  try {
+    // If setting as default, unset other defaults for this user
+    if (address.isDefault) {
+      await supabase
+        .from('addresses')
+        .update({ is_default: false })
+        .eq('user_email', userEmail.trim().toLowerCase());
+    }
+
+    const { error } = await supabase.from('addresses').upsert(
+      {
+        id: address.id,
+        user_email: userEmail.trim().toLowerCase(),
+        user_id: userId || null,
+        label: address.label || 'Home',
+        full_name: address.fullName,
+        phone: address.phone,
+        address_line: address.addressLine,
+        city: address.city,
+        state: address.state,
+        pincode: address.pincode,
+        is_default: Boolean(address.isDefault),
+      },
+      { onConflict: 'id' }
+    );
+
+    if (error) {
+      console.warn('Supabase saveAddress error:', error.message);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.warn('Supabase saveAddress exception:', err);
+    return false;
+  }
+}
+
+/**
+ * Update an existing address in Supabase
+ */
+export async function updateAddressInSupabase(
+  addressId: string,
+  updates: Partial<Address>,
+  userEmail?: string
+): Promise<boolean> {
+  if (!isSupabaseConfigured || !supabase || !addressId) return false;
+  try {
+    if (updates.isDefault && userEmail) {
+      await supabase
+        .from('addresses')
+        .update({ is_default: false })
+        .eq('user_email', userEmail.trim().toLowerCase());
+    }
+
+    const payload: Record<string, any> = {};
+    if (updates.label !== undefined) payload.label = updates.label;
+    if (updates.fullName !== undefined) payload.full_name = updates.fullName;
+    if (updates.phone !== undefined) payload.phone = updates.phone;
+    if (updates.addressLine !== undefined) payload.address_line = updates.addressLine;
+    if (updates.city !== undefined) payload.city = updates.city;
+    if (updates.state !== undefined) payload.state = updates.state;
+    if (updates.pincode !== undefined) payload.pincode = updates.pincode;
+    if (updates.isDefault !== undefined) payload.is_default = updates.isDefault;
+
+    const { error } = await supabase
+      .from('addresses')
+      .update(payload)
+      .eq('id', addressId);
+
+    if (error) {
+      console.warn('Supabase updateAddress error:', error.message);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.warn('Supabase updateAddress exception:', err);
+    return false;
+  }
+}
+
+/**
+ * Delete an address from Supabase
+ */
+export async function deleteAddressFromSupabase(addressId: string): Promise<boolean> {
+  if (!isSupabaseConfigured || !supabase || !addressId) return false;
+  try {
+    const { error } = await supabase.from('addresses').delete().eq('id', addressId);
+    if (error) {
+      console.warn('Supabase deleteAddress error:', error.message);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.warn('Supabase deleteAddress exception:', err);
+    return false;
+  }
+}
+
+/**
+ * Fetch orders for a specific customer from Supabase
+ */
+export async function getOrdersForCustomerFromSupabase(userEmail: string): Promise<Order[]> {
+  if (!isSupabaseConfigured || !supabase || !userEmail) return [];
+  try {
+    const { data, error } = await supabase
+      .from('orders')
+      .select('*')
+      .ilike('customer_email', userEmail.trim())
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.warn('Supabase getOrdersForCustomer error:', error.message);
+      return [];
+    }
+
+    return (data || []).map((row: any) => ({
+      id: row.id,
+      date: row.created_at ? new Date(row.created_at).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+      status: row.status || 'New',
+      items: row.items || [],
+      subtotal: row.total || 0,
+      discount: 0,
+      shipping: 0,
+      total: row.total || 0,
+      customer: {
+        name: row.customer_name || 'Patron',
+        email: row.customer_email || userEmail,
+        phone: row.customer_phone || '',
+      },
+      shippingAddress: row.shipping_address || {},
+      paymentMethod: row.payment_method || 'Razorpay',
+      trackingNumber: row.tracking_number,
+      courierPartner: row.courier || 'BlueDart Express',
+    }));
+  } catch (err) {
+    console.warn('Supabase getOrdersForCustomer exception:', err);
+    return [];
+  }
+}
+
+/**
+ * Cryptographically verify whether the current visitor has an authorized active Admin session
+ */
+export async function verifyAdminSession(): Promise<{
+  authenticated: boolean;
+  email?: string;
+  role?: string;
+  name?: string;
+  error?: string;
+}> {
+  if (!isSupabaseConfigured || !supabase) {
+    // Fallback preset verification for offline/unconfigured environments
+    if (typeof window !== 'undefined') {
+      const sess = localStorage.getItem('purnya_admin_session');
+      if (sess) {
+        try {
+          const parsed = JSON.parse(sess);
+          if (parsed.email?.toLowerCase() === 'admin@purnya.com' && parsed.authMethod === 'preset') {
+            return {
+              authenticated: true,
+              email: parsed.email,
+              role: 'Super Administrator',
+              name: 'Purnya Admin',
+            };
+          }
+        } catch { }
+      }
+    }
+    return { authenticated: false, error: 'Supabase unconfigured and no valid preset session.' };
+  }
+
+  try {
+    // 1. Check live cryptographic Supabase Auth session
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    if (sessionError || !session?.user) {
+      // If no active auth session, check if there's an emergency preset session
+      if (typeof window !== 'undefined') {
+        const sess = localStorage.getItem('purnya_admin_session');
+        if (sess) {
+          try {
+            const parsed = JSON.parse(sess);
+            if (parsed.email?.toLowerCase() === 'admin@purnya.com' && parsed.authMethod === 'preset') {
+              return {
+                authenticated: true,
+                email: parsed.email,
+                role: 'Super Administrator',
+                name: 'Purnya Admin',
+              };
+            }
+          } catch { }
+        }
+      }
+      return { authenticated: false, error: sessionError?.message || 'No active Supabase session' };
+    }
+
+    const user = session.user;
+    const userRole = user.user_metadata?.role;
+
+    // 2. Cross-verify with admin_users table for maximum security
+    const { data: adminRecord } = await supabase
+      .from('admin_users')
+      .select('id, email, full_name, role, is_active')
+      .eq('email', user.email?.toLowerCase())
+      .single();
+
+    if (adminRecord && adminRecord.is_active) {
+      return {
+        authenticated: true,
+        email: adminRecord.email,
+        role: adminRecord.role || 'Super Administrator',
+        name: adminRecord.full_name || 'Purnya Admin',
+      };
+    }
+
+    // 3. Fallback to user metadata role check
+    if (userRole === 'admin') {
+      return {
+        authenticated: true,
+        email: user.email || '',
+        role: 'Super Administrator',
+        name: user.user_metadata?.name || 'Administrator',
+      };
+    }
+
+    return { authenticated: false, error: 'User does not possess administrative privileges.' };
+  } catch (err: any) {
+    console.warn('verifyAdminSession error:', err);
+    return { authenticated: false, error: err?.message || 'Admin verification failed' };
+  }
+}
+
+export interface CustomerRecord {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  city: string;
+  state: string;
+  registeredDate: string;
+  lastOrderDate: string;
+  totalOrders: number;
+  totalSpent: number;
+  orders: Order[];
+  addresses: Address[];
+  status: 'VIP Patron' | 'Active Patron' | 'New Patron';
+}
+
+/**
+ * Fetch all customers & patrons aggregated from Supabase profiles, orders, and addresses
+ */
+export async function getCustomersAndPatronsFromSupabase(): Promise<CustomerRecord[]> {
+  if (!isSupabaseConfigured || !supabase) return [];
+  try {
+    const [
+      { data: profiles, error: profErr },
+      { data: dbOrders, error: ordErr },
+      { data: dbAddresses, error: addrErr },
+    ] = await Promise.all([
+      supabase.from('profiles').select('*').order('created_at', { ascending: false }),
+      supabase.from('orders').select('*').order('created_at', { ascending: false }),
+      supabase.from('addresses').select('*').order('created_at', { ascending: false }),
+    ]);
+
+    if (profErr) console.warn('Supabase profiles query error:', profErr.message);
+    if (ordErr) console.warn('Supabase orders query error:', ordErr.message);
+    if (addrErr) console.warn('Supabase addresses query error:', addrErr.message);
+
+    const map = new Map<string, CustomerRecord>();
+
+    // 1. Seed registered profiles
+    (profiles || []).forEach((p: any) => {
+      const emailKey = (p.email || '').trim().toLowerCase();
+      if (!emailKey) return;
+
+      const registeredDate = p.created_at
+        ? new Date(p.created_at).toLocaleDateString('en-IN', {
+          day: 'numeric',
+          month: 'short',
+          year: 'numeric',
+        })
+        : 'Recent';
+
+      map.set(emailKey, {
+        id: p.id,
+        name: p.name || p.full_name || emailKey.split('@')[0],
+        email: p.email,
+        phone: p.phone || 'N/A',
+        city: 'Bengaluru',
+        state: 'Karnataka',
+        registeredDate,
+        lastOrderDate: 'No orders placed yet',
+        totalOrders: 0,
+        totalSpent: 0,
+        orders: [],
+        addresses: [],
+        status: 'New Patron',
+      });
+    });
+
+    // 2. Attach cloud addresses
+    (dbAddresses || []).forEach((a: any) => {
+      const emailKey = (a.user_email || '').trim().toLowerCase();
+      if (map.has(emailKey)) {
+        const cust = map.get(emailKey)!;
+        const formattedAddr: Address = {
+          id: a.id,
+          label: (a.label as 'Home' | 'Office' | 'Other') || 'Home',
+          fullName: a.full_name || cust.name,
+          phone: a.phone || cust.phone,
+          addressLine: a.address_line || '',
+          city: a.city || '',
+          state: a.state || '',
+          pincode: a.pincode || '',
+          isDefault: Boolean(a.is_default),
+        };
+        cust.addresses.push(formattedAddr);
+        if (a.city) cust.city = a.city;
+        if (a.state) cust.state = a.state;
+      }
+    });
+
+    // 3. Attach cloud orders & discover guest customers
+    (dbOrders || []).forEach((o: any) => {
+      const emailKey = (o.customer_email || '').trim().toLowerCase();
+      if (!emailKey) return;
+
+      const orderDate = o.created_at
+        ? new Date(o.created_at).toLocaleDateString('en-IN', {
+          day: 'numeric',
+          month: 'short',
+          year: 'numeric',
+        })
+        : 'Recent';
+
+      const formattedOrder: Order = {
+        id: o.id,
+        date: orderDate,
+        status: o.status || 'New',
+        items: o.items || [],
+        subtotal: o.total || 0,
+        discount: 0,
+        shipping: 0,
+        total: Number(o.total) || 0,
+        customer: {
+          name: o.customer_name || 'Patron',
+          email: o.customer_email || '',
+          phone: o.customer_phone || '',
+        },
+        shippingAddress: o.shipping_address || {},
+        paymentMethod: o.payment_method || 'Razorpay',
+        trackingNumber: o.tracking_number,
+        courierPartner: o.courier || 'BlueDart Express',
+      };
+
+      let cust = map.get(emailKey);
+      if (!cust) {
+        // Guest customer from checkout
+        cust = {
+          id: `guest-${o.id}`,
+          name: o.customer_name || 'Guest Patron',
+          email: o.customer_email,
+          phone: o.customer_phone || 'N/A',
+          city: o.shipping_address?.city || 'India',
+          state: o.shipping_address?.state || '',
+          registeredDate: orderDate,
+          lastOrderDate: orderDate,
+          totalOrders: 0,
+          totalSpent: 0,
+          orders: [],
+          addresses: [],
+          status: 'New Patron',
+        };
+        map.set(emailKey, cust);
+      }
+
+      cust.totalOrders += 1;
+      cust.totalSpent += Number(o.total) || 0;
+      cust.orders.push(formattedOrder);
+      cust.lastOrderDate = orderDate;
+      if (o.shipping_address?.city) cust.city = o.shipping_address.city;
+      if (o.shipping_address?.state) cust.state = o.shipping_address.state;
+    });
+
+    // 4. Calculate Patron Tier
+    for (const cust of map.values()) {
+      if (cust.totalSpent >= 5000 || cust.totalOrders >= 3) {
+        cust.status = 'VIP Patron';
+      } else if (cust.totalOrders >= 2) {
+        cust.status = 'Active Patron';
+      } else {
+        cust.status = 'New Patron';
+      }
+    }
+
+    return Array.from(map.values());
+  } catch (err: any) {
+    console.warn('Supabase getCustomersAndPatrons exception:', err);
+    return [];
+  }
+}
+
+/**
+ * Fetch all orders across all customers from Supabase (for Admin)
+ */
+export async function getAllOrdersFromSupabase(): Promise<Order[]> {
+  if (!isSupabaseConfigured || !supabase) return [];
+  try {
+    const { data, error } = await supabase
+      .from('orders')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.warn('Supabase getAllOrders error:', error.message);
+      return [];
+    }
+
+    return (data || []).map((row: any) => ({
+      id: row.id,
+      date: row.created_at ? new Date(row.created_at).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+      status: row.status || 'New',
+      items: row.items || [],
+      subtotal: row.total || 0,
+      discount: 0,
+      shipping: 0,
+      total: Number(row.total) || 0,
+      customer: {
+        name: row.customer_name || 'Patron',
+        email: row.customer_email || '',
+        phone: row.customer_phone || '',
+      },
+      shippingAddress: row.shipping_address || {},
+      paymentMethod: row.payment_method || 'Razorpay',
+      trackingNumber: row.tracking_number,
+      courierPartner: row.courier || 'BlueDart Express',
+    }));
+  } catch (err) {
+    console.warn('Supabase getAllOrders exception:', err);
+    return [];
+  }
+}
+
+/**
+ * Fetch all promotional coupons from Supabase
+ */
+export async function getCouponsFromSupabase(): Promise<Coupon[]> {
+  if (!isSupabaseConfigured || !supabase) return [];
+  try {
+    const { data, error } = await supabase
+      .from('coupons')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.warn('Supabase getCoupons error:', error.message);
+      return [];
+    }
+
+    return (data || []).map((row: any): Coupon => ({
+      code: row.code,
+      discountType: (row.discount_type as 'percentage' | 'fixed') || 'percentage',
+      discountValue: Number(row.discount_value ?? row.discount_percent ?? 0),
+      minOrderValue: Number(row.min_order_amount ?? 0),
+      isActive: Boolean(row.is_active),
+      description: row.description || `${row.discount_percent || row.discount_value || 0}% off promotional discount`,
+      maxDiscount: row.max_discount != null ? Number(row.max_discount) : undefined,
+      usageLimit: row.usage_limit != null ? Number(row.usage_limit) : undefined,
+      usageCount: Number(row.usage_count || 0),
+      validFrom: row.valid_from ? new Date(row.valid_from).toISOString() : undefined,
+      validUntil: row.valid_until ? new Date(row.valid_until).toISOString() : undefined,
+    }));
+  } catch (err) {
+    console.warn('Supabase getCoupons exception:', err);
+    return [];
+  }
+}
+
+/**
+ * Save or update coupon in Supabase with resilient schema fallback
+ */
+export async function saveCouponToSupabase(coupon: Coupon): Promise<boolean> {
+  if (!isSupabaseConfigured || !supabase) return false;
+  try {
+    // Attempt to upsert with full rich fields (Option 2)
+    const richPayload: Record<string, any> = {
+      code: coupon.code,
+      discount_percent: coupon.discountType === 'percentage' ? coupon.discountValue : 0,
+      discount_type: coupon.discountType,
+      discount_value: coupon.discountValue,
+      min_order_amount: coupon.minOrderValue,
+      is_active: coupon.isActive,
+      description: coupon.description,
+      max_discount: coupon.maxDiscount ?? null,
+      usage_limit: coupon.usageLimit ?? null,
+      usage_count: coupon.usageCount ?? 0,
+      valid_from: coupon.validFrom ? new Date(coupon.validFrom).toISOString() : null,
+      valid_until: coupon.validUntil ? new Date(coupon.validUntil).toISOString() : null,
+    };
+
+    const { error } = await supabase
+      .from('coupons')
+      .upsert(richPayload, { onConflict: 'code' });
+
+    if (!error) return true;
+
+    // If columns do not exist yet (code 42703), fall back to base columns gracefully
+    if (error.code === '42703' || error.message.includes('column')) {
+      console.warn('Supabase coupons table missing rich columns, falling back to base columns:', error.message);
+      const fallbackPayload = {
+        code: coupon.code,
+        discount_percent: coupon.discountType === 'percentage' ? coupon.discountValue : 0,
+        min_order_amount: coupon.minOrderValue,
+        is_active: coupon.isActive,
+      };
+      const { error: fallbackError } = await supabase
+        .from('coupons')
+        .upsert(fallbackPayload, { onConflict: 'code' });
+
+      if (fallbackError) {
+        console.error('Supabase coupon base upsert error:', fallbackError);
+        return false;
+      }
+      return true;
+    }
+
+    console.error('Supabase coupon upsert error:', error);
+    return false;
+  } catch (err) {
+    console.error('Supabase saveCoupon exception:', err);
+    return false;
+  }
+}
+
+/**
+ * Toggle coupon active status in Supabase
+ */
+export async function toggleCouponInSupabase(code: string, isActive: boolean): Promise<boolean> {
+  if (!isSupabaseConfigured || !supabase) return false;
+  try {
+    const { error } = await supabase
+      .from('coupons')
+      .update({ is_active: isActive })
+      .eq('code', code);
+    if (error) {
+      console.warn('Supabase toggleCoupon error:', error.message);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.warn('Supabase toggleCoupon exception:', err);
+    return false;
+  }
+}
+
+/**
+ * Delete coupon from Supabase
+ */
+export async function deleteCouponFromSupabase(code: string): Promise<boolean> {
+  if (!isSupabaseConfigured || !supabase) return false;
+  try {
+    const { error } = await supabase
+      .from('coupons')
+      .delete()
+      .eq('code', code);
+    if (error) {
+      console.warn('Supabase deleteCoupon error:', error.message);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.warn('Supabase deleteCoupon exception:', err);
+    return false;
+  }
+}

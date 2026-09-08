@@ -1,6 +1,5 @@
 'use client';
-
-import React, { useState, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
   ChevronLeft,
@@ -10,52 +9,43 @@ import {
   ShieldCheck,
   RotateCcw,
   Headphones,
-
 } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
+import { initialHeroSlides } from '../data/mockData';
 import ProductCard from '../components/ProductCard';
 
 export default function HomePage() {
   const { categories, products, banners } = useStore();
   const [activeSlide, setActiveSlide] = useState(0);
-  const scrollRef = useRef<HTMLDivElement>(null);
 
   const activeBanners = banners.filter((b) => b.active);
+  const displayedBanners = activeBanners.length > 0 ? activeBanners : initialHeroSlides;
+
+  useEffect(() => {
+    if (displayedBanners.length <= 1) return;
+    const timer = setInterval(() => {
+      setActiveSlide((prev) => (prev + 1) % displayedBanners.length);
+    }, 6000);
+    return () => clearInterval(timer);
+  }, [displayedBanners.length]);
 
   const nextSlide = () => {
-    setActiveSlide((prev) => (prev + 1) % activeBanners.length);
+    setActiveSlide((prev) => (prev + 1) % displayedBanners.length);
   };
 
   const prevSlide = () => {
-    setActiveSlide((prev) => (prev - 1 + activeBanners.length) % activeBanners.length);
+    setActiveSlide((prev) => (prev - 1 + displayedBanners.length) % displayedBanners.length);
   };
-
-  const scrollLeft = () => {
-    scrollRef.current?.scrollBy({ left: -320, behavior: 'smooth' });
-  };
-
-  const scrollRight = () => {
-    scrollRef.current?.scrollBy({ left: 320, behavior: 'smooth' });
-  };
-
-  const explicitArrivals = products.filter((p) => p.badge === 'New' || p.badge === 'Trending');
-  const newArrivals = explicitArrivals.length >= 4
-    ? explicitArrivals.slice(0, 8)
-    : [...explicitArrivals, ...products.filter((p) => p.badge !== 'New' && p.badge !== 'Trending')].slice(0, 8);
-
-  const matchedBestSellers = products.filter((p) => p.badge === 'Best Seller' || (p.rating && p.rating >= 4.8));
-  const bestSellers = matchedBestSellers.length >= 2 ? matchedBestSellers.slice(0, 4) : products.slice(0, 4);
 
   return (
     <div className="space-y-16 sm:space-y-24 pb-20">
       {/* 1. HERO BANNER SECTION (SOW 5.A) */}
       <section className="relative w-full h-[520px] sm:h-[620px] lg:h-[680px] overflow-hidden bg-[#08281F]">
-        {activeBanners.map((slide, idx) => (
+        {displayedBanners.map((slide, idx) => (
           <div
             key={slide.id}
-            className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${
-              idx === activeSlide ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'
-            }`}
+            className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${idx === activeSlide ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'
+              }`}
           >
             <img
               src={slide.image}
@@ -71,7 +61,6 @@ export default function HomePage() {
                 <div className="max-w-2xl text-[#FAF8F5] space-y-4 sm:space-y-6">
                   {slide.pretitle && (
                     <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/10 backdrop-blur-md text-[#D4AF37] text-xs font-semibold uppercase tracking-[0.25em] border border-[#D4AF37]/30">
-
                       <span>{slide.pretitle}</span>
                     </div>
                   )}
@@ -84,21 +73,17 @@ export default function HomePage() {
                   <div className="pt-2 flex flex-wrap gap-4">
                     <Link
                       href={slide.ctaLink}
-                      target="_blank"
-                      rel="noopener noreferrer"
                       className="px-8 py-3.5 rounded-full bg-gradient-to-r from-[#D4AF37] to-[#C5A059] hover:from-[#E6C25B] hover:to-[#D4AF37] text-[#08281F] font-bold text-xs sm:text-sm uppercase tracking-widest shadow-xl transition-all hover:scale-105 flex items-center gap-2"
                     >
-                      <span>{slide.ctaText} ↗</span>
+                      <span>{slide.ctaText}</span>
                       <ArrowRight className="w-4 h-4" />
                     </Link>
                     {categories.length > 0 && (
                       <Link
                         href={`/category/${categories[0].slug}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
                         className="px-8 py-3.5 rounded-full bg-white/10 hover:bg-white/20 text-white font-semibold text-xs sm:text-sm uppercase tracking-widest backdrop-blur-md border border-white/25 transition-all"
                       >
-                        Explore {categories[0].title} ↗
+                        Explore {categories[0].title}
                       </Link>
                     )}
                   </div>
@@ -109,7 +94,7 @@ export default function HomePage() {
         ))}
 
         {/* Hero Navigation Controls */}
-        {activeBanners.length > 1 && (
+        {displayedBanners.length > 1 && (
           <>
             <button
               onClick={prevSlide}
@@ -126,13 +111,12 @@ export default function HomePage() {
               <ChevronRight className="w-6 h-6" />
             </button>
             <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-20 flex gap-2.5">
-              {activeBanners.map((_, i) => (
+              {displayedBanners.map((_, i) => (
                 <button
                   key={i}
                   onClick={() => setActiveSlide(i)}
-                  className={`h-2 rounded-full transition-all duration-300 ${
-                    i === activeSlide ? 'w-8 bg-[#D4AF37]' : 'w-2 bg-white/40 hover:bg-white/70'
-                  }`}
+                  className={`h-2 rounded-full transition-all duration-300 ${i === activeSlide ? 'w-8 bg-[#D4AF37]' : 'w-2 bg-white/40 hover:bg-white/70'
+                    }`}
                   aria-label={`Slide ${i + 1}`}
                 />
               ))}
@@ -200,7 +184,7 @@ export default function HomePage() {
                       </h3>
                     </div>
 
-                    <Link 
+                    <Link
                       href={`/category/${cat.slug}`}
                       target="_blank"
                       rel="noopener noreferrer"
@@ -284,11 +268,18 @@ export default function HomePage() {
                       <p className="text-xs font-bold uppercase tracking-wider text-[#5A7469] mb-3">
                         Featured in {cat.title}
                       </p>
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-                        {catProducts.map((prod) => (
-                          <ProductCard key={prod.id} product={prod} compact />
-                        ))}
-                      </div>
+                      {catProducts.length > 0 ? (
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+                          {catProducts.map((prod) => (
+                            <ProductCard key={prod.id} product={prod} compact />
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="py-6 px-4 rounded-2xl bg-[#FAF8F5] border border-dashed border-[#E2DBD0] text-center text-xs text-[#5A7469]">
+                          <p className="font-semibold text-[#0B241C]">Artisanal pieces arriving soon</p>
+                          <p className="text-[11px] mt-0.5 text-[#5A7469]">Explore all subcategories above.</p>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -353,54 +344,12 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* 4. NEW ARRIVALS HORIZONTAL CAROUSEL (SOW 5.H) */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-end justify-between mb-8">
-          <div>
-            <span className="text-xs font-bold uppercase tracking-[0.25em] text-[#C5A059]">
-              Fresh Releases
-            </span>
-            <h2 className="font-serif-title text-3xl sm:text-4xl font-bold text-[#0B241C] mt-1">
-              New Arrivals
-            </h2>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={scrollLeft}
-              className="w-10 h-10 rounded-full border border-[#E2DBD0] hover:border-[#0C3B2E] hover:bg-white flex items-center justify-center text-[#0B241C] transition-colors"
-              aria-label="Scroll left"
-            >
-              <ChevronLeft className="w-5 h-5" />
-            </button>
-            <button
-              onClick={scrollRight}
-              className="w-10 h-10 rounded-full border border-[#E2DBD0] hover:border-[#0C3B2E] hover:bg-white flex items-center justify-center text-[#0B241C] transition-colors"
-              aria-label="Scroll right"
-            >
-              <ChevronRight className="w-5 h-5" />
-            </button>
-          </div>
-        </div>
-
-        <div
-          ref={scrollRef}
-          className="flex gap-5 overflow-x-auto pb-4 pt-1 scrollbar-none snap-x snap-mandatory"
-        >
-          {newArrivals.map((prod) => (
-            <div key={prod.id} className="w-[240px] sm:w-[280px] shrink-0 snap-start">
-              <ProductCard product={prod} />
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* 5. EDITORIAL BRAND STORY SECTION */}
+      {/* 4. EDITORIAL BRAND STORY SECTION */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="relative rounded-3xl overflow-hidden bg-[#0C3B2E] text-[#FAF8F5] p-8 sm:p-14 lg:p-20 shadow-2xl">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
             <div className="space-y-6">
               <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/10 text-[#D4AF37] text-xs font-semibold tracking-widest uppercase border border-[#D4AF37]/30">
-
                 The Purnya Philosophy
               </div>
               <h2 className="font-serif-title text-3xl sm:text-5xl font-bold leading-tight">
@@ -440,27 +389,6 @@ export default function HomePage() {
               />
             </div>
           </div>
-        </div>
-      </section>
-
-      {/* 6. BEST SELLERS CURATED SECTION */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center max-w-xl mx-auto mb-10 space-y-2">
-          <span className="text-xs font-bold uppercase tracking-[0.25em] text-[#C5A059]">
-            Customer Favorites
-          </span>
-          <h2 className="font-serif-title text-3xl sm:text-4xl font-bold text-[#0B241C]">
-            Best Selling Icons
-          </h2>
-          <p className="text-xs sm:text-sm text-[#2C4A3E]">
-            The most cherished creations loved by over 10,000+ patrons across India.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-          {bestSellers.map((prod) => (
-            <ProductCard key={prod.id} product={prod} />
-          ))}
         </div>
       </section>
 

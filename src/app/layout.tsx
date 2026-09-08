@@ -5,6 +5,7 @@ import Header from '../components/Header';
 import Footer from '../components/Footer';
 import SearchModal from '../components/SearchModal';
 import Toast from '../components/Toast';
+import AuthModal from '../components/AuthModal';
 
 export const metadata: Metadata = {
   title: 'Purnya.in | Official Multi-Category Premium Lifestyle E-Commerce',
@@ -43,6 +44,7 @@ export default function RootLayout({
           <Footer />
           <SearchModal />
           <Toast />
+          <AuthModal />
         </StoreProvider>
       </body>
     </html>
