@@ -9,7 +9,7 @@ import {
   Trash2,
   Copy,
   Check,
-  Sparkles,
+
   CheckCircle2,
   X,
   RefreshCw,
@@ -1193,7 +1193,7 @@ CREATE POLICY "Allow all on size_variants" ON public.size_variants FOR ALL TO an
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[#144234] pb-6">
           <div>
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-[#C5A059]/20 text-[#D4AF37] border border-[#C5A059]/40 mb-2">
-              <Sparkles className="w-3.5 h-3.5" />
+
               <span>Real-Time Customer Preview</span>
             </div>
             <h2 className="font-serif-title text-2xl sm:text-3xl font-bold text-white">

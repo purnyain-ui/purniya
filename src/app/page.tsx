@@ -10,7 +10,7 @@ import {
   ShieldCheck,
   RotateCcw,
   Headphones,
-  Sparkles,
+
 } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import ProductCard from '../components/ProductCard';
@@ -71,7 +71,7 @@ export default function HomePage() {
                 <div className="max-w-2xl text-[#FAF8F5] space-y-4 sm:space-y-6">
                   {slide.pretitle && (
                     <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/10 backdrop-blur-md text-[#D4AF37] text-xs font-semibold uppercase tracking-[0.25em] border border-[#D4AF37]/30">
-                      <Sparkles className="w-3.5 h-3.5 text-[#D4AF37]" />
+
                       <span>{slide.pretitle}</span>
                     </div>
                   )}
@@ -145,7 +145,7 @@ export default function HomePage() {
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-16">
         <div className="text-center max-w-2xl mx-auto space-y-2">
           <p className="text-xs font-bold uppercase tracking-[0.25em] text-[#C5A059] flex items-center justify-center gap-1.5">
-            <Sparkles className="w-3.5 h-3.5 text-[#D4AF37]" />
+
             <span>Curated Lifestyle Worlds</span>
           </p>
           <h2 className="font-serif-title text-3xl sm:text-4xl lg:text-5xl font-bold text-[#0B241C]">
@@ -400,7 +400,7 @@ export default function HomePage() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
             <div className="space-y-6">
               <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/10 text-[#D4AF37] text-xs font-semibold tracking-widest uppercase border border-[#D4AF37]/30">
-                <Sparkles className="w-3.5 h-3.5" />
+
                 The Purnya Philosophy
               </div>
               <h2 className="font-serif-title text-3xl sm:text-5xl font-bold leading-tight">

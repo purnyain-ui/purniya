@@ -2,7 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { Sparkles, ArrowRight, ShieldCheck, Heart, Leaf } from 'lucide-react';
+import { ArrowRight, ShieldCheck, Heart, Leaf } from 'lucide-react';
 
 export default function AboutPage() {
   return (
@@ -17,7 +17,7 @@ export default function AboutPage() {
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
         <div className="relative max-w-4xl mx-auto px-4 sm:px-6 text-center text-white space-y-4">
           <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 text-[#D4AF37] text-xs font-semibold uppercase tracking-[0.25em]">
-            <Sparkles className="w-3.5 h-3.5" />
+
             Our Heritage & Vision
           </span>
           <h1 className="font-serif-title text-4xl sm:text-6xl font-bold tracking-tight">

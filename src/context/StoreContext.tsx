@@ -219,32 +219,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           try {
             const parsedProds: Product[] = JSON.parse(savedProducts);
             if (Array.isArray(parsedProds) && parsedProds.length > 0) {
-              const migrated = parsedProds.map((p) => {
-                const rawSlug = (p.categorySlug || '').trim().toLowerCase();
-                let newSlug = p.categorySlug;
-                let newCat = p.category;
-                if (rawSlug === 'jewellery') {
-                  newSlug = 'apparel';
-                  newCat = 'Jewellery & Accessories';
-                } else if (rawSlug === 'candles') {
-                  newSlug = 'Fragrance';
-                  newCat = 'Candle & Home';
-                } else if (rawSlug === 'home-decor' || rawSlug === 'lifestyle') {
-                  newSlug = 'Lifestyle';
-                  newCat = 'Home Décor & Lifestyle';
-                } else if (rawSlug === 'wellness') {
-                  newSlug = 'Wellness';
-                  newCat = 'Organic & Wellness';
-                } else if (rawSlug === 'gifts' || rawSlug === 'gift') {
-                  newSlug = 'Gift';
-                  newCat = 'Gift & Stationery';
-                }
-                return { ...p, categorySlug: newSlug, category: newCat };
-              });
-              setProducts(migrated);
-              try {
-                localStorage.setItem('purnya_products', JSON.stringify(migrated));
-              } catch {}
+              setProducts(parsedProds);
             }
           } catch {}
         }
@@ -254,15 +229,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           try {
             const parsed = JSON.parse(savedCategories);
             if (Array.isArray(parsed) && parsed.length > 0) {
-              // Exclude old dummy mock categories if present in browser storage
-              const hasLegacyMock = parsed.some((c) =>
-                ['jewellery', 'candles', 'home-decor'].includes((c.slug || '').toLowerCase().trim())
-              );
-              if (!hasLegacyMock) {
-                setCategories(parsed);
-              } else {
-                localStorage.removeItem('purnya_categories');
-              }
+              setCategories(parsed);
             }
           } catch {
             // Keep current state
@@ -282,11 +249,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         const savedOrders = localStorage.getItem('purnya_orders');
         if (savedOrders) {
           try {
-            const parsedOrders: Order[] = JSON.parse(savedOrders);
-            const cleanOrders = parsedOrders.filter(
-              (o) => o.id !== 'PUR-2026-8492' && o.id !== 'PUR-2026-7310' && o.customer?.name !== 'Priya Sharma'
-            );
-            setOrders(cleanOrders);
+            setOrders(parsedOrders);
           } catch {
             setOrders([]);
           }
@@ -304,11 +267,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         const savedAddresses = localStorage.getItem('purnya_addresses');
         if (savedAddresses) {
           try {
-            const parsedAddrs: Address[] = JSON.parse(savedAddresses);
-            const cleanAddrs = parsedAddrs.filter(
-              (a) => a.fullName !== 'Priya Sharma' && !a.addressLine?.includes('Rose Garden Lane')
-            );
-            setAddresses(cleanAddrs);
+            setAddresses(parsedAddrs);
           } catch {
             setAddresses([]);
           }
@@ -317,12 +276,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         const savedUser = localStorage.getItem('purnya_user');
         if (savedUser) {
           try {
-            const parsed = JSON.parse(savedUser);
-            if (parsed.name === 'Priya Sharma') {
-              setUser({ name: '', email: '', phone: '' });
-            } else {
-              setUser(parsed);
-            }
+            setUser(parsed);
           } catch {
             setUser({ name: '', email: '', phone: '' });
           }

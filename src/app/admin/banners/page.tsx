@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Image as ImageIcon, Sparkles, Save, Edit3, Eye, Upload } from 'lucide-react';
+import { Image as ImageIcon, Save, Edit3, Eye, Upload } from 'lucide-react';
 import { useStore } from '../../../context/StoreContext';
 import { HeroSlide } from '../../../types';
 
@@ -37,7 +37,7 @@ export default function AdminBannersPage() {
       {/* Announcement Bar Manager */}
       <div className="bg-white p-6 sm:p-8 rounded-3xl border border-[#E2DBD0] shadow-sm space-y-4">
         <h2 className="font-serif-title text-lg font-bold text-[#0B241C] flex items-center gap-2">
-          <Sparkles className="w-4 h-4 text-[#C5A059]" />
+
           <span>Storewide Announcement Bar</span>
         </h2>
         <p className="text-xs text-[#2C4A3E]">

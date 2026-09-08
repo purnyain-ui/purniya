@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Heart, ShoppingBag } from 'lucide-react';
 import { Product } from '../types';
 import { useStore } from '../context/StoreContext';
+import { useRouter } from 'next/navigation';
 
 interface ProductCardProps {
   product: Product;
@@ -12,7 +13,8 @@ interface ProductCardProps {
 }
 
 export default function ProductCard({ product, compact = false }: ProductCardProps) {
-  const { toggleWishlist, isInWishlist, addToCart } = useStore();
+  const router = useRouter();
+  const { toggleWishlist, isInWishlist, addToCart, user, showToast } = useStore();
   const isWished = isInWishlist(product.id);
 
   const discount = product.originalPrice
@@ -54,6 +56,11 @@ export default function ProductCard({ product, compact = false }: ProductCardPro
         <button
           onClick={(e) => {
             e.preventDefault();
+            if (!user?.email) {
+              showToast('Login Required', 'Please login to save to your wishlist.', 'error');
+              router.push('/login');
+              return;
+            }
             toggleWishlist(product);
           }}
           aria-label="Wishlist"
@@ -71,6 +78,11 @@ export default function ProductCard({ product, compact = false }: ProductCardPro
           <button
             onClick={(e) => {
               e.preventDefault();
+              if (!user?.email) {
+                showToast('Login Required', 'Please login to add items to your bag.', 'error');
+                router.push('/login');
+                return;
+              }
               addToCart(product, 1);
             }}
             className="w-full py-2.5 px-4 rounded-xl bg-white/95 hover:bg-[#0C3B2E] hover:text-white text-[#0B241C] font-semibold text-xs tracking-wider uppercase shadow-lg backdrop-blur-md flex items-center justify-center gap-2 transition-all border border-[#E2DBD0]"

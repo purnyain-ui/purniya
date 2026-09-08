@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -44,6 +44,12 @@ export default function CheckoutPage() {
   const [paymentMethod, setPaymentMethod] = useState<Order['paymentMethod']>('UPI');
   const [confirmedOrder, setConfirmedOrder] = useState<Order | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+
+  useEffect(() => {
+    if (!user?.email) {
+      router.push('/login');
+    }
+  }, [user?.email, router]);
 
   const handlePlaceOrder = (e: React.FormEvent) => {
     e.preventDefault();
@@ -385,7 +391,7 @@ export default function CheckoutPage() {
               className="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-[#D4AF37] to-[#C5A059] hover:from-[#E6C25B] hover:to-[#D4AF37] text-[#08281F] font-bold text-xs uppercase tracking-widest shadow-xl flex items-center justify-center gap-2 transition-all hover:scale-[1.01] disabled:opacity-50"
             >
               <Lock className="w-4 h-4" />
-              <span>{isProcessing ? 'Processing Order...' : `Place Order · ₹${cartTotal.toLocaleString('en-IN')}`}</span>
+              <span>{user?.email ? (isProcessing ? 'Processing Order...' : `Place Order · ₹${cartTotal.toLocaleString('en-IN')}`) : 'Login to Purchase'}</span>
             </button>
 
             <p className="text-[10px] text-center text-[#5A7469]">

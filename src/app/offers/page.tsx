@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Tag, Sparkles, Copy, CheckCircle2 } from 'lucide-react';
+import { Tag, Copy, CheckCircle2 } from 'lucide-react';
 import { useStore } from '../../context/StoreContext';
 import ProductCard from '../../components/ProductCard';
 

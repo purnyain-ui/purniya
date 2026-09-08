@@ -11,7 +11,7 @@ import {
   Eye,
   EyeOff,
   ArrowRight,
-  Sparkles,
+
   ShieldCheck,
   Gift,
   Truck,
@@ -78,11 +78,9 @@ function AuthContent() {
     if (isSupabaseConfigured && loginEmail.includes('@')) {
       const res = await signInWithSupabase(loginEmail.trim(), loginPassword);
       if (!res.success && res.error) {
-        if (res.error.toLowerCase().includes('invalid login credentials')) {
-          setIsLoading(false);
-          setErrorMsg('Invalid email or password. Please verify and try again.');
-          return;
-        }
+        setIsLoading(false);
+        setErrorMsg(res.error.toLowerCase().includes('invalid login credentials') ? 'Invalid email or password. Please verify and try again.' : res.error);
+        return;
       } else if (res.success && res.user) {
         const meta = res.user.user_metadata || {};
         const detectedName = meta.name || meta.full_name || loginEmail.split('@')[0];
@@ -96,6 +94,10 @@ function AuthContent() {
         router.push(redirectUrl);
         return;
       }
+    } else if (isSupabaseConfigured && !loginEmail.includes('@')) {
+      setIsLoading(false);
+      setErrorMsg('Please enter a valid email address.');
+      return;
     }
 
     // 2. Standard Patron Login fallback
@@ -121,19 +123,6 @@ function AuthContent() {
     }, 400);
   };
 
-  const handleDemoLogin = () => {
-    setIsLoading(true);
-    setTimeout(() => {
-      loginUser({
-        name: 'Priya Sharma',
-        email: 'priya.sharma@example.com',
-        phone: '+91 98450 12345',
-      });
-      setIsLoading(false);
-      showToast('Demo Access Granted', 'Logged in as Priya Sharma (Purnya Circle Member).');
-      router.push(redirectUrl);
-    }, 400);
-  };
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -173,11 +162,9 @@ function AuthContent() {
         phone: signupPhone.trim(),
       });
       if (!res.success && res.error) {
-        if (res.error.toLowerCase().includes('already registered')) {
-          setIsLoading(false);
-          setErrorMsg('An account with this email already exists. Please sign in instead.');
-          return;
-        }
+        setIsLoading(false);
+        setErrorMsg(res.error.toLowerCase().includes('already registered') ? 'An account with this email already exists. Please sign in instead.' : res.error);
+        return;
       }
     }
 
@@ -239,7 +226,7 @@ function AuthContent() {
 
             <div className="pt-4">
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold tracking-wider uppercase bg-[#144234] text-[#D4AF37] border border-[#C5A059]/30">
-                <Sparkles className="w-3.5 h-3.5 text-[#D4AF37]" />
+
                 The Purnya Circle
               </span>
               <h2 className="font-serif-title text-2xl sm:text-3xl font-bold mt-4 leading-tight text-white">
@@ -443,20 +430,7 @@ function AuthContent() {
                 )}
               </button>
 
-              {/* 1-Click Demo Login Helper */}
-              <div className="pt-3 border-t border-[#E8E1D5]">
-                <button
-                  type="button"
-                  onClick={handleDemoLogin}
-                  className="w-full py-2.5 px-4 rounded-xl border border-[#C5A059]/40 bg-[#FAF3E0] hover:bg-[#F3E8CE] text-[#0B241C] font-semibold text-xs transition-all flex items-center justify-center gap-2"
-                >
-                  <Sparkles className="w-3.5 h-3.5 text-[#C5A059]" />
-                  <span>Instant Demo Patron Login (1-Click)</span>
-                </button>
-                <p className="text-[10px] text-center text-[#7F9389] mt-2">
-                  Use this to test the patron portal instantly without entering credentials.
-                </p>
-              </div>
+
             </form>
           )}
 

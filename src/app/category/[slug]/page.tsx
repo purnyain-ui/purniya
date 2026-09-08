@@ -6,7 +6,7 @@ import { useSearchParams } from 'next/navigation';
 import {
   SlidersHorizontal,
   ChevronRight,
-  Sparkles,
+
   Filter,
   Truck,
   ShieldCheck,
@@ -252,7 +252,7 @@ function CategoryContent({ slug }: { slug: string }) {
 
           <div className="max-w-2xl space-y-4 sm:space-y-5">
             <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/10 backdrop-blur-md text-[#D4AF37] text-xs font-bold uppercase tracking-[0.25em] border border-[#D4AF37]/30 shadow-sm">
-              <Sparkles className="w-3.5 h-3.5 text-[#D4AF37]" />
+
               <span>Official Flagship Storefront</span>
             </div>
 
@@ -318,7 +318,7 @@ function CategoryContent({ slug }: { slug: string }) {
                     : 'border-[#E2DBD0] bg-[#FAF8F5] text-[#2C4A3E] hover:border-[#0C3B2E]'
                 }`}
               >
-                <Sparkles className="w-6 h-6" />
+
               </div>
               <span className="text-[11px] font-bold text-[#0B241C] text-center max-w-[84px] truncate">
                 All Pieces
@@ -535,7 +535,7 @@ function CategoryContent({ slug }: { slug: string }) {
           </div>
         ) : (
           <div className="text-center py-20 bg-white rounded-3xl border border-[#E2DBD0] p-8 space-y-4">
-            <Sparkles className="w-8 h-8 text-[#C5A059] mx-auto" />
+
             <h3 className="font-serif-title text-xl font-bold text-[#0B241C]">
               No products found in this filter selection
             </h3>
@@ -562,7 +562,7 @@ function CategoryContent({ slug }: { slug: string }) {
           <div className="grid grid-cols-1 lg:grid-cols-12 items-center">
             <div className="lg:col-span-7 p-8 sm:p-12 lg:p-16 space-y-6">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 text-[#D4AF37] text-xs font-bold uppercase tracking-widest border border-[#D4AF37]/30">
-                <Sparkles className="w-3.5 h-3.5" />
+
                 <span>The Purnya Standard</span>
               </div>
 

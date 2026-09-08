@@ -10,7 +10,7 @@ import {
   Eye,
   EyeOff,
   ArrowRight,
-  Sparkles,
+
   KeyRound,
   ExternalLink,
   CheckCircle2,
@@ -100,31 +100,6 @@ export default function AdminLoginPage() {
     }
   };
 
-  const handle1ClickDemo = () => {
-    setAdminEmail('admin@purnya.com');
-    setAdminPassword('purnya2026');
-    setErrorMsg('');
-    setIsLoading(true);
-
-    setTimeout(() => {
-      setIsSuccess(true);
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('purnya_admin_authenticated', 'true');
-        localStorage.setItem(
-          'purnya_admin_session',
-          JSON.stringify({
-            email: 'admin@purnya.com',
-            loginTime: new Date().toISOString(),
-            role: 'Super Administrator',
-          })
-        );
-      }
-      showToast('Admin Demo Authenticated', 'Direct administrative clearance granted.');
-      setTimeout(() => {
-        router.push('/admin');
-      }, 500);
-    }, 500);
-  };
 
   return (
     <div className="min-h-screen bg-[#051813] text-[#FAF8F5] flex flex-col justify-between relative overflow-hidden selection:bg-[#C5A059] selection:text-[#051813]">
@@ -282,22 +257,7 @@ export default function AdminLoginPage() {
                 )}
               </button>
 
-              {/* 1-Click Quick Demo Evaluation Button */}
-              <div className="pt-4 mt-2 border-t border-white/10">
-                <button
-                  type="button"
-                  onClick={handle1ClickDemo}
-                  disabled={isLoading || isSuccess}
-                  className="w-full py-2.5 px-4 rounded-xl border border-[#C5A059]/30 bg-white/5 hover:bg-white/10 text-white font-semibold text-xs transition-all flex items-center justify-center gap-2"
-                >
-                  <Sparkles className="w-3.5 h-3.5 text-[#D4AF37]" />
-                  <span>1-Click Admin Access (Demo Preset)</span>
-                </button>
-                <div className="flex items-center justify-between text-[10px] text-[#7A998E] px-1 mt-2">
-                  <span>Preset: admin@purnya.com</span>
-                  <span>Pass: purnya2026</span>
-                </div>
-              </div>
+
             </form>
           </div>
 

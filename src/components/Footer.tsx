@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Mail, Phone, MapPin, ArrowRight, ShieldCheck, Sparkles } from 'lucide-react';
+import { Mail, Phone, MapPin, ArrowRight, ShieldCheck } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 
 export default function Footer() {
@@ -163,7 +163,6 @@ export default function Footer() {
         <div className="border-t border-[#144234] pt-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-[#849C92]">
           <p>© {new Date().getFullYear()} Purnya.in · All rights reserved.</p>
           <p className="flex items-center gap-1.5 text-[#D4AF37]">
-            <Sparkles className="w-3.5 h-3.5" />
             <span>Harmonious Lifestyle Across Five Worlds</span>
           </p>
         </div>

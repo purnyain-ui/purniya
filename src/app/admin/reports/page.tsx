@@ -12,7 +12,7 @@ import {
   Calendar,
   Percent,
   Layers,
-  Sparkles,
+
   ArrowUpRight,
 } from 'lucide-react';
 import { useStore } from '../../../context/StoreContext';

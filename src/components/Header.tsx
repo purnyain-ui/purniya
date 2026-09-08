@@ -12,8 +12,6 @@ import {
   X,
   ShieldCheck,
   Truck,
-  Sparkles,
-  ChevronRight,
   ChevronDown,
   ArrowUpRight,
 } from 'lucide-react';
@@ -48,13 +46,11 @@ function HeaderContent() {
     <>
       {/* Emerald & Gold Announcement Bar */}
       <div className="bg-[#08281F] text-[#FAF8F5] text-[11px] sm:text-xs font-medium py-2.5 px-4 text-center tracking-widest uppercase flex items-center justify-center gap-2 border-b border-[#144234]">
-        <Sparkles className="w-3.5 h-3.5 text-[#D4AF37] hidden sm:inline" />
         <span className="font-semibold tracking-[0.15em]">
           {currentCategory
             ? `Purnya ${currentCategory.title} · Dedicated Official Boutique | Free Express Shipping > ₹999`
             : announcement}
         </span>
-        <Sparkles className="w-3.5 h-3.5 text-[#D4AF37] hidden sm:inline" />
       </div>
 
       {/* Main Header */}
@@ -255,44 +251,38 @@ function HeaderContent() {
             </Link>
 
             {/* Wishlist with Badge */}
-            <Link
-              href="/wishlist"
-              className="p-2.5 text-[#2C4A3E] hover:text-[#0C3B2E] hover:bg-[#EBF3EF] rounded-full transition-all relative"
-              aria-label="Wishlist"
-              title="Wishlist"
-            >
-              <Heart className="w-5 h-5" />
-              {wishlistCount > 0 && (
-                <span className="absolute top-1 right-1 w-4 h-4 rounded-full bg-[#C5A059] text-white text-[10px] font-bold flex items-center justify-center shadow-xs">
-                  {wishlistCount}
-                </span>
-              )}
-            </Link>
+            {user?.email && (
+              <Link
+                href="/wishlist"
+                className="p-2.5 text-[#2C4A3E] hover:text-[#0C3B2E] hover:bg-[#EBF3EF] rounded-full transition-all relative"
+                aria-label="Wishlist"
+                title="Wishlist"
+              >
+                <Heart className="w-5 h-5" />
+                {wishlistCount > 0 && (
+                  <span className="absolute top-1 right-1 w-4 h-4 rounded-full bg-[#C5A059] text-white text-[10px] font-bold flex items-center justify-center shadow-xs">
+                    {wishlistCount}
+                  </span>
+                )}
+              </Link>
+            )}
 
             {/* Cart with Badge */}
-            <Link
-              href="/cart"
-              className="p-2.5 text-[#2C4A3E] hover:text-[#0C3B2E] hover:bg-[#EBF3EF] rounded-full transition-all relative"
-              aria-label="Cart"
-              title="Shopping Cart"
-            >
-              <ShoppingBag className="w-5 h-5" />
-              {cartCount > 0 && (
-                <span className="absolute top-1 right-1 w-4 h-4 rounded-full bg-[#0C3B2E] text-[#FAF8F5] text-[10px] font-bold flex items-center justify-center shadow-xs animate-pulse">
-                  {cartCount}
-                </span>
-              )}
-            </Link>
-
-            {/* Admin Switch Pill */}
-            <Link
-              href="/admin"
-              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 ml-2 text-xs font-semibold rounded-full bg-[#EBF3EF] text-[#0C3B2E] hover:bg-[#0C3B2E] hover:text-[#FAF8F5] border border-[#0C3B2E]/20 transition-all"
-              title="Centralized Admin Dashboard"
-            >
-              <ShieldCheck className="w-3.5 h-3.5 text-[#C5A059]" />
-              <span>Admin</span>
-            </Link>
+            {user?.email && (
+              <Link
+                href="/cart"
+                className="p-2.5 text-[#2C4A3E] hover:text-[#0C3B2E] hover:bg-[#EBF3EF] rounded-full transition-all relative"
+                aria-label="Cart"
+                title="Shopping Cart"
+              >
+                <ShoppingBag className="w-5 h-5" />
+                {cartCount > 0 && (
+                  <span className="absolute top-1 right-1 w-4 h-4 rounded-full bg-[#0C3B2E] text-[#FAF8F5] text-[10px] font-bold flex items-center justify-center shadow-xs animate-pulse">
+                    {cartCount}
+                  </span>
+                )}
+              </Link>
+            )}
           </div>
         </div>
 
@@ -407,14 +397,6 @@ function HeaderContent() {
                 >
                   <User className="w-4 h-4 text-[#C5A059]" />
                   <span>{user?.email ? `My Account (${user.name || 'Member'})` : 'Sign In / Register'}</span>
-                </Link>
-                <Link
-                  href="/admin"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="flex items-center gap-3 py-2 px-3 text-sm font-semibold text-[#0C3B2E] hover:text-[#C5A059]"
-                >
-                  <ShieldCheck className="w-4 h-4 text-[#C5A059]" />
-                  <span>Merchant Admin Dashboard</span>
                 </Link>
               </div>
 

@@ -7,7 +7,7 @@ import {
   Package,
   Users,
   TrendingUp,
-  Sparkles,
+
   Truck,
   Plus,
   ArrowRight,
@@ -178,7 +178,7 @@ export default function AdminOverviewPage() {
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold uppercase tracking-wider text-[#5A7469]">Active Coupons</span>
             <div className="w-8 h-8 rounded-lg bg-purple-50 text-purple-700 flex items-center justify-center">
-              <Sparkles className="w-4 h-4" />
+
             </div>
           </div>
           <p className="font-serif-title text-2xl sm:text-3xl font-bold text-[#0B241C]">

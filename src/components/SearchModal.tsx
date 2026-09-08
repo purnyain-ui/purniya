@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import Link from 'next/link';
-import { Search, X, ArrowRight, Sparkles } from 'lucide-react';
+import { Search, X, ArrowRight } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 
 export default function SearchModal() {
@@ -131,7 +131,6 @@ export default function SearchModal() {
           {query.trim() === '' && selectedCategory === 'All' ? (
             <div>
               <div className="flex items-center gap-2 text-xs font-semibold tracking-wider uppercase text-[#5A7469] mb-3">
-                <Sparkles className="w-3.5 h-3.5 text-[#D4AF37]" />
                 Trending Searches
               </div>
               <div className="flex flex-wrap gap-2 mb-6">
