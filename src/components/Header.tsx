@@ -39,6 +39,7 @@ function HeaderContent() {
     setIsSearchOpen,
     categories,
     user,
+    mounted,
     loginUser,
     logoutUser,
     showToast,
@@ -421,7 +422,7 @@ function HeaderContent() {
             </button>
 
             {/* Wishlist with Badge (APPEARS ONLY AFTER LOGIN) */}
-            {user?.email && (
+            {mounted && user?.email && (
               <Link
                 href="/wishlist"
                 className="p-2.5 text-[#2C4A3E] hover:text-[#0C3B2E] hover:bg-[#EBF3EF] rounded-full transition-all relative animate-in fade-in"
@@ -438,7 +439,7 @@ function HeaderContent() {
             )}
 
             {/* Cart with Badge (APPEARS ONLY AFTER LOGIN) */}
-            {user?.email && (
+            {mounted && user?.email && (
               <Link
                 href="/cart"
                 className="p-2.5 text-[#2C4A3E] hover:text-[#0C3B2E] hover:bg-[#EBF3EF] rounded-full transition-all relative animate-in fade-in"
@@ -460,10 +461,10 @@ function HeaderContent() {
                 type="button"
                 onClick={handleProfileClick}
                 className="flex flex-col items-center justify-center group py-1 px-1.5 rounded-xl hover:bg-[#EBF3EF] transition-all cursor-pointer focus:outline-hidden"
-                aria-label={user?.email ? 'Customer Account Menu' : 'Sign In'}
-                title={user?.email ? `Account Options (${user.name || user.email})` : 'Sign In / Register'}
+                aria-label={mounted && user?.email ? 'Customer Account Menu' : 'Sign In'}
+                title={mounted && user?.email ? `Account Options (${user.name || user.email})` : 'Sign In / Register'}
               >
-                {user?.email ? (
+                {mounted && user?.email ? (
                   // CUTE LOGGED-IN AVATAR WITH NAME DIRECTLY UNDER IT
                   <div className="flex flex-col items-center">
                     <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-gradient-to-br from-[#0C3B2E] to-[#08281F] text-[#FAF8F5] font-bold text-[11px] sm:text-xs flex items-center justify-center border border-[#C5A059] shadow-xs group-hover:scale-105 transition-transform">
@@ -482,7 +483,7 @@ function HeaderContent() {
               </button>
 
               {/* LOGGED-IN PROFILE DROPDOWN MENU (Does not redirect immediately; user clicks Orders to navigate!) */}
-              {user?.email && profileDropdownOpen && (
+              {mounted && user?.email && profileDropdownOpen && (
                 <div className="absolute right-0 top-full mt-2 w-72 bg-white rounded-3xl shadow-2xl border border-[#E2DBD0] p-4 z-50 animate-in fade-in zoom-in-95 duration-150">
                   {/* User Header Summary */}
                   <div className="flex items-center gap-3 pb-3.5 border-b border-[#F0ECE4]">
@@ -647,7 +648,7 @@ function HeaderContent() {
 
             {/* Patron Profile Banner */}
             <div className="p-4 bg-[#08281F] text-[#FAF8F5] shrink-0 border-b border-[#144234]">
-              {user?.email ? (
+              {mounted && user?.email ? (
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className="w-9 h-9 rounded-full bg-[#164E3D] text-[#D4AF37] border border-[#C5A059] font-bold text-xs flex items-center justify-center">
@@ -693,7 +694,7 @@ function HeaderContent() {
             {/* Scrollable Navigation Body */}
             <div className="flex-1 overflow-y-auto overscroll-contain p-4 space-y-5">
               {/* If Logged In: Quick Actions */}
-              {user?.email && (
+              {mounted && user?.email && (
                 <div className="grid grid-cols-3 gap-2 pb-1">
                   <Link
                     href="/account?tab=orders"

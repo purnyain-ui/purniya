@@ -160,7 +160,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     { name: 'Inventory & Stock', href: '/admin/inventory', icon: <Boxes className="w-4 h-4" />, key: 'inventory' },
     { name: 'Payments Update', href: '/admin/payments', icon: <CreditCard className="w-4 h-4" />, key: 'payments' },
     { name: 'Customers & Patrons', href: '/admin/customers', icon: <Users className="w-4 h-4" />, key: 'customers' },
-    { name: 'Shipping & Logistics', href: '/admin/shipping', icon: <Truck className="w-4 h-4" />, key: 'shipping' },
+    //{ name: 'Shipping & Logistics', href: '/admin/shipping', icon: <Truck className="w-4 h-4" />, key: 'shipping' },
     //{ name: 'Returns & Exchanges', href: '/admin/returns', icon: <RotateCcw className="w-4 h-4" />, key: 'returns' },
     { name: 'Offers & Coupons', href: '/admin/coupons', icon: <Ticket className="w-4 h-4" />, key: 'coupons' },
     { name: 'Banners & Content', href: '/admin/banners', icon: <ImageIcon className="w-4 h-4" />, key: 'banners' },

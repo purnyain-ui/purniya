@@ -75,6 +75,7 @@ interface StoreContextType {
   announcement: string;
   user: UserProfile;
   isAuthLoading: boolean;
+  mounted: boolean;
   addresses: Address[];
   appliedCoupon: Coupon | null;
   toast: ToastState | null;
@@ -159,61 +160,16 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const [products, setProducts] = useState<Product[]>(initialProducts);
   const [categories, setCategories] = useState<CategoryMeta[]>(initialCategories);
-  const [cart, setCart] = useState<CartItem[]>(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const saved = localStorage.getItem('purnya_cart');
-        if (saved) return JSON.parse(saved);
-      } catch { }
-    }
-    return [];
-  });
-  const [wishlist, setWishlist] = useState<Product[]>(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const saved = localStorage.getItem('purnya_wishlist');
-        if (saved) return JSON.parse(saved);
-      } catch { }
-    }
-    return [];
-  });
-  const [orders, setOrders] = useState<Order[]>(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const saved = localStorage.getItem('purnya_orders');
-        if (saved) return JSON.parse(saved);
-      } catch { }
-    }
-    return initialOrders;
-  });
+  const [cart, setCart] = useState<CartItem[]>([]);
+  const [wishlist, setWishlist] = useState<Product[]>([]);
+  const [orders, setOrders] = useState<Order[]>(initialOrders);
   const [coupons, setCoupons] = useState<Coupon[]>(initialCoupons);
   const [banners, setBanners] = useState<HeroSlide[]>(initialHeroSlides);
   const [announcement, setAnnouncement] = useState<string>(
     'Free Express Shipping on Orders Above ₹999  |  Cash on Delivery Available Pan-India'
   );
-  const [user, setUser] = useState<UserProfile>(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const saved = localStorage.getItem('purnya_user');
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          if (parsed && (parsed.email || parsed.name)) {
-            return parsed;
-          }
-        }
-      } catch { }
-    }
-    return initialUser;
-  });
-  const [addresses, setAddresses] = useState<Address[]>(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const saved = localStorage.getItem('purnya_addresses');
-        if (saved) return JSON.parse(saved);
-      } catch { }
-    }
-    return initialAddresses;
-  });
+  const [user, setUser] = useState<UserProfile>(initialUser);
+  const [addresses, setAddresses] = useState<Address[]>(initialAddresses);
   const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
   const [toast, setToast] = useState<ToastState | null>(null);
   const [authModal, setAuthModal] = useState<AuthModalState | null>(null);
@@ -539,97 +495,82 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return () => window.removeEventListener('purnya_catalog_updated', handleCatalogUpdated);
   }, [refreshCatalog]);
 
-  // Load from localStorage on mount safely
+  // Load from localStorage on mount safely and synchronously on client
   useEffect(() => {
-    queueMicrotask(() => {
-      try {
-        const savedProducts = localStorage.getItem('purnya_products');
-        if (savedProducts) {
-          try {
-            const parsedProds: Product[] = JSON.parse(savedProducts);
-            if (Array.isArray(parsedProds) && parsedProds.length > 0) {
-              setProducts(parsedProds);
-            }
-          } catch { }
-        }
-
-        const savedCategories = localStorage.getItem('purnya_categories');
-        if (savedCategories) {
-          try {
-            const parsed = JSON.parse(savedCategories);
-            if (Array.isArray(parsed) && parsed.length > 0) {
-              setCategories(parsed);
-            }
-          } catch {
-            // Keep current state
-          }
-        }
-
-        const savedCart = localStorage.getItem('purnya_cart');
-        if (savedCart) setCart(JSON.parse(savedCart));
-
-        const savedWishlist = localStorage.getItem('purnya_wishlist');
-        if (savedWishlist) {
-          setWishlist(JSON.parse(savedWishlist));
-        } else {
-          setWishlist([]);
-        }
-
-        const savedOrders = localStorage.getItem('purnya_orders');
-        if (savedOrders) {
-          try {
-            const parsedOrders = JSON.parse(savedOrders);
-            setOrders(parsedOrders);
-          } catch {
-            setOrders([]);
-          }
-        }
-
-        const savedCoupons = localStorage.getItem('purnya_coupons');
-        if (savedCoupons) setCoupons(JSON.parse(savedCoupons));
-
-        const savedBanners = localStorage.getItem('purnya_banners');
-        if (savedBanners) {
-          try {
-            const parsed = JSON.parse(savedBanners);
-            if (Array.isArray(parsed) && parsed.length > 0) {
-              setBanners(parsed);
-            } else {
-              setBanners(initialHeroSlides);
-            }
-          } catch {
-            setBanners(initialHeroSlides);
-          }
-        }
-
-        const savedAnnouncement = localStorage.getItem('purnya_announcement');
-        if (savedAnnouncement) setAnnouncement(savedAnnouncement);
-
-        const savedAddresses = localStorage.getItem('purnya_addresses');
-        if (savedAddresses) {
-          try {
-            const parsedAddrs = JSON.parse(savedAddresses);
-            setAddresses(parsedAddrs);
-          } catch {
-            setAddresses([]);
-          }
-        }
-
-        const savedUser = localStorage.getItem('purnya_user');
-        if (savedUser) {
-          try {
-            const parsedUser = JSON.parse(savedUser);
+    try {
+      const savedUser = localStorage.getItem('purnya_user');
+      if (savedUser) {
+        try {
+          const parsedUser = JSON.parse(savedUser);
+          if (parsedUser && (parsedUser.email || parsedUser.name)) {
             setUser(parsedUser);
-          } catch {
-            setUser({ id: undefined, name: '', email: '', phone: '' });
           }
-        }
-      } catch (e) {
-        console.warn('LocalStorage load error', e);
+        } catch { }
       }
+
+      const savedCart = localStorage.getItem('purnya_cart');
+      if (savedCart) {
+        try { setCart(JSON.parse(savedCart)); } catch { }
+      }
+
+      const savedWishlist = localStorage.getItem('purnya_wishlist');
+      if (savedWishlist) {
+        try { setWishlist(JSON.parse(savedWishlist)); } catch { }
+      }
+
+      const savedOrders = localStorage.getItem('purnya_orders');
+      if (savedOrders) {
+        try { setOrders(JSON.parse(savedOrders)); } catch { }
+      }
+
+      const savedAddresses = localStorage.getItem('purnya_addresses');
+      if (savedAddresses) {
+        try { setAddresses(JSON.parse(savedAddresses)); } catch { }
+      }
+
+      const savedProducts = localStorage.getItem('purnya_products');
+      if (savedProducts) {
+        try {
+          const parsedProds: Product[] = JSON.parse(savedProducts);
+          if (Array.isArray(parsedProds) && parsedProds.length > 0) {
+            setProducts(parsedProds);
+          }
+        } catch { }
+      }
+
+      const savedCategories = localStorage.getItem('purnya_categories');
+      if (savedCategories) {
+        try {
+          const parsed = JSON.parse(savedCategories);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setCategories(parsed);
+          }
+        } catch { }
+      }
+
+      const savedCoupons = localStorage.getItem('purnya_coupons');
+      if (savedCoupons) {
+        try { setCoupons(JSON.parse(savedCoupons)); } catch { }
+      }
+
+      const savedBanners = localStorage.getItem('purnya_banners');
+      if (savedBanners) {
+        try {
+          const parsed = JSON.parse(savedBanners);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setBanners(parsed);
+          }
+        } catch { }
+      }
+
+      const savedAnnouncement = localStorage.getItem('purnya_announcement');
+      if (savedAnnouncement) setAnnouncement(savedAnnouncement);
+    } catch (e) {
+      console.warn('LocalStorage load error', e);
+    } finally {
       setMounted(true);
       setIsAuthLoading(false);
-    });
+    }
   }, []);
 
   // Real-time synchronization across multiple open browser tabs/windows
@@ -686,12 +627,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const addToCart = (product: Product, quantity = 1, variant?: Record<string, string>) => {
     if (!user?.email) {
       showToast('Sign In Required 🛍️', 'Please sign in to add pieces to your bag.', 'info');
-      openAuthModal({
-        actionType: 'bag',
-        title: 'Add to Your Bag 🛍️',
-        message: 'Please sign in to add pieces to your shopping bag and enjoy uninterrupted shopping.',
-        redirectUrl: typeof window !== 'undefined' ? window.location.pathname : '/',
-      });
       return;
     }
 
@@ -736,12 +671,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const toggleWishlist = (product: Product) => {
     if (!user?.email) {
       showToast('Sign In Required ✨', 'Please sign in to save pieces to your wishlist.', 'info');
-      openAuthModal({
-        actionType: 'wishlist',
-        title: 'Save to Your Wishlist ✨',
-        message: 'Please sign in to keep your favorite pieces saved in your personal wishlist collection across all your devices.',
-        redirectUrl: typeof window !== 'undefined' ? window.location.pathname : '/',
-      });
       return;
     }
 
@@ -1305,6 +1234,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         announcement,
         user,
         isAuthLoading,
+        mounted,
         addresses,
         appliedCoupon,
         toast,
