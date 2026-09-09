@@ -1,88 +1,90 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { Plus, X, Edit3, Trash2, Upload, Loader2, CheckCircle2 } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Plus, X, Edit3, Trash2, Upload, Loader2, CheckCircle2, Database } from 'lucide-react';
+import { HomeBottomCard, HomeBottomSection } from '../../../../types';
+import {
+  getHomeBottomSectionsFromSupabase,
+  upsertHomeBottomSectionToSupabase,
+  deleteHomeBottomSectionFromSupabase,
+  uploadHomeImageToSupabase,
+} from '../../../../lib/supabase';
 
-interface IntegrityCard {
-  title: string;
-  subtitle?: string;
-  description: string;
-  iconText: string;
-  image: string;
-}
-
-interface IntegritySection {
-  id: string | number;
-  tag: string;
-  heading: string;
-  subheading: string;
-  cards: IntegrityCard[];
-  is_active: boolean;
-}
+const DEFAULT_BOTTOM_SECTION: HomeBottomSection = {
+  id: 'homepage-bottom-integrity',
+  tag: 'THE PURNYA STANDARD',
+  heading: 'Artisanal Integrity in Every Creation',
+  subheading: 'From conscious sourcing to anti-tarnish protective sealing, our commitment to mindful luxury is uncompromising.',
+  cards: [
+    {
+      iconText: '18K',
+      title: 'Gold Vermeil & Anti-Tarnish Sealing',
+      description: 'Handcrafted jewellery plated with genuine 18-karat gold over hypoallergenic brass and finished with proprietary nano-ceramic sealing.',
+      image: '',
+    },
+    {
+      iconText: '100%',
+      title: 'Clean Natural Sand Wax Formulations',
+      description: 'Granulated plant-based sand and pearl wax that burns soot-free with pure cotton wicks and distilled aromatic botanicals.',
+      image: '',
+    },
+    {
+      iconText: 'Origin',
+      title: 'Direct Single-Origin Ethical Sourcing',
+      description: 'Herbal wellness infusions and handcrafted stoneware produced in ethical artisan cooperatives with traceable, conscious materials.',
+      image: '',
+    },
+  ],
+  isActive: true,
+};
 
 export default function AdminIntegrityStandardsPage() {
-  // Initial dataset simulating your SQL Database Table rows
-  const [sections, setSections] = useState<IntegritySection[]>([]);
+  const [sections, setSections] = useState<HomeBottomSection[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploadingCardIndex, setUploadingCardIndex] = useState<number | null>(null);
   const [notification, setNotification] = useState<string | null>(null);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingId, setEditingId] = useState<string | number | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   // Form States
   const [tag, setTag] = useState('THE PURNYA STANDARD');
   const [heading, setHeading] = useState('');
   const [subheading, setSubheading] = useState('');
-  const [cards, setCards] = useState<IntegrityCard[]>([
+  const [cards, setCards] = useState<HomeBottomCard[]>([
     { iconText: '18K', title: '', description: '', image: '' },
     { iconText: '100%', title: '', description: '', image: '' },
     { iconText: 'Origin', title: '', description: '', image: '' }
   ]);
 
-  // Simulate Fetching from Database on Page Load
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      const initialDbData: IntegritySection[] = [
-        {
-          id: 1,
-          tag: 'THE PURNYA STANDARD',
-          heading: 'Artisanal Integrity in Every Creation',
-          subheading: 'From conscious sourcing to anti-tarnish protective sealing, our commitment to mindful luxury is uncompromising.',
-          cards: [
-            {
-              iconText: '18K',
-              title: 'Gold Vermeil & Anti-Tarnish Sealing',
-              description: 'Handcrafted jewellery plated with genuine 18-karat gold over hypoallergenic brass and finished with proprietary nano-ceramic sealing.',
-              image: ''
-            },
-            {
-              iconText: '100%',
-              title: 'Clean Natural Sand Wax Formulations',
-              description: 'Granulated plant-based sand and pearl wax that burns soot-free with pure cotton wicks and distilled aromatic botanicals.',
-              image: ''
-            },
-            {
-              iconText: 'Origin',
-              title: 'Direct Single-Origin Ethical Sourcing',
-              description: 'Herbal wellness infusions and handcrafted stoneware produced in ethical artisan cooperatives with traceable, conscious materials.',
-              image: ''
-            }
-          ],
-          is_active: true
-        }
-      ];
-      setSections(initialDbData);
-      setLoading(false);
-    }, 500);
+  const showToast = (msg: string) => {
+    setNotification(msg);
+    setTimeout(() => setNotification(null), 3500);
+  };
 
-    return () => clearTimeout(timer);
+  const loadData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await getHomeBottomSectionsFromSupabase();
+      if (data && data.length > 0) {
+        setSections(data);
+      } else {
+        // Auto-seed default section to Supabase if empty
+        await upsertHomeBottomSectionToSupabase(DEFAULT_BOTTOM_SECTION);
+        setSections([DEFAULT_BOTTOM_SECTION]);
+      }
+    } catch (err) {
+      console.error('Failed to load bottom section from Supabase:', err);
+      setSections([DEFAULT_BOTTOM_SECTION]);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  const showNotificationMsg = (msg: string) => {
-    setNotification(msg);
-    setTimeout(() => setNotification(null), 3000);
-  };
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const handleOpenCreate = () => {
     setEditingId(null);
@@ -97,85 +99,114 @@ export default function AdminIntegrityStandardsPage() {
     setIsModalOpen(true);
   };
 
-  const handleOpenEdit = (item: IntegritySection) => {
+  const handleOpenEdit = (item: HomeBottomSection) => {
     setEditingId(item.id);
     setTag(item.tag);
     setHeading(item.heading);
     setSubheading(item.subheading);
-    setCards(JSON.parse(JSON.stringify(item.cards)));
+    setCards(JSON.parse(JSON.stringify(item.cards || [])));
     setIsModalOpen(true);
   };
 
-  const handleCardChange = (index: number, field: keyof IntegrityCard, value: string) => {
+  const handleCardChange = (index: number, field: keyof HomeBottomCard, value: string) => {
     const updated = [...cards];
-    updated[index][field] = value;
+    updated[index] = { ...updated[index], [field]: value };
     setCards(updated);
   };
 
-  const handleCardImageUpload = (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
+  // Upload image to Supabase Storage
+  const handleCardImageUpload = async (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const localUrl = URL.createObjectURL(file);
-      handleCardChange(index, 'image', localUrl);
+    if (!file) return;
+
+    setUploadingCardIndex(index);
+    try {
+      const publicUrl = await uploadHomeImageToSupabase(file, 'bottom-section');
+      handleCardChange(index, 'image', publicUrl);
+      showToast('Card image uploaded to Supabase storage successfully!');
+    } catch (err: any) {
+      console.error('Card image upload error:', err);
+      showToast(err?.message || 'Failed to upload card image.');
+    } finally {
+      setUploadingCardIndex(null);
     }
   };
 
-  // Simulate Saving/Updating to Database State
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!heading.trim()) return;
+    if (!heading.trim()) {
+      showToast('Please provide a heading title.');
+      return;
+    }
 
     setSaving(true);
-    setTimeout(() => {
-      if (editingId) {
-        // UPDATE query logic simulation
-        setSections(sections.map(sec => sec.id === editingId ? {
-          ...sec,
-          tag: tag.toUpperCase(),
-          heading,
-          subheading,
-          cards
-        } : sec));
-        showNotificationMsg('Successfully updated in database!');
-      } else {
-        // INSERT query logic simulation
-        const newEntry: IntegritySection = {
-          id: Date.now(),
-          tag: tag.toUpperCase(),
-          heading,
-          subheading,
-          cards,
-          is_active: true
-        };
-        setSections([newEntry, ...sections]);
-        showNotificationMsg('Successfully saved new entry to database!');
-      }
+    const targetSection: HomeBottomSection = {
+      id: editingId || `homepage-bottom-${Date.now()}`,
+      tag: tag.toUpperCase().trim(),
+      heading: heading.trim(),
+      subheading: subheading.trim(),
+      cards: cards.map(c => ({
+        iconText: c.iconText.trim(),
+        title: c.title.trim(),
+        description: c.description.trim(),
+        image: c.image || '',
+      })),
+      isActive: true,
+    };
 
+    try {
+      const res = await upsertHomeBottomSectionToSupabase(targetSection);
+      if (res.success) {
+        showToast(editingId ? 'Section updated in Supabase successfully!' : 'Section saved to Supabase successfully!');
+        setIsModalOpen(false);
+        await loadData();
+      } else {
+        showToast(`Save failed: ${res.error || 'Unknown error'}`);
+      }
+    } catch (err: any) {
+      showToast(`Error: ${err?.message || 'Failed to save to Supabase'}`);
+    } finally {
       setSaving(false);
-      setIsModalOpen(false);
-    }, 400);
+    }
   };
 
-  const deleteSection = (id: string | number) => {
-    if (confirm('Are you sure you want to delete this section from the database?')) {
+  const deleteSection = async (id: string) => {
+    if (confirm('Are you sure you want to delete this section from Supabase?')) {
+      const prev = [...sections];
       setSections(sections.filter(s => s.id !== id));
-      showNotificationMsg('Section deleted from database.');
+      try {
+        const success = await deleteHomeBottomSectionFromSupabase(id);
+        if (success) {
+          showToast('Section deleted from Supabase.');
+        } else {
+          setSections(prev);
+          showToast('Failed to delete section from Supabase.');
+        }
+      } catch {
+        setSections(prev);
+        showToast('Error deleting section.');
+      }
     }
   };
 
   if (loading) {
     return (
-      <div className="flex h-screen items-center justify-center bg-[#FAF9F5]">
-        <Loader2 className="w-8 h-8 animate-spin text-[#C5A059]" />
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="w-8 h-8 animate-spin text-[#C5A059]" />
+          <p className="text-xs font-semibold uppercase tracking-widest text-[#2C4A3E]">
+            Loading Bottom Section from Supabase...
+          </p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-8 max-w-7xl mx-auto p-4 sm:p-6 bg-[#FAF9F5] min-h-screen relative font-sans">
+    <div className="space-y-8 max-w-7xl mx-auto p-4 sm:p-6 min-h-screen relative font-sans">
       {/* Toast Feedback Notification */}
       {notification && (
-        <div className="fixed top-5 right-5 z-50 flex items-center gap-2 px-4 py-3 rounded-2xl bg-[#0B241C] text-white shadow-xl text-xs">
+        <div className="fixed top-5 right-5 z-50 flex items-center gap-2 px-4 py-3 rounded-2xl bg-[#0B241C] text-white shadow-xl text-xs border border-[#C5A059]/40 animate-fade-in">
           <CheckCircle2 className="w-4 h-4 text-[#C5A059]" />
           <span>{notification}</span>
         </div>
@@ -184,11 +215,18 @@ export default function AdminIntegrityStandardsPage() {
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="font-serif text-2xl sm:text-3xl font-bold text-[#0B241C]">
-            Artisanal Integrity Standards (Database Page)
+          <div className="flex items-center gap-2 mb-1">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-full text-[10px] font-bold uppercase tracking-wider">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              <Database className="w-3 h-3 text-emerald-600" />
+              <span>Live in Supabase</span>
+            </span>
+          </div>
+          <h1 className="font-serif-title text-2xl sm:text-3xl font-bold text-[#0B241C]">
+            Artisanal Integrity Standards (Bottom Section)
           </h1>
           <p className="text-xs sm:text-sm text-[#2C4A3E]">
-            Manage your 3-column features matching your live design layout.
+            Manage your 3-column features displayed on the live homepage.
           </p>
         </div>
 
@@ -210,10 +248,18 @@ export default function AdminIntegrityStandardsPage() {
                 {sec.tag}
               </span>
               <div className="flex items-center gap-3">
-                <button onClick={() => handleOpenEdit(sec)} className="p-1.5 rounded-lg bg-gray-100 hover:bg-[#C5A059] hover:text-white transition" title="Edit Section">
+                <button
+                  onClick={() => handleOpenEdit(sec)}
+                  className="p-1.5 rounded-lg bg-gray-100 hover:bg-[#C5A059] hover:text-white transition cursor-pointer"
+                  title="Edit Section"
+                >
                   <Edit3 className="w-4 h-4 text-[#0B241C]" />
                 </button>
-                <button onClick={() => deleteSection(sec.id)} className="p-1.5 rounded-lg bg-red-50 hover:bg-red-600 hover:text-white transition text-red-600" title="Delete Section">
+                <button
+                  onClick={() => deleteSection(sec.id)}
+                  className="p-1.5 rounded-lg bg-red-50 hover:bg-red-600 hover:text-white transition text-red-600 cursor-pointer"
+                  title="Delete Section"
+                >
                   <Trash2 className="w-4 h-4" />
                 </button>
               </div>
@@ -221,23 +267,23 @@ export default function AdminIntegrityStandardsPage() {
 
             <div className="text-center max-w-2xl mx-auto space-y-3 mb-12">
               <span className="text-[11px] font-semibold tracking-widest uppercase text-[#C5A059]">{sec.tag}</span>
-              <h2 className="font-serif text-3xl sm:text-4xl font-normal text-[#0B241C]">{sec.heading}</h2>
+              <h2 className="font-serif-title text-3xl sm:text-4xl font-normal text-[#0B241C]">{sec.heading}</h2>
               <p className="text-xs sm:text-sm text-[#2C4A3E]">{sec.subheading}</p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {sec.cards.map((card, cIdx) => (
-                <div key={cIdx} className="p-8 rounded-3xl bg-white border border-[#E2DBD0] shadow-sm flex flex-col justify-between space-y-6">
+                <div key={cIdx} className="p-8 rounded-3xl bg-[#FAF9F5] border border-[#E2DBD0] shadow-xs flex flex-col justify-between space-y-6">
                   <div className="space-y-4">
-                    <div className="w-12 h-12 rounded-2xl bg-[#EBF3EF] border border-[#E2DBD0] flex items-center justify-center font-serif text-xs font-bold text-[#0B241C]">
+                    <div className="w-12 h-12 rounded-2xl bg-[#EBF3EF] border border-[#E2DBD0] flex items-center justify-center font-serif-title text-xs font-bold text-[#0B241C]">
                       {card.iconText}
                     </div>
-                    <h3 className="font-serif text-lg font-bold text-[#0B241C]">{card.title}</h3>
+                    <h3 className="font-serif-title text-lg font-bold text-[#0B241C]">{card.title}</h3>
                     <p className="text-xs text-[#2C4A3E] leading-relaxed">{card.description}</p>
                   </div>
                   {card.image && (
-                    <div className="w-full h-32 rounded-xl overflow-hidden border border-[#E2DBD0]">
-                      <img src={card.image} alt="Card visual" className="w-full h-full object-cover" />
+                    <div className="w-full h-36 rounded-2xl overflow-hidden border border-[#E2DBD0] shadow-xs">
+                      <img src={card.image} alt={card.title || 'Card visual'} className="w-full h-full object-cover" />
                     </div>
                   )}
                 </div>
@@ -252,10 +298,10 @@ export default function AdminIntegrityStandardsPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm overflow-y-auto">
           <form onSubmit={handleSave} className="bg-white rounded-3xl max-w-3xl w-full p-6 sm:p-8 space-y-6 border border-[#E2DBD0] shadow-2xl text-xs my-8 max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center pb-3 border-b border-[#EFEBE3]">
-              <h3 className="font-serif text-lg font-bold text-[#0B241C]">
+              <h3 className="font-serif-title text-lg font-bold text-[#0B241C]">
                 {editingId ? 'Edit Integrity Section' : 'Create Integrity Section'}
               </h3>
-              <button type="button" onClick={() => setIsModalOpen(false)} className="p-1 text-[#5A7469] hover:text-[#0B241C]">
+              <button type="button" onClick={() => setIsModalOpen(false)} className="p-1 text-[#5A7469] hover:text-[#0B241C] cursor-pointer">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -284,37 +330,68 @@ export default function AdminIntegrityStandardsPage() {
                   <p className="font-bold text-[#C5A059]">Card #{idx + 1}</p>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                     <div>
-                      <label className="text-[10px] font-semibold text-[#2C4A3E]">Badge Text</label>
-                      <input type="text" value={card.iconText} onChange={(e) => handleCardChange(idx, 'iconText', e.target.value)} className="w-full p-2.5 rounded-xl border border-[#E2DBD0] bg-white font-bold" />
+                      <label className="text-[10px] font-semibold text-[#2C4A3E]">Badge Text (e.g. 18K, 100%, Origin)</label>
+                      <input type="text" value={card.iconText} onChange={(e) => handleCardChange(idx, 'iconText', e.target.value)} className="w-full p-2.5 rounded-xl border border-[#E2DBD0] bg-white font-bold text-[#0B241C]" />
                     </div>
                     <div className="sm:col-span-2">
                       <label className="text-[10px] font-semibold text-[#2C4A3E]">Card Title</label>
-                      <input type="text" value={card.title} onChange={(e) => handleCardChange(idx, 'title', e.target.value)} className="w-full p-2.5 rounded-xl border border-[#E2DBD0] bg-white font-bold" />
+                      <input type="text" value={card.title} onChange={(e) => handleCardChange(idx, 'title', e.target.value)} className="w-full p-2.5 rounded-xl border border-[#E2DBD0] bg-white font-bold text-[#0B241C]" />
                     </div>
                   </div>
                   <div>
                     <label className="text-[10px] font-semibold text-[#2C4A3E]">Card Description</label>
-                    <textarea rows={2} value={card.description} onChange={(e) => handleCardChange(idx, 'description', e.target.value)} className="w-full p-2.5 rounded-xl border border-[#E2DBD0] bg-white" />
+                    <textarea rows={2} value={card.description} onChange={(e) => handleCardChange(idx, 'description', e.target.value)} className="w-full p-2.5 rounded-xl border border-[#E2DBD0] bg-white text-[#2C4A3E]" />
                   </div>
-                  <div className="flex items-center gap-3">
-                    <label className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-dashed border-[#C5A059] bg-white hover:bg-[#EBF3EF] cursor-pointer text-[#0B241C] font-semibold transition text-[11px]">
-                      <Upload className="w-3.5 h-3.5 text-[#C5A059]" />
-                      <span>{card.image ? 'Change Card Photo' : 'Upload Card Photo (Optional)'}</span>
-                      <input type="file" accept="image/*" onChange={(e) => handleCardImageUpload(idx, e)} className="hidden" />
-                    </label>
-                    {card.image && <span className="text-[10px] text-emerald-700 font-semibold">Attached ✓</span>}
+                  
+                  <div className="space-y-2">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <label className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-dashed border-[#C5A059] bg-white hover:bg-[#EBF3EF] cursor-pointer text-[#0B241C] font-semibold transition text-[11px]">
+                        {uploadingCardIndex === idx ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin text-[#C5A059]" />
+                        ) : (
+                          <Upload className="w-3.5 h-3.5 text-[#C5A059]" />
+                        )}
+                        <span>{uploadingCardIndex === idx ? 'Uploading to Supabase...' : card.image ? 'Change Photo (Supabase)' : 'Upload Photo (Supabase)'}</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          disabled={uploadingCardIndex !== null}
+                          onChange={(e) => handleCardImageUpload(idx, e)}
+                          className="hidden"
+                        />
+                      </label>
+                      {card.image && (
+                        <button
+                          type="button"
+                          onClick={() => handleCardChange(idx, 'image', '')}
+                          className="text-[10px] text-red-600 hover:underline cursor-pointer"
+                        >
+                          Remove Photo
+                        </button>
+                      )}
+                    </div>
+                    {card.image && (
+                      <div className="flex items-center gap-3 p-2 rounded-xl bg-white border border-[#E2DBD0]">
+                        <img src={card.image} alt="Thumbnail" className="w-12 h-12 object-cover rounded-lg border" />
+                        <span className="text-[10px] text-gray-500 font-mono truncate flex-1">{card.image}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
             </div>
 
             <div className="flex justify-end gap-2 pt-4 border-t border-[#EFEBE3]">
-              <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 rounded-xl border border-[#E2DBD0] text-[#2C4A3E]">
+              <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 rounded-xl border border-[#E2DBD0] text-[#2C4A3E] cursor-pointer">
                 Cancel
               </button>
-              <button type="submit" disabled={saving} className="px-6 py-2 rounded-xl bg-[#C5A059] text-[#0B241C] font-bold shadow-md uppercase tracking-wider cursor-pointer flex items-center gap-2">
+              <button
+                type="submit"
+                disabled={saving || uploadingCardIndex !== null}
+                className="px-6 py-2 rounded-xl bg-[#C5A059] text-[#0B241C] font-bold shadow-md uppercase tracking-wider cursor-pointer flex items-center gap-2 hover:bg-[#b5914a] transition-colors"
+              >
                 {saving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                <span>{editingId ? 'Update in Database' : 'Save to Database'}</span>
+                <span>{editingId ? 'Update in Supabase' : 'Save to Supabase'}</span>
               </button>
             </div>
           </form>

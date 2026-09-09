@@ -1,5 +1,5 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { Product, CategoryMeta, Order, HeroSlide, Address, Coupon } from '../types';
+import { Product, CategoryMeta, Order, HeroSlide, Address, Coupon, HomeMiddleSection, HomeBottomSection } from '../types';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
@@ -848,7 +848,12 @@ export async function getBannersFromSupabase(): Promise<HeroSlide[] | null> {
     }
     if (!data) return [];
     return data
-      .filter((b: any) => b.id !== 'announcement-bar-main' && b.category !== 'announcement')
+      .filter((b: any) => 
+        b.id !== 'announcement-bar-main' && 
+        b.category !== 'announcement' &&
+        b.category !== 'home-middle-section' &&
+        b.category !== 'home-bottom-section'
+      )
       .map((b: any) => ({
         id: b.id,
         title: b.title || '',
@@ -1605,6 +1610,247 @@ export async function deleteCouponFromSupabase(code: string): Promise<boolean> {
     return true;
   } catch (err) {
     console.warn('Supabase deleteCoupon exception:', err);
+    return false;
+  }
+}
+
+/**
+ * Upload an image file to Supabase Storage and return its public URL.
+ */
+export async function uploadHomeImageToSupabase(file: File, prefix = 'homepage'): Promise<string> {
+  if (!file.type.startsWith('image/')) {
+    throw new Error('Please select a valid image file (JPG, PNG, WebP, etc.).');
+  }
+
+  if (isSupabaseConfigured && supabase) {
+    try {
+      const ext = file.name.split('.').pop() || 'jpg';
+      const cleanPrefix = prefix.replace(/[^a-zA-Z0-9_-]/g, '');
+      const filePath = `${cleanPrefix}/${Date.now()}-${Math.random().toString(36).substring(2, 8)}.${ext}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('category-images')
+        .upload(filePath, file, { cacheControl: '3600', upsert: true });
+
+      if (!uploadError) {
+        const { data } = supabase.storage.from('category-images').getPublicUrl(filePath);
+        if (data?.publicUrl) {
+          return data.publicUrl;
+        }
+      } else {
+        console.warn('Supabase storage upload error:', uploadError.message);
+      }
+    } catch (err) {
+      console.warn('Supabase storage upload exception:', err);
+    }
+  }
+
+  // Fallback to FileReader Data URL if storage upload failed or offline
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = (err) => reject(err);
+    reader.readAsDataURL(file);
+  });
+}
+
+/**
+ * Fetch Home Middle Section items from Supabase
+ */
+export async function getHomeMiddleSectionsFromSupabase(): Promise<HomeMiddleSection[]> {
+  if (!isSupabaseConfigured || !supabase) return [];
+  try {
+    const { data, error } = await supabase
+      .from('banners')
+      .select('*')
+      .eq('category', 'home-middle-section')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.warn('Supabase getHomeMiddleSections error:', error);
+      return [];
+    }
+    if (!data || data.length === 0) return [];
+
+    return data.map((b: any) => {
+      let parsed: any = {};
+      try {
+        if (b.subtitle && b.subtitle.startsWith('{')) {
+          parsed = JSON.parse(b.subtitle);
+        }
+      } catch {}
+
+      return {
+        id: b.id,
+        tag: parsed.tag || b.cta_text || 'THE PURNYA STANDARD',
+        title: b.title || '',
+        description: parsed.description || b.subtitle || '',
+        imageUrl: b.image || '',
+        features: Array.isArray(parsed.features) ? parsed.features : [],
+        primaryButtonText: parsed.primaryButtonText || b.cta_text || 'SHOP COMPLETE CATALOG',
+        primaryButtonLink: b.cta_link || parsed.primaryButtonLink || '/catalog',
+        secondaryButtonText: parsed.secondaryButtonText || 'EXPLORE OTHER 4 WORLDS',
+        secondaryButtonLink: parsed.secondaryButtonLink || '/worlds',
+        isActive: b.is_active ?? true,
+      };
+    });
+  } catch (err) {
+    console.warn('Supabase getHomeMiddleSections exception:', err);
+    return [];
+  }
+}
+
+/**
+ * Upsert Home Middle Section item to Supabase
+ */
+export async function upsertHomeMiddleSectionToSupabase(item: HomeMiddleSection): Promise<{ success: boolean; error?: string }> {
+  if (!isSupabaseConfigured || !supabase) return { success: false, error: 'Supabase credentials not configured' };
+  try {
+    const subtitlePayload = JSON.stringify({
+      tag: item.tag,
+      description: item.description,
+      features: item.features,
+      primaryButtonText: item.primaryButtonText,
+      primaryButtonLink: item.primaryButtonLink,
+      secondaryButtonText: item.secondaryButtonText,
+      secondaryButtonLink: item.secondaryButtonLink,
+    });
+
+    const { error } = await supabase.from('banners').upsert(
+      {
+        id: item.id,
+        title: item.title,
+        subtitle: subtitlePayload,
+        category: 'home-middle-section',
+        image: item.imageUrl,
+        cta_text: item.primaryButtonText || item.tag,
+        cta_link: item.primaryButtonLink || '/catalog',
+        is_active: item.isActive,
+      },
+      { onConflict: 'id' }
+    );
+
+    if (error) {
+      console.warn('Supabase upsertHomeMiddleSection error:', error);
+      return { success: false, error: error.message };
+    }
+    return { success: true };
+  } catch (err: any) {
+    console.warn('Supabase upsertHomeMiddleSection exception:', err);
+    return { success: false, error: err?.message || 'Failed to save middle section' };
+  }
+}
+
+/**
+ * Delete Home Middle Section item from Supabase
+ */
+export async function deleteHomeMiddleSectionFromSupabase(id: string): Promise<boolean> {
+  if (!isSupabaseConfigured || !supabase) return false;
+  try {
+    const { error } = await supabase.from('banners').delete().eq('id', id);
+    if (error) {
+      console.warn('Supabase deleteHomeMiddleSection error:', error);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.warn('Supabase deleteHomeMiddleSection exception:', err);
+    return false;
+  }
+}
+
+/**
+ * Fetch Home Bottom Section items from Supabase
+ */
+export async function getHomeBottomSectionsFromSupabase(): Promise<HomeBottomSection[]> {
+  if (!isSupabaseConfigured || !supabase) return [];
+  try {
+    const { data, error } = await supabase
+      .from('banners')
+      .select('*')
+      .eq('category', 'home-bottom-section')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.warn('Supabase getHomeBottomSections error:', error);
+      return [];
+    }
+    if (!data || data.length === 0) return [];
+
+    return data.map((b: any) => {
+      let parsed: any = {};
+      try {
+        if (b.subtitle && b.subtitle.startsWith('{')) {
+          parsed = JSON.parse(b.subtitle);
+        }
+      } catch {}
+
+      return {
+        id: b.id,
+        tag: parsed.tag || b.cta_text || 'THE PURNYA STANDARD',
+        heading: b.title || '',
+        subheading: parsed.subheading || '',
+        cards: Array.isArray(parsed.cards) ? parsed.cards : [],
+        isActive: b.is_active ?? true,
+      };
+    });
+  } catch (err) {
+    console.warn('Supabase getHomeBottomSections exception:', err);
+    return [];
+  }
+}
+
+/**
+ * Upsert Home Bottom Section item to Supabase
+ */
+export async function upsertHomeBottomSectionToSupabase(sec: HomeBottomSection): Promise<{ success: boolean; error?: string }> {
+  if (!isSupabaseConfigured || !supabase) return { success: false, error: 'Supabase credentials not configured' };
+  try {
+    const subtitlePayload = JSON.stringify({
+      tag: sec.tag,
+      subheading: sec.subheading,
+      cards: sec.cards,
+    });
+
+    const { error } = await supabase.from('banners').upsert(
+      {
+        id: sec.id,
+        title: sec.heading,
+        subtitle: subtitlePayload,
+        category: 'home-bottom-section',
+        image: sec.cards[0]?.image || '',
+        cta_text: sec.tag,
+        cta_link: null,
+        is_active: sec.isActive,
+      },
+      { onConflict: 'id' }
+    );
+
+    if (error) {
+      console.warn('Supabase upsertHomeBottomSection error:', error);
+      return { success: false, error: error.message };
+    }
+    return { success: true };
+  } catch (err: any) {
+    console.warn('Supabase upsertHomeBottomSection exception:', err);
+    return { success: false, error: err?.message || 'Failed to save bottom section' };
+  }
+}
+
+/**
+ * Delete Home Bottom Section item from Supabase
+ */
+export async function deleteHomeBottomSectionFromSupabase(id: string): Promise<boolean> {
+  if (!isSupabaseConfigured || !supabase) return false;
+  try {
+    const { error } = await supabase.from('banners').delete().eq('id', id);
+    if (error) {
+      console.warn('Supabase deleteHomeBottomSection error:', error);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.warn('Supabase deleteHomeBottomSection exception:', err);
     return false;
   }
 }

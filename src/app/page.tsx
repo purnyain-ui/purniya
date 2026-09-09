@@ -9,14 +9,94 @@ import {
   ShieldCheck,
   RotateCcw,
   Headphones,
+  CheckCircle2,
+  ArrowUpRight,
 } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import { initialHeroSlides } from '../data/mockData';
+import { HomeMiddleSection, HomeBottomSection } from '../types';
+import { getHomeMiddleSectionsFromSupabase, getHomeBottomSectionsFromSupabase } from '../lib/supabase';
 import ProductCard from '../components/ProductCard';
+
+const defaultMiddleFallback: HomeMiddleSection = {
+  id: 'homepage-middle-standard',
+  tag: 'THE PURNYA STANDARD',
+  title: 'Artisanal Metallurgy & Anti-Tarnish Elegance',
+  description: 'Every piece of Purnya Jewellery is cast from premium hypoallergenic alloys, finished with lustrous 18K micro-gold plating and sealed with an invisible protective nano-ceramic barrier to guard against moisture, perfume, and daily wear.',
+  imageUrl: 'https://images.unsplash.com/photo-1535632066927-ab7c9ab60908',
+  features: [
+    'Skin-Safe Hypoallergenic & Nickel Free',
+    'Anti-Tarnish Protective Ceramic Seal',
+    'Ethically Sourced Genuine Freshwater Pearls',
+    'Hand-Set AAA Cubic Zirconia & Gemstones'
+  ],
+  primaryButtonText: 'SHOP COMPLETE CATALOG',
+  primaryButtonLink: '/catalog',
+  secondaryButtonText: 'EXPLORE OTHER 4 WORLDS',
+  secondaryButtonLink: '/worlds',
+  isActive: true,
+};
+
+const defaultBottomFallback: HomeBottomSection = {
+  id: 'homepage-bottom-integrity',
+  tag: 'THE PURNYA STANDARD',
+  heading: 'Artisanal Integrity in Every Creation',
+  subheading: 'From conscious sourcing to anti-tarnish protective sealing, our commitment to mindful luxury is uncompromising.',
+  cards: [
+    {
+      iconText: '18K',
+      title: 'Gold Vermeil & Anti-Tarnish Sealing',
+      description: 'Handcrafted jewellery plated with genuine 18-karat gold over hypoallergenic brass and finished with proprietary nano-ceramic sealing.',
+      image: '',
+    },
+    {
+      iconText: '100%',
+      title: 'Clean Natural Sand Wax Formulations',
+      description: 'Granulated plant-based sand and pearl wax that burns soot-free with pure cotton wicks and distilled aromatic botanicals.',
+      image: '',
+    },
+    {
+      iconText: 'Origin',
+      title: 'Direct Single-Origin Ethical Sourcing',
+      description: 'Herbal wellness infusions and handcrafted stoneware produced in ethical artisan cooperatives with traceable, conscious materials.',
+      image: '',
+    },
+  ],
+  isActive: true,
+};
 
 export default function HomePage() {
   const { categories, products, banners } = useStore();
   const [activeSlide, setActiveSlide] = useState(0);
+  const [middleSection, setMiddleSection] = useState<HomeMiddleSection | null>(null);
+  const [bottomSection, setBottomSection] = useState<HomeBottomSection | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    async function loadSections() {
+      try {
+        const [mid, bot] = await Promise.all([
+          getHomeMiddleSectionsFromSupabase(),
+          getHomeBottomSectionsFromSupabase(),
+        ]);
+        if (!isMounted) return;
+        const activeMid = mid.find((m) => m.isActive) || mid[0] || null;
+        if (activeMid) setMiddleSection(activeMid);
+
+        const activeBot = bot.find((b) => b.isActive) || bot[0] || null;
+        if (activeBot) setBottomSection(activeBot);
+      } catch (err) {
+        console.warn('Error fetching dynamic sections from Supabase:', err);
+      }
+    }
+    loadSections();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const activeMiddle = middleSection || defaultMiddleFallback;
+  const activeBottom = bottomSection || defaultBottomFallback;
 
   const activeBanners = banners.filter((b) => b.active);
   const displayedBanners = activeBanners.length > 0 ? activeBanners : initialHeroSlides;
@@ -344,47 +424,56 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* 4. EDITORIAL BRAND STORY SECTION */}
+      {/* 4. EDITORIAL BRAND STORY / MIDDLE SECTION */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="relative rounded-3xl overflow-hidden bg-[#0C3B2E] text-[#FAF8F5] p-8 sm:p-14 lg:p-20 shadow-2xl">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
             <div className="space-y-6">
               <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/10 text-[#D4AF37] text-xs font-semibold tracking-widest uppercase border border-[#D4AF37]/30">
-                The Purnya Philosophy
+                {activeMiddle.tag || 'The Purnya Philosophy'}
               </div>
               <h2 className="font-serif-title text-3xl sm:text-5xl font-bold leading-tight">
-                Crafted for Mindful Living.
+                {activeMiddle.title}
               </h2>
               <p className="text-sm sm:text-base text-[#B4C9BF] leading-relaxed">
-                At Purnya, we unite conscious nature with elevated luxury. From clean sand wax candles
-                to fine 18K gold-plated jewellery, each creation in our five worlds is created to bring
-                tranquility, beauty, and heartfelt joy to your daily rituals.
+                {activeMiddle.description}
               </p>
-              <div className="grid grid-cols-2 gap-4 pt-2">
-                <div className="p-4 rounded-xl bg-white/5 border border-white/10">
-                  <p className="font-serif-title text-2xl font-bold text-[#D4AF37]">100%</p>
-                  <p className="text-xs text-[#B4C9BF] mt-1">Conscious Artisanal Materials</p>
+
+              {activeMiddle.features && activeMiddle.features.length > 0 && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                  {activeMiddle.features.map((feat, idx) => (
+                    <div key={idx} className="p-3.5 rounded-xl bg-white/5 border border-white/10 flex items-center gap-2.5">
+                      <CheckCircle2 className="w-4 h-4 text-[#D4AF37] shrink-0" />
+                      <span className="text-xs text-[#FAF8F5]">{feat}</span>
+                    </div>
+                  ))}
                 </div>
-                <div className="p-4 rounded-xl bg-white/5 border border-white/10">
-                  <p className="font-serif-title text-2xl font-bold text-[#D4AF37]">5 Worlds</p>
-                  <p className="text-xs text-[#B4C9BF] mt-1">One Unified Lifestyle</p>
-                </div>
-              </div>
-              <div>
+              )}
+
+              <div className="flex flex-wrap items-center gap-4 pt-2">
                 <Link
-                  href="/about"
+                  href={activeMiddle.primaryButtonLink || '/catalog'}
                   className="inline-flex items-center gap-2 px-8 py-3.5 rounded-full bg-gradient-to-r from-[#D4AF37] to-[#C5A059] text-[#08281F] font-bold text-xs uppercase tracking-widest transition-all shadow-lg hover:scale-105"
                 >
-                  <span>Read Our Full Story</span>
+                  <span>{activeMiddle.primaryButtonText || 'Shop Complete Catalog'}</span>
                   <ArrowRight className="w-4 h-4" />
                 </Link>
+                {activeMiddle.secondaryButtonText && (
+                  <Link
+                    href={activeMiddle.secondaryButtonLink || '/worlds'}
+                    className="inline-flex items-center gap-2 px-6 py-3.5 rounded-full border border-white/30 text-white font-semibold text-xs uppercase tracking-widest hover:bg-white/10 transition-all flex items-center gap-2"
+                  >
+                    <span>{activeMiddle.secondaryButtonText}</span>
+                    <ArrowUpRight className="w-4 h-4 text-[#D4AF37]" />
+                  </Link>
+                )}
               </div>
             </div>
 
-            <div className="relative aspect-square rounded-2xl overflow-hidden shadow-2xl border border-white/15">
+            <div className="relative aspect-square rounded-2xl overflow-hidden shadow-2xl border border-white/15 bg-[#071a13]">
               <img
-                src="https://images.unsplash.com/photo-1513519245088-0e12902e35ca?w=1000&fit=crop&auto=format"
-                alt="Purnya Lifestyle"
+                src={activeMiddle.imageUrl || 'https://images.unsplash.com/photo-1513519245088-0e12902e35ca?w=1000&fit=crop&auto=format'}
+                alt={activeMiddle.title}
                 className="w-full h-full object-cover"
               />
             </div>
@@ -392,57 +481,42 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* 7. AUTHENTIC PURNYA CRAFTSMANSHIP STANDARDS */}
+      {/* 7. AUTHENTIC PURNYA CRAFTSMANSHIP STANDARDS / BOTTOM SECTION */}
       <section className="bg-[#EBF3EF]/60 border-y border-[#E2DBD0] py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-xl mx-auto mb-12 space-y-2">
             <span className="text-xs font-bold uppercase tracking-[0.25em] text-[#C5A059]">
-              The Purnya Standard
+              {activeBottom.tag || 'The Purnya Standard'}
             </span>
             <h2 className="font-serif-title text-3xl sm:text-4xl font-bold text-[#0B241C]">
-              Artisanal Integrity in Every Creation
+              {activeBottom.heading}
             </h2>
             <p className="text-xs sm:text-sm text-[#2C4A3E]">
-              From conscious sourcing to anti-tarnish protective sealing, our commitment to mindful luxury is uncompromising.
+              {activeBottom.subheading}
             </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="bg-white p-7 rounded-2xl border border-[#E2DBD0] shadow-xs space-y-3">
-              <div className="w-10 h-10 rounded-xl bg-[#EBF3EF] flex items-center justify-center text-[#0C3B2E] font-serif-title font-bold text-lg">
-                18K
+            {activeBottom.cards.map((card, idx) => (
+              <div key={idx} className="bg-white p-7 rounded-2xl border border-[#E2DBD0] shadow-xs space-y-3 flex flex-col justify-between">
+                <div className="space-y-3">
+                  <div className="w-10 h-10 rounded-xl bg-[#EBF3EF] flex items-center justify-center text-[#0C3B2E] font-serif-title font-bold text-lg">
+                    {card.iconText}
+                  </div>
+                  <h3 className="font-serif-title text-base font-bold text-[#0B241C]">
+                    {card.title}
+                  </h3>
+                  <p className="text-xs text-[#2C4A3E] leading-relaxed">
+                    {card.description}
+                  </p>
+                </div>
+                {card.image && (
+                  <div className="w-full h-36 rounded-xl overflow-hidden border border-[#E2DBD0] mt-3">
+                    <img src={card.image} alt={card.title} className="w-full h-full object-cover" />
+                  </div>
+                )}
               </div>
-              <h3 className="font-serif-title text-base font-bold text-[#0B241C]">
-                Gold Vermeil &amp; Anti-Tarnish Sealing
-              </h3>
-              <p className="text-xs text-[#2C4A3E] leading-relaxed">
-                Handcrafted jewellery plated with genuine 18-karat gold over hypoallergenic brass and finished with proprietary nano-ceramic sealing.
-              </p>
-            </div>
-
-            <div className="bg-white p-7 rounded-2xl border border-[#E2DBD0] shadow-xs space-y-3">
-              <div className="w-10 h-10 rounded-xl bg-[#EBF3EF] flex items-center justify-center text-[#0C3B2E] font-serif-title font-bold text-lg">
-                100%
-              </div>
-              <h3 className="font-serif-title text-base font-bold text-[#0B241C]">
-                Clean Natural Sand Wax Formulations
-              </h3>
-              <p className="text-xs text-[#2C4A3E] leading-relaxed">
-                Granulated plant-based sand and pearl wax that burns soot-free with pure cotton wicks and distilled aromatic botanicals.
-              </p>
-            </div>
-
-            <div className="bg-white p-7 rounded-2xl border border-[#E2DBD0] shadow-xs space-y-3">
-              <div className="w-10 h-10 rounded-xl bg-[#EBF3EF] flex items-center justify-center text-[#0C3B2E] font-serif-title font-bold text-lg">
-                Origin
-              </div>
-              <h3 className="font-serif-title text-base font-bold text-[#0B241C]">
-                Direct Single-Origin Ethical Sourcing
-              </h3>
-              <p className="text-xs text-[#2C4A3E] leading-relaxed">
-                Herbal wellness infusions and handcrafted stoneware produced in ethical artisan cooperatives with traceable, conscious materials.
-              </p>
-            </div>
+            ))}
           </div>
         </div>
       </section>
