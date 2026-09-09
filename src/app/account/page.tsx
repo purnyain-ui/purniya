@@ -18,7 +18,6 @@ import {
   Truck,
 } from 'lucide-react';
 import { useStore } from '../../context/StoreContext';
-import { supabase } from '../../lib/supabaseClient';
 import { Address } from '../../types';
 
 export default function AccountPage() {
@@ -27,6 +26,7 @@ export default function AccountPage() {
 
   // Edit Profile modal state
   const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [profileName, setProfileName] = useState(user.name);
   const [profileEmail, setProfileEmail] = useState(user.email);
   const [profilePhone, setProfilePhone] = useState(user.phone);
@@ -56,23 +56,27 @@ export default function AccountPage() {
 
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
-    updateUser({ name: profileName, email: profileEmail, phone: profilePhone });
-    setIsEditingProfile(false);
+    if (!profileName.trim()) {
+      showToast('Validation Error', 'Please provide your full name.');
+      return;
+    }
+    if (!profileEmail.trim() || !profileEmail.includes('@')) {
+      showToast('Validation Error', 'Please enter a valid email address.');
+      return;
+    }
 
+    setIsSavingProfile(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
-        await supabase.auth.updateUser({
-          data: { name: profileName, full_name: profileName, phone: profilePhone },
-        });
-        await supabase.from('profiles').update({
-          full_name: profileName,
-          phone: profilePhone,
-          updated_at: new Date().toISOString(),
-        }).eq('id', session.user.id);
-      }
+      await updateUser({
+        name: profileName.trim(),
+        email: profileEmail.trim(),
+        phone: profilePhone.trim(),
+      });
+      setIsEditingProfile(false);
     } catch (err) {
-      console.warn('Supabase profile sync error:', err);
+      console.warn('Profile save exception:', err);
+    } finally {
+      setIsSavingProfile(false);
     }
   };
 
@@ -352,9 +356,17 @@ export default function AccountPage() {
                   </div>
                   <button
                     type="submit"
-                    className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-[#D4AF37] to-[#C5A059] text-[#08281F] font-bold text-xs uppercase tracking-wider shadow-md"
+                    disabled={isSavingProfile}
+                    className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-[#D4AF37] to-[#C5A059] text-[#08281F] font-bold text-xs uppercase tracking-wider shadow-md disabled:opacity-60 transition-opacity flex items-center gap-2 cursor-pointer"
                   >
-                    Save Changes
+                    {isSavingProfile ? (
+                      <>
+                        <span className="inline-block w-3.5 h-3.5 border-2 border-[#08281F] border-t-transparent rounded-full animate-spin" />
+                        <span>Saving...</span>
+                      </>
+                    ) : (
+                      'Save Changes'
+                    )}
                   </button>
                 </form>
               ) : (

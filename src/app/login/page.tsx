@@ -21,7 +21,7 @@ import {
   ChevronLeft,
 } from 'lucide-react';
 import { useStore } from '../../context/StoreContext';
-import { signInWithSupabase, signUpWithSupabase, isSupabaseConfigured } from '../../lib/supabase';
+import { signInWithSupabase, signUpWithSupabase, isSupabaseConfigured, sendPasswordResetEmail, updateUserPassword, supabase } from '../../lib/supabase';
 
 function AuthContent() {
   const router = useRouter();
@@ -31,7 +31,9 @@ function AuthContent() {
 
   const { loginUser, showToast, user } = useStore();
 
-  const [mode, setMode] = useState<'login' | 'signup'>(initialMode);
+  const [mode, setMode] = useState<'login' | 'signup' | 'reset'>(
+    searchParams.get('mode') === 'reset' ? 'reset' : initialMode
+  );
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
@@ -39,6 +41,11 @@ function AuthContent() {
   const [isForgotPasswordOpen, setIsForgotPasswordOpen] = useState(false);
   const [forgotEmail, setForgotEmail] = useState('');
   const [forgotSent, setForgotSent] = useState(false);
+  const [isForgotLoading, setIsForgotLoading] = useState(false);
+  const [forgotError, setForgotError] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
+  const [resetSuccess, setResetSuccess] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
@@ -52,12 +59,26 @@ function AuthContent() {
   const [signupPassword, setSignupPassword] = useState('');
   const [signupConfirmPassword, setSignupConfirmPassword] = useState('');
 
-  // Auto-redirect if user already logged in
+  // Detect password recovery token from Supabase email link
   React.useEffect(() => {
-    if (user.email) {
-      // User is already logged in
+    if (
+      searchParams.get('mode') === 'reset' ||
+      (typeof window !== 'undefined' && window.location.hash.includes('type=recovery'))
+    ) {
+      setMode('reset');
     }
-  }, [user]);
+
+    if (supabase) {
+      const { data: authListener } = supabase.auth.onAuthStateChange((event) => {
+        if (event === 'PASSWORD_RECOVERY') {
+          setMode('reset');
+        }
+      });
+      return () => {
+        authListener?.subscription?.unsubscribe();
+      };
+    }
+  }, [searchParams]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -178,13 +199,53 @@ function AuthContent() {
     router.push(redirectUrl);
   };
 
-  const handleForgotPassword = (e: React.FormEvent) => {
+  const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!forgotEmail) return;
-    setForgotSent(true);
-    setTimeout(() => {
-      showToast('Reset Instructions Dispatched', `A password reset link was sent to ${forgotEmail}.`);
-    }, 400);
+    setForgotError('');
+    if (!forgotEmail.trim() || !forgotEmail.includes('@')) {
+      setForgotError('Please enter a valid email address.');
+      return;
+    }
+    setIsForgotLoading(true);
+    const res = await sendPasswordResetEmail(forgotEmail.trim());
+    setIsForgotLoading(false);
+    if (res.success) {
+      setForgotSent(true);
+      showToast('Recovery Link Dispatched', `Password reset instructions sent to ${forgotEmail}.`);
+    } else {
+      setForgotError(res.error || 'Failed to dispatch recovery link. Please try again.');
+    }
+  };
+
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMsg('');
+
+    if (newPassword.length < 6) {
+      setErrorMsg('Password must be at least 6 characters.');
+      return;
+    }
+    if (newPassword !== confirmNewPassword) {
+      setErrorMsg('Passwords do not match. Please verify.');
+      return;
+    }
+
+    setIsLoading(true);
+    const res = await updateUserPassword(newPassword);
+    setIsLoading(false);
+
+    if (res.success) {
+      setResetSuccess(true);
+      showToast('Password Updated ✨', 'Your password has been changed. You can now sign in.');
+      setTimeout(() => {
+        setMode('login');
+        setResetSuccess(false);
+        setNewPassword('');
+        setConfirmNewPassword('');
+      }, 2000);
+    } else {
+      setErrorMsg(res.error || 'Failed to update password. Please request a new recovery link.');
+    }
   };
 
   return (
@@ -290,47 +351,64 @@ function AuthContent() {
 
         {/* Right Side: Authentication Tabs & Forms */}
         <div className="lg:col-span-7 p-6 sm:p-10 lg:p-12 flex flex-col justify-center">
-          {/* Mode Switcher Tabs */}
-          <div className="flex items-center bg-[#FAF8F5] p-1.5 rounded-2xl border border-[#E8E1D5] max-w-md mx-auto w-full mb-8">
-            <button
-              type="button"
-              onClick={() => {
-                setMode('login');
-                setErrorMsg('');
-              }}
-              className={`flex-1 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all ${
-                mode === 'login'
-                  ? 'bg-[#0B241C] text-[#FAF8F5] shadow-sm'
-                  : 'text-[#5A7469] hover:text-[#0B241C]'
-              }`}
-            >
-              Sign In
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setMode('signup');
-                setErrorMsg('');
-              }}
-              className={`flex-1 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all ${
-                mode === 'signup'
-                  ? 'bg-[#0B241C] text-[#FAF8F5] shadow-sm'
-                  : 'text-[#5A7469] hover:text-[#0B241C]'
-              }`}
-            >
-              Create Account
-            </button>
+          {/* Mode Switcher Tabs (Hidden in Reset Mode) */}
+          {mode !== 'reset' && (
+            <div className="flex items-center bg-[#FAF8F5] p-1.5 rounded-2xl border border-[#E8E1D5] max-w-md mx-auto w-full mb-8">
+              <button
+                type="button"
+                onClick={() => {
+                  setMode('login');
+                  setErrorMsg('');
+                }}
+                className={`flex-1 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all ${mode === 'login'
+                    ? 'bg-[#0B241C] text-[#FAF8F5] shadow-sm'
+                    : 'text-[#5A7469] hover:text-[#0B241C]'
+                  }`}
+              >
+                Sign In
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setMode('signup');
+                  setErrorMsg('');
+                }}
+                className={`flex-1 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all ${mode === 'signup'
+                    ? 'bg-[#0B241C] text-[#FAF8F5] shadow-sm'
+                    : 'text-[#5A7469] hover:text-[#0B241C]'
+                  }`}
+              >
+                Create Account
+              </button>
+            </div>
+          )}
+
+          {/* Brand Logo on Top of Form */}
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-12 h-12 rounded-full bg-[#FAF8F5] border-2 border-[#C5A059] flex items-center justify-center p-1 shadow-sm shrink-0">
+              <img src="/purnya-logo.png" alt="Purnya" className="w-full h-full object-contain" />
+            </div>
+            <div>
+              <span className="font-serif-title font-bold text-xl tracking-[0.16em] text-[#0C3B2E] block leading-none">
+                PURNYA
+              </span>
+              <span className="text-[9px] uppercase tracking-[0.22em] text-[#C5A059] font-bold mt-1 block">
+                Life · Lifestyle · You
+              </span>
+            </div>
           </div>
 
           {/* Form Header */}
           <div className="mb-6">
             <h1 className="font-serif-title text-2xl sm:text-3xl font-bold text-[#0B241C]">
-              {mode === 'login' ? 'Welcome Back to Purnya' : 'Join the Purnya Circle'}
+              {mode === 'login' ? 'Welcome Back to Purnya' : mode === 'signup' ? 'Join the Purnya Circle' : 'Set New Password'}
             </h1>
             <p className="text-xs sm:text-sm text-[#5A7469] mt-1.5">
               {mode === 'login'
                 ? 'Access your orders, bespoke saved pieces, and privileged member benefits.'
-                : 'Register today to unlock curated invitations, gift privileges, and fast checkout.'}
+                : mode === 'signup'
+                  ? 'Register today to unlock curated invitations, gift privileges, and fast checkout.'
+                  : 'Enter a strong, secure new password for your Purnya account.'}
             </p>
           </div>
 
@@ -600,6 +678,106 @@ function AuthContent() {
             </form>
           )}
 
+          {/* -------------------- RESET PASSWORD FORM -------------------- */}
+          {mode === 'reset' && (
+            <div className="space-y-4">
+              {resetSuccess ? (
+                <div className="p-6 rounded-2xl bg-emerald-50 border border-emerald-200 text-center space-y-3">
+                  <CheckCircle2 className="w-10 h-10 text-emerald-600 mx-auto" />
+                  <h3 className="text-sm font-bold text-emerald-900">Password Updated Successfully!</h3>
+                  <p className="text-xs text-emerald-700">
+                    Your password has been changed. Switching back to sign in...
+                  </p>
+                </div>
+              ) : (
+                <form onSubmit={handleResetPassword} className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-bold text-[#0B241C] mb-1.5 uppercase tracking-wider">
+                      New Password
+                    </label>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#8A9E94]">
+                        <Lock className="w-4 h-4" />
+                      </div>
+                      <input
+                        type={showPassword ? 'text' : 'password'}
+                        required
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        placeholder="Minimum 6 characters"
+                        className="w-full pl-10 pr-10 py-3 bg-[#FAF8F5] border border-[#DDD6CA] focus:border-[#C5A059] focus:bg-white rounded-xl text-xs sm:text-sm text-[#0B241C] outline-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-[#8A9E94] hover:text-[#0B241C]"
+                      >
+                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-[#0B241C] mb-1.5 uppercase tracking-wider">
+                      Confirm New Password
+                    </label>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#8A9E94]">
+                        <Lock className="w-4 h-4" />
+                      </div>
+                      <input
+                        type={showConfirmPassword ? 'text' : 'password'}
+                        required
+                        value={confirmNewPassword}
+                        onChange={(e) => setConfirmNewPassword(e.target.value)}
+                        placeholder="Re-enter your new password"
+                        className="w-full pl-10 pr-10 py-3 bg-[#FAF8F5] border border-[#DDD6CA] focus:border-[#C5A059] focus:bg-white rounded-xl text-xs sm:text-sm text-[#0B241C] outline-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-[#8A9E94] hover:text-[#0B241C]"
+                      >
+                        {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={isLoading}
+                    className="w-full py-3.5 px-6 rounded-xl bg-[#08281F] hover:bg-[#0C3B2E] text-white font-bold text-xs sm:text-sm tracking-wide shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-60 cursor-pointer mt-2"
+                  >
+                    {isLoading ? (
+                      <>
+                        <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        <span>Updating Password...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>Update Password & Continue</span>
+                        <ArrowRight className="w-4 h-4 text-[#D4AF37]" />
+                      </>
+                    )}
+                  </button>
+
+                  <div className="text-center pt-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMode('login');
+                        setErrorMsg('');
+                      }}
+                      className="text-xs font-semibold text-[#5A7469] hover:text-[#0B241C]"
+                    >
+                      ← Back to Sign In
+                    </button>
+                  </div>
+                </form>
+              )}
+            </div>
+          )}
+
           {/* Bottom Prompt to Toggle */}
           <div className="mt-6 text-center text-xs text-[#5A7469]">
             {mode === 'login' ? (
@@ -639,19 +817,41 @@ function AuthContent() {
       {isForgotPasswordOpen && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl max-w-md w-full p-6 sm:p-8 shadow-2xl border border-[#E8E1D5] relative animate-scaleUp">
+            {/* Modal Brand Logo */}
+            <div className="flex items-center gap-2.5 mb-4">
+              <div className="w-10 h-10 rounded-full bg-[#FAF8F5] border-2 border-[#C5A059] flex items-center justify-center p-0.5 shadow-xs shrink-0">
+                <img src="/purnya-logo.png" alt="Purnya" className="w-full h-full object-contain" />
+              </div>
+              <div>
+                <span className="font-serif-title font-bold text-base tracking-[0.14em] text-[#0C3B2E] block leading-none">
+                  PURNYA
+                </span>
+                <span className="text-[8px] uppercase tracking-[0.2em] text-[#C5A059] font-bold mt-0.5 block">
+                  Password Recovery
+                </span>
+              </div>
+            </div>
+
             <h2 className="font-serif-title text-xl font-bold text-[#0B241C]">
               Reset Your Password
             </h2>
             <p className="text-xs text-[#5A7469] mt-1.5">
-              Enter the email address or phone linked to your Purnya Circle account.
+              Enter the email address registered with your Purnya Circle account. We will dispatch a secure password reset link directly to your inbox.
             </p>
+
+            {forgotError && (
+              <div className="mt-3 p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
+                <span>{forgotError}</span>
+              </div>
+            )}
 
             {forgotSent ? (
               <div className="my-6 p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-center">
                 <CheckCircle2 className="w-8 h-8 text-emerald-600 mx-auto mb-2" />
-                <p className="text-xs font-bold text-emerald-900">Instructions Dispatched</p>
+                <p className="text-xs font-bold text-emerald-900">Recovery Instructions Dispatched</p>
                 <p className="text-[11px] text-emerald-700 mt-1">
-                  We have forwarded password recovery instructions to <strong>{forgotEmail}</strong>.
+                  We have forwarded a password recovery link to <strong>{forgotEmail}</strong>. Please check your inbox and spam folder.
                 </p>
                 <button
                   type="button"
@@ -659,8 +859,9 @@ function AuthContent() {
                     setIsForgotPasswordOpen(false);
                     setForgotSent(false);
                     setForgotEmail('');
+                    setForgotError('');
                   }}
-                  className="mt-4 px-4 py-2 bg-[#08281F] text-white text-xs font-bold rounded-lg"
+                  className="mt-4 px-4 py-2 bg-[#08281F] text-white text-xs font-bold rounded-lg cursor-pointer hover:bg-[#0C3B2E]"
                 >
                   Return to Sign In
                 </button>
@@ -669,10 +870,10 @@ function AuthContent() {
               <form onSubmit={handleForgotPassword} className="mt-5 space-y-4">
                 <div>
                   <label className="block text-xs font-bold text-[#0B241C] mb-1 uppercase tracking-wider">
-                    Registered Email or Mobile
+                    Registered Email Address
                   </label>
                   <input
-                    type="text"
+                    type="email"
                     required
                     value={forgotEmail}
                     onChange={(e) => setForgotEmail(e.target.value)}
@@ -684,16 +885,27 @@ function AuthContent() {
                 <div className="flex items-center justify-end gap-2 pt-2">
                   <button
                     type="button"
-                    onClick={() => setIsForgotPasswordOpen(false)}
-                    className="px-4 py-2 text-xs font-semibold text-[#5A7469] hover:text-[#0B241C]"
+                    onClick={() => {
+                      setIsForgotPasswordOpen(false);
+                      setForgotError('');
+                    }}
+                    className="px-4 py-2 text-xs font-semibold text-[#5A7469] hover:text-[#0B241C] cursor-pointer"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
-                    className="px-5 py-2.5 bg-[#08281F] hover:bg-[#0C3B2E] text-white font-bold text-xs rounded-xl transition-all"
+                    disabled={isForgotLoading}
+                    className="px-5 py-2.5 bg-[#08281F] hover:bg-[#0C3B2E] text-white font-bold text-xs rounded-xl transition-all cursor-pointer flex items-center gap-1.5 disabled:opacity-60"
                   >
-                    Send Recovery Link
+                    {isForgotLoading ? (
+                      <>
+                        <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        <span>Sending Link...</span>
+                      </>
+                    ) : (
+                      <span>Send Recovery Link</span>
+                    )}
                   </button>
                 </div>
               </form>

@@ -72,21 +72,6 @@ function CategoryContent({ slug }: { slug: string }) {
       });
   }, [products, slug, currentCategory, selectedSubcategory, selectedPriceRange, selectedBadge, sortBy]);
 
-  // Category best sellers
-  const categoryBestSellers = useMemo(() => {
-    const targetSlug = decodeURIComponent(slug).trim().toLowerCase();
-    return products
-      .filter((p) => {
-        const pSlug = (p.categorySlug || '').trim().toLowerCase();
-        const matchesSlug = pSlug === targetSlug;
-        const matchesTitle =
-          currentCategory &&
-          p.category?.trim().toLowerCase() === currentCategory.title?.trim().toLowerCase();
-        return (matchesSlug || matchesTitle) && (p.badge === 'Best Seller' || (p.rating && p.rating >= 4.8));
-      })
-      .slice(0, 4);
-  }, [products, slug, currentCategory]);
-
   // Category bespoke craftsmanship details
   const craftsmanshipData: Record<
     string,
@@ -101,7 +86,7 @@ function CategoryContent({ slug }: { slug: string }) {
         'Ethically Sourced Genuine Freshwater Pearls',
         'Hand-Set AAA Cubic Zirconia & Gemstones',
       ],
-      image: 'https://images.unsplash.com/photo-1515562141589-67f0d0953a8e?w=800&fit=crop&auto=format',
+      image: 'https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=800&fit=crop&auto=format',
     },
     jewellery: {
       headline: 'Artisanal Metallurgy & Anti-Tarnish Elegance',
@@ -112,7 +97,7 @@ function CategoryContent({ slug }: { slug: string }) {
         'Ethically Sourced Genuine Freshwater Pearls',
         'Hand-Set AAA Cubic Zirconia & Gemstones',
       ],
-      image: 'https://images.unsplash.com/photo-1515562141589-67f0d0953a8e?w=800&fit=crop&auto=format',
+      image: 'https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=800&fit=crop&auto=format',
     },
     fragrance: {
       headline: 'Clean Sand Wax & Botanical Aromatic Architecture',
@@ -123,7 +108,7 @@ function CategoryContent({ slug }: { slug: string }) {
         'Paraben & Phthalate-Free IFRA Essential Oils',
         'Infinite Refill Concept with Minimal Waste',
       ],
-      image: 'https://images.unsplash.com/photo-1602874801007-bd458cb6c975?w=800&fit=crop&auto=format',
+      image: 'https://images.unsplash.com/photo-1603006905003-be475563bc59?w=800&fit=crop&auto=format',
     },
     candles: {
       headline: 'Clean Sand Wax & Botanical Aromatic Architecture',
@@ -134,7 +119,7 @@ function CategoryContent({ slug }: { slug: string }) {
         'Paraben & Phthalate-Free IFRA Essential Oils',
         'Infinite Refill Concept with Minimal Waste',
       ],
-      image: 'https://images.unsplash.com/photo-1602874801007-bd458cb6c975?w=800&fit=crop&auto=format',
+      image: 'https://images.unsplash.com/photo-1603006905003-be475563bc59?w=800&fit=crop&auto=format',
     },
     lifestyle: {
       headline: 'Sculptural Stoneware & Curated Sanctuary Accents',
@@ -197,16 +182,21 @@ function CategoryContent({ slug }: { slug: string }) {
   const currentCatSlug = (currentCategory?.slug || '').trim().toLowerCase();
   const matchedStory = craftsmanshipData[normalizedSlug] || craftsmanshipData[currentCatSlug];
 
-  const story = matchedStory || {
-    headline: `${currentCategory?.title || 'Artisanal'} Craftsmanship & Heritage`,
-    desc: currentCategory?.subtitle || 'Every piece is crafted with utmost care, premium materials, and meticulous attention to detail.',
-    highlights: [
+  const categoryFallbackImage =
+    currentCategory?.bannerImage ||
+    currentCategory?.heroImage ||
+    'https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=800&fit=crop&auto=format';
+
+  const story = {
+    headline: matchedStory?.headline || `${currentCategory?.title || 'Artisanal'} Craftsmanship & Heritage`,
+    desc: matchedStory?.desc || currentCategory?.subtitle || 'Every piece is crafted with utmost care, premium materials, and meticulous attention to detail.',
+    highlights: matchedStory?.highlights || [
       'Ethically Sourced & Artisanal Quality',
       '100% Quality & Authenticity Guarantee',
       'Direct Pan-India Express Delivery',
       'Dedicated Concierge Customer Support',
     ],
-    image: currentCategory?.bannerImage || currentCategory?.heroImage || '',
+    image: matchedStory?.image || categoryFallbackImage,
   };
 
   if (!currentCategory) {
@@ -312,15 +302,25 @@ function CategoryContent({ slug }: { slug: string }) {
               className="flex flex-col items-center gap-2 shrink-0 group cursor-pointer"
             >
               <div
-                className={`w-16 h-16 sm:w-20 sm:h-20 rounded-full flex items-center justify-center border-2 transition-all shadow-xs ${
+                className={`w-16 h-16 sm:w-20 sm:h-20 rounded-full overflow-hidden border-2 p-0.5 transition-all bg-[#EBF3EF] shadow-xs ${
                   selectedSubcategory === 'All'
-                    ? 'border-[#0C3B2E] bg-[#0C3B2E] text-white shadow-md scale-105 ring-2 ring-[#C5A059]'
-                    : 'border-[#E2DBD0] bg-[#FAF8F5] text-[#2C4A3E] hover:border-[#0C3B2E]'
+                    ? 'border-[#0C3B2E] shadow-md scale-105 ring-2 ring-[#C5A059]'
+                    : 'border-[#E2DBD0] group-hover:border-[#0C3B2E]'
                 }`}
               >
-
+                <img
+                  src={currentCategory.bannerImage || currentCategory.heroImage}
+                  alt="All Pieces"
+                  className="w-full h-full object-cover rounded-full group-hover:scale-110 transition-transform duration-300"
+                />
               </div>
-              <span className="text-[11px] font-bold text-[#0B241C] text-center max-w-[84px] truncate">
+              <span
+                className={`text-[11px] font-semibold text-center max-w-[88px] truncate transition-colors ${
+                  selectedSubcategory === 'All'
+                    ? 'text-[#0C3B2E] font-bold'
+                    : 'text-[#2C4A3E] group-hover:text-[#0C3B2E]'
+                }`}
+              >
                 All Pieces
               </span>
             </button>
@@ -367,61 +367,20 @@ function CategoryContent({ slug }: { slug: string }) {
         </div>
       </section>
 
-      {/* 3. BEST SELLERS IN THIS CATEGORY (When viewing 'All') */}
-      {selectedSubcategory === 'All' && categoryBestSellers.length > 0 && (
-        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#C5A059]">
-                Customer Favorites
-              </p>
-              <h2 className="font-serif-title text-2xl sm:text-3xl font-bold text-[#0B241C]">
-                Iconic &amp; Best-Selling in {currentCategory.title}
-              </h2>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6">
-            {categoryBestSellers.map((prod) => (
-              <ProductCard key={prod.id} product={prod} />
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* 4. MAIN PRODUCT CATALOG WITH FILTERS & SORT */}
+      {/* 3. MAIN PRODUCT CATALOG WITH FILTERS & SORT */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
-        {/* Sticky Subcategory Pills */}
-        <div className="sticky top-20 sm:top-22 z-30 bg-white/95 backdrop-blur-md border-y border-[#E2DBD0] shadow-xs py-3 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center gap-2 overflow-x-auto scrollbar-none">
-            {currentCategory.subcategories.map((sub) => {
-              const isActive = selectedSubcategory === sub;
-              return (
-                <button
-                  key={sub}
-                  onClick={() => setSelectedSubcategory(sub)}
-                  className={`px-4 py-2 rounded-full text-xs font-semibold uppercase tracking-wider transition-all whitespace-nowrap cursor-pointer ${
-                    isActive
-                      ? 'bg-[#0C3B2E] text-white shadow-sm scale-105 ring-1 ring-[#C5A059]'
-                      : 'bg-[#FAF8F5] text-[#2C4A3E] hover:bg-[#EBF3EF] border border-[#E2DBD0]'
-                  }`}
-                >
-                  {sub}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
         {/* Catalog Header Toolbar */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#E2DBD0]">
           <div>
-            <h3 className="font-serif-title text-xl sm:text-2xl font-bold text-[#0B241C]">
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#C5A059]">
+              {selectedSubcategory === 'All' ? 'Curated Collection' : 'Subcategory Selection'}
+            </p>
+            <h2 className="font-serif-title text-2xl sm:text-3xl font-bold text-[#0B241C] mt-0.5">
               {selectedSubcategory === 'All'
                 ? `Complete ${currentCategory.title} Collection`
                 : `${selectedSubcategory} Collection`}
-            </h3>
-            <p className="text-xs text-[#5A7469] mt-0.5">
+            </h2>
+            <p className="text-xs text-[#5A7469] mt-1">
               Showing <strong className="text-[#0B241C]">{filteredProducts.length}</strong> handcrafted pieces
             </p>
           </div>
@@ -604,11 +563,17 @@ function CategoryContent({ slug }: { slug: string }) {
               </div>
             </div>
 
-            <div className="lg:col-span-5 h-72 sm:h-96 lg:h-full relative overflow-hidden bg-[#0C3B2E]">
+            <div className="lg:col-span-5 h-72 sm:h-96 lg:h-full relative overflow-hidden bg-[#0C3B2E] min-h-[320px]">
               <img
                 src={story.image}
                 alt={story.headline}
-                className="w-full h-full object-cover opacity-85"
+                onError={(e) => {
+                  const target = e.currentTarget;
+                  if (target.src !== categoryFallbackImage) {
+                    target.src = categoryFallbackImage;
+                  }
+                }}
+                className="w-full h-full object-cover opacity-90 transition-opacity duration-300"
               />
               <div className="absolute inset-0 bg-gradient-to-t lg:bg-gradient-to-l from-[#08281F] via-transparent to-transparent" />
             </div>

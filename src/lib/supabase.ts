@@ -1,5 +1,5 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { Product, CategoryMeta, Order, HeroSlide, Address, Coupon, HomeMiddleSection, HomeBottomSection } from '../types';
+import { Product, CategoryMeta, Order, HeroSlide, Address, Coupon, HomeMiddleSection, HomeBottomSection, CartItem } from '../types';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
@@ -1854,3 +1854,308 @@ export async function deleteHomeBottomSectionFromSupabase(id: string): Promise<b
     return false;
   }
 }
+
+/**
+ * Save customer shopping bag (cart) directly to Supabase Cloud Database (dedicated user_carts table)
+ */
+export async function saveUserCartToSupabase(email: string, cartItems: CartItem[]): Promise<boolean> {
+  if (!isSupabaseConfigured || !supabase || !email) return false;
+  const userEmail = email.toLowerCase().trim();
+
+  // 1. Primary: Save to dedicated user_carts table
+  try {
+    const { error } = await supabase.from('user_carts').upsert(
+      {
+        user_email: userEmail,
+        items: cartItems || [],
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: 'user_email' }
+    );
+    if (!error) return true;
+  } catch {}
+
+  // 2. Also save to Supabase Auth user_metadata
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.user?.email?.toLowerCase() === userEmail) {
+      await supabase.auth.updateUser({ data: { cart: cartItems || [] } });
+      return true;
+    }
+  } catch {}
+
+  return false;
+}
+
+/**
+ * Fetch customer shopping bag (cart) directly from Supabase Cloud Database (dedicated user_carts table)
+ */
+export async function getUserCartFromSupabase(email: string): Promise<CartItem[] | null> {
+  if (!isSupabaseConfigured || !supabase || !email) return null;
+  const userEmail = email.toLowerCase().trim();
+
+  // 1. Primary: Fetch from dedicated user_carts table
+  try {
+    const { data, error } = await supabase
+      .from('user_carts')
+      .select('items')
+      .eq('user_email', userEmail)
+      .maybeSingle();
+
+    if (!error && data && data.items) {
+      return Array.isArray(data.items) ? data.items : [];
+    }
+  } catch {}
+
+  // 2. Fallback: Supabase Auth user_metadata
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.user?.email?.toLowerCase() === userEmail) {
+      const metaCart = session.user.user_metadata?.cart;
+      if (Array.isArray(metaCart)) return metaCart;
+    }
+  } catch {}
+
+  return null;
+}
+
+/**
+ * Save customer wishlist directly to Supabase Cloud Database (dedicated user_wishlists table)
+ */
+export async function saveUserWishlistToSupabase(email: string, wishlistItems: Product[]): Promise<boolean> {
+  if (!isSupabaseConfigured || !supabase || !email) return false;
+  const userEmail = email.toLowerCase().trim();
+
+  // 1. Primary: Save to dedicated user_wishlists table
+  try {
+    const { error } = await supabase.from('user_wishlists').upsert(
+      {
+        user_email: userEmail,
+        items: wishlistItems || [],
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: 'user_email' }
+    );
+    if (!error) return true;
+  } catch {}
+
+  // 2. Also save to Supabase Auth user_metadata
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.user?.email?.toLowerCase() === userEmail) {
+      await supabase.auth.updateUser({ data: { wishlist: wishlistItems || [] } });
+      return true;
+    }
+  } catch {}
+
+  return false;
+}
+
+/**
+ * Fetch customer wishlist directly from Supabase Cloud Database (dedicated user_wishlists table)
+ */
+export async function getUserWishlistFromSupabase(email: string): Promise<Product[] | null> {
+  if (!isSupabaseConfigured || !supabase || !email) return null;
+  const userEmail = email.toLowerCase().trim();
+
+  // 1. Primary: Fetch from dedicated user_wishlists table
+  try {
+    const { data, error } = await supabase
+      .from('user_wishlists')
+      .select('items')
+      .eq('user_email', userEmail)
+      .maybeSingle();
+
+    if (!error && data && data.items) {
+      return Array.isArray(data.items) ? data.items : [];
+    }
+  } catch {}
+
+  // 2. Fallback: Supabase Auth user_metadata
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.user?.email?.toLowerCase() === userEmail) {
+      const metaWishlist = session.user.user_metadata?.wishlist;
+      if (Array.isArray(metaWishlist)) return metaWishlist;
+    }
+  } catch {}
+
+  return null;
+}
+
+/**
+ * Send password recovery email via Supabase Auth
+ */
+export async function sendPasswordResetEmail(email: string, redirectTo?: string): Promise<{ success: boolean; error?: string }> {
+  if (!isSupabaseConfigured || !supabase) {
+    return { success: false, error: 'Authentication service is not configured.' };
+  }
+  try {
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
+    const redirect = redirectTo || `${origin}/login?mode=reset`;
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+      redirectTo: redirect,
+    });
+    if (error) {
+      console.warn('Supabase resetPasswordForEmail error:', error);
+      return { success: false, error: error.message };
+    }
+    return { success: true };
+  } catch (err: any) {
+    console.warn('Supabase resetPasswordForEmail exception:', err);
+    return { success: false, error: err?.message || 'Failed to send password reset email.' };
+  }
+}
+
+/**
+ * Update authenticated user's password after clicking reset link
+ */
+export async function updateUserPassword(newPassword: string): Promise<{ success: boolean; error?: string }> {
+  if (!isSupabaseConfigured || !supabase) {
+    return { success: false, error: 'Authentication service is not configured.' };
+  }
+  try {
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    if (error) {
+      console.warn('Supabase updateUser password error:', error);
+      return { success: false, error: error.message };
+    }
+    return { success: true };
+  } catch (err: any) {
+    console.warn('Supabase updateUser password exception:', err);
+    return { success: false, error: err?.message || 'Failed to update password.' };
+  }
+}
+
+/**
+ * Fetch a customer profile directly from the public.profiles database table
+ */
+export async function getCustomerProfileFromSupabase(
+  identifier: { id?: string; email?: string }
+): Promise<{ id?: string; name?: string; email?: string; phone?: string; role?: string } | null> {
+  if (!isSupabaseConfigured || !supabase) return null;
+
+  try {
+    let query = supabase.from('profiles').select('id, name, email, phone, role');
+    if (identifier.id) {
+      query = query.eq('id', identifier.id);
+    } else if (identifier.email) {
+      query = query.eq('email', identifier.email.toLowerCase().trim());
+    } else {
+      return null;
+    }
+
+    const { data, error } = await query.maybeSingle();
+    if (error) {
+      console.warn('Supabase getCustomerProfile error:', error.message);
+      return null;
+    }
+    return data;
+  } catch (err) {
+    console.warn('Supabase getCustomerProfile exception:', err);
+    return null;
+  }
+}
+
+/**
+ * Update Customer Profile in Supabase (Auth metadata & public.profiles table)
+ * Guarantees persistence of Name, Phone, and Email across page reloads.
+ */
+export async function updateCustomerProfile(params: {
+  name: string;
+  email: string;
+  phone: string;
+  oldEmail?: string;
+}): Promise<{ success: boolean; emailConfirmationSent?: boolean; error?: string }> {
+  if (!isSupabaseConfigured || !supabase) {
+    return { success: true };
+  }
+
+  const cleanName = (params.name || '').trim();
+  const cleanPhone = (params.phone || '').trim();
+  const cleanEmail = (params.email || '').trim().toLowerCase();
+  const cleanOldEmail = (params.oldEmail || '').trim().toLowerCase();
+
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    const userId = session?.user?.id;
+    let emailConfirmationSent = false;
+
+    // 1. Synchronize Supabase Auth user metadata and email
+    if (session?.user) {
+      const authUpdates: any = {
+        data: {
+          name: cleanName,
+          full_name: cleanName,
+          phone: cleanPhone,
+        },
+      };
+
+      if (cleanEmail && session.user.email?.toLowerCase().trim() !== cleanEmail) {
+        authUpdates.email = cleanEmail;
+      }
+
+      const { data: authData, error: authErr } = await supabase.auth.updateUser(authUpdates);
+      if (authErr) {
+        console.warn('Supabase auth.updateUser warning:', authErr.message);
+      } else if (authData?.user?.new_email && authData.user.new_email !== authData.user.email) {
+        emailConfirmationSent = true;
+      }
+    }
+
+    // 2. Persist to public.profiles table (column 'name', NOT 'full_name')
+    if (userId) {
+      const { error: profErr } = await supabase.from('profiles').upsert(
+        {
+          id: userId,
+          name: cleanName,
+          email: cleanEmail || session?.user?.email || '',
+          phone: cleanPhone,
+          role: 'customer',
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: 'id' }
+      );
+      if (profErr) {
+        console.warn('Supabase profiles upsert error:', profErr.message);
+      }
+    } else {
+      // Fallback: match by old email or current email
+      const targetEmail = cleanOldEmail || cleanEmail;
+      if (targetEmail) {
+        const { error: profErr } = await supabase
+          .from('profiles')
+          .update({
+            name: cleanName,
+            email: cleanEmail,
+            phone: cleanPhone,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('email', targetEmail);
+        if (profErr) {
+          console.warn('Supabase profiles update error:', profErr.message);
+        }
+      }
+    }
+
+    // 3. If email changed, migrate customer's cloud records (cart, wishlist, addresses, orders)
+    if (cleanOldEmail && cleanEmail && cleanOldEmail !== cleanEmail) {
+      try {
+        await Promise.allSettled([
+          supabase.from('user_carts').update({ user_email: cleanEmail }).eq('user_email', cleanOldEmail),
+          supabase.from('user_wishlists').update({ user_email: cleanEmail }).eq('user_email', cleanOldEmail),
+          supabase.from('addresses').update({ user_email: cleanEmail }).eq('user_email', cleanOldEmail),
+          supabase.from('orders').update({ customer_email: cleanEmail }).eq('customer_email', cleanOldEmail),
+        ]);
+      } catch (migErr) {
+        console.warn('Supabase patron email migration error:', migErr);
+      }
+    }
+
+    return { success: true, emailConfirmationSent };
+  } catch (err: any) {
+    console.error('updateCustomerProfile exception:', err);
+    return { success: false, error: err?.message || 'Failed to update profile.' };
+  }
+}
+

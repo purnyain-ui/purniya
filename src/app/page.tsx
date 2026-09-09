@@ -23,7 +23,7 @@ const defaultMiddleFallback: HomeMiddleSection = {
   tag: 'THE PURNYA STANDARD',
   title: 'Artisanal Metallurgy & Anti-Tarnish Elegance',
   description: 'Every piece of Purnya Jewellery is cast from premium hypoallergenic alloys, finished with lustrous 18K micro-gold plating and sealed with an invisible protective nano-ceramic barrier to guard against moisture, perfume, and daily wear.',
-  imageUrl: 'https://images.unsplash.com/photo-1535632066927-ab7c9ab60908',
+  imageUrl: 'https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?w=1000&fit=crop&auto=format',
   features: [
     'Skin-Safe Hypoallergenic & Nickel Free',
     'Anti-Tarnish Protective Ceramic Seal',
@@ -37,6 +37,12 @@ const defaultMiddleFallback: HomeMiddleSection = {
   isActive: true,
 };
 
+const defaultBottomCardImages = [
+  'https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=800&fit=crop&auto=format',
+  'https://images.unsplash.com/photo-1603006905003-be475563bc59?w=800&fit=crop&auto=format',
+  'https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?w=800&fit=crop&auto=format',
+];
+
 const defaultBottomFallback: HomeBottomSection = {
   id: 'homepage-bottom-integrity',
   tag: 'THE PURNYA STANDARD',
@@ -47,19 +53,19 @@ const defaultBottomFallback: HomeBottomSection = {
       iconText: '18K',
       title: 'Gold Vermeil & Anti-Tarnish Sealing',
       description: 'Handcrafted jewellery plated with genuine 18-karat gold over hypoallergenic brass and finished with proprietary nano-ceramic sealing.',
-      image: '',
+      image: 'https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=800&fit=crop&auto=format',
     },
     {
       iconText: '100%',
       title: 'Clean Natural Sand Wax Formulations',
       description: 'Granulated plant-based sand and pearl wax that burns soot-free with pure cotton wicks and distilled aromatic botanicals.',
-      image: '',
+      image: 'https://images.unsplash.com/photo-1603006905003-be475563bc59?w=800&fit=crop&auto=format',
     },
     {
       iconText: 'Origin',
       title: 'Direct Single-Origin Ethical Sourcing',
       description: 'Herbal wellness infusions and handcrafted stoneware produced in ethical artisan cooperatives with traceable, conscious materials.',
-      image: '',
+      image: 'https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?w=800&fit=crop&auto=format',
     },
   ],
   isActive: true,
@@ -235,7 +241,7 @@ export default function HomePage() {
                   (cSlug === 'apparel' && (pSlug === 'jewellery' || pCat.includes('jewel') || pCat.includes('apparel'))) ||
                   (cSlug === 'lifestyle' && (pSlug === 'home-decor' || pCat.includes('décor') || pCat.includes('decor') || pCat.includes('lifestyle'))) ||
                   (cSlug === 'gift' && (pSlug === 'gifts' || pCat.includes('gift') || pCat.includes('stationery'))) ||
-                  (cSlug === 'fragrance' && (pSlug === 'candles' || pCat.includes('candle') || pCat.includes('fragrance') || pCat.includes('home'))) ||
+                  (cSlug === 'fragrance' && (pSlug === 'candles' || pSlug === 'fragrance' || pCat.includes('candle') || pCat.includes('fragrance'))) ||
                   (cSlug === 'wellness' && (pSlug === 'wellness' || pCat.includes('wellness') || pCat.includes('organic')))
                 );
               })
@@ -351,7 +357,7 @@ export default function HomePage() {
                       {catProducts.length > 0 ? (
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
                           {catProducts.map((prod) => (
-                            <ProductCard key={prod.id} product={prod} compact />
+                            <ProductCard key={prod.id} product={prod} compact hidePrice />
                           ))}
                         </div>
                       ) : (
@@ -472,8 +478,11 @@ export default function HomePage() {
 
             <div className="relative aspect-square rounded-2xl overflow-hidden shadow-2xl border border-white/15 bg-[#071a13]">
               <img
-                src={activeMiddle.imageUrl || 'https://images.unsplash.com/photo-1513519245088-0e12902e35ca?w=1000&fit=crop&auto=format'}
+                src={activeMiddle.imageUrl || 'https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?w=1000&fit=crop&auto=format'}
                 alt={activeMiddle.title}
+                onError={(e) => {
+                  e.currentTarget.src = 'https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?w=1000&fit=crop&auto=format';
+                }}
                 className="w-full h-full object-cover"
               />
             </div>
@@ -497,26 +506,36 @@ export default function HomePage() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {activeBottom.cards.map((card, idx) => (
-              <div key={idx} className="bg-white p-7 rounded-2xl border border-[#E2DBD0] shadow-xs space-y-3 flex flex-col justify-between">
-                <div className="space-y-3">
-                  <div className="w-10 h-10 rounded-xl bg-[#EBF3EF] flex items-center justify-center text-[#0C3B2E] font-serif-title font-bold text-lg">
-                    {card.iconText}
+            {activeBottom.cards.map((card, idx) => {
+              const cardImage = card.image || defaultBottomCardImages[idx % defaultBottomCardImages.length];
+              return (
+                <div key={idx} className="bg-white p-7 rounded-2xl border border-[#E2DBD0] shadow-xs space-y-4 flex flex-col justify-between group hover:border-[#C5A059] transition-all">
+                  <div className="space-y-3">
+                    <div className="w-10 h-10 rounded-xl bg-[#EBF3EF] flex items-center justify-center text-[#0C3B2E] font-serif-title font-bold text-lg">
+                      {card.iconText}
+                    </div>
+                    <h3 className="font-serif-title text-base font-bold text-[#0B241C]">
+                      {card.title}
+                    </h3>
+                    <p className="text-xs text-[#2C4A3E] leading-relaxed">
+                      {card.description}
+                    </p>
                   </div>
-                  <h3 className="font-serif-title text-base font-bold text-[#0B241C]">
-                    {card.title}
-                  </h3>
-                  <p className="text-xs text-[#2C4A3E] leading-relaxed">
-                    {card.description}
-                  </p>
+                  {cardImage && (
+                    <div className="w-full h-40 rounded-xl overflow-hidden border border-[#E2DBD0] mt-3 relative bg-[#FAF9F5]">
+                      <img
+                        src={cardImage}
+                        alt={card.title}
+                        onError={(e) => {
+                          e.currentTarget.src = defaultBottomCardImages[idx % defaultBottomCardImages.length];
+                        }}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      />
+                    </div>
+                  )}
                 </div>
-                {card.image && (
-                  <div className="w-full h-36 rounded-xl overflow-hidden border border-[#E2DBD0] mt-3">
-                    <img src={card.image} alt={card.title} className="w-full h-full object-cover" />
-                  </div>
-                )}
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </section>

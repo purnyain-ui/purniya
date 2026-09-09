@@ -213,17 +213,10 @@ function AdminAddProductPage() {
   const sizes = useMemo(() => {
     if (!selectedCategory) return []
 
-    if (filteredSubcategories.length > 0) {
-      if (!selectedSubcategory) return []
-      return allSizes.filter(
-        (size) => normalize(size.category) === normalize(selectedSubcategory.name)
-      )
-    }
-
     return allSizes.filter(
       (size) => normalize(size.category) === normalize(selectedCategory.title)
     )
-  }, [allSizes, selectedCategory, selectedSubcategory, filteredSubcategories])
+  }, [allSizes, selectedCategory])
 
   useEffect(() => {
     loadInitialData()
@@ -1022,11 +1015,10 @@ function AdminAddProductPage() {
               <button
                 type="button"
                 onClick={() => setHasVariants(false)}
-                className={`text-left rounded-2xl p-5 border-2 transition-colors cursor-pointer ${
-                  !hasVariants
+                className={`text-left rounded-2xl p-5 border-2 transition-colors cursor-pointer ${!hasVariants
                     ? 'border-[#C5A059] bg-[#FAF8F5]'
                     : 'border-[#E2DBD0] hover:border-[#C5A059]/60'
-                }`}
+                  }`}
               >
                 <h3 className="font-bold text-[#0B241C]">No Variations</h3>
                 <p className="text-[11px] text-[#5A7469] mt-1.5">
@@ -1037,11 +1029,10 @@ function AdminAddProductPage() {
               <button
                 type="button"
                 onClick={() => setHasVariants(true)}
-                className={`text-left rounded-2xl p-5 border-2 transition-colors cursor-pointer ${
-                  hasVariants
+                className={`text-left rounded-2xl p-5 border-2 transition-colors cursor-pointer ${hasVariants
                     ? 'border-[#C5A059] bg-[#FAF8F5]'
                     : 'border-[#E2DBD0] hover:border-[#C5A059]/60'
-                }`}
+                  }`}
               >
                 <h3 className="font-bold text-[#0B241C]">Has Variations</h3>
                 <p className="text-[11px] text-[#5A7469] mt-1.5">
@@ -1204,10 +1195,10 @@ function AdminAddProductPage() {
                 </div>
               )}
 
-              {categoryId && filteredSubcategories.length > 0 && !subcategoryId && (
+              {categoryId && sizes.length === 0 && (
                 <div className="bg-amber-50 border border-amber-200 text-amber-900 rounded-xl p-3.5 mb-5 font-semibold">
-                  &ldquo;{selectedCategory?.title}&rdquo; has subcategories — select a Sub
-                  Category (on the right) to load the matching sizes.
+                  No sizes are set up for &ldquo;{selectedCategory?.title}&rdquo; yet. Add
+                  rows to <code>size_variants</code> with <code>category</code> = &ldquo;{selectedCategory?.title}&rdquo;.
                 </div>
               )}
 
@@ -1284,18 +1275,11 @@ function AdminAddProductPage() {
                           onChange={(event) =>
                             updateVariant(variant.tempId, 'size_id', event.target.value)
                           }
-                          disabled={
-                            !categoryId ||
-                            (filteredSubcategories.length > 0 && !subcategoryId)
-                          }
+                          disabled={!categoryId}
                           className="w-full px-3.5 py-2.5 bg-white border border-[#E2DBD0] rounded-xl font-semibold text-[#0B241C] focus:outline-none focus:border-[#C5A059] disabled:opacity-50"
                         >
                           <option value="">
-                            {filteredSubcategories.length > 0 && !subcategoryId
-                              ? 'Select a subcategory first'
-                              : sizes.length === 0
-                              ? 'No sizes available'
-                              : 'Select Size'}
+                            {sizes.length === 0 ? 'No sizes available' : 'Select Size'}
                           </option>
                           {sizes.map((size) => (
                             <option key={size.id} value={size.id}>
@@ -1512,14 +1496,12 @@ function AdminAddProductPage() {
                 <button
                   type="button"
                   onClick={() => setFeatured(!featured)}
-                  className={`w-10 h-6 rounded-full relative transition-colors cursor-pointer ${
-                    featured ? 'bg-[#C5A059]' : 'bg-[#E2DBD0]'
-                  }`}
+                  className={`w-10 h-6 rounded-full relative transition-colors cursor-pointer ${featured ? 'bg-[#C5A059]' : 'bg-[#E2DBD0]'
+                    }`}
                 >
                   <span
-                    className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-transform ${
-                      featured ? 'translate-x-5' : 'translate-x-1'
-                    }`}
+                    className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-transform ${featured ? 'translate-x-5' : 'translate-x-1'
+                      }`}
                   />
                 </button>
                 <span className="font-bold text-[#0B241C]">Featured Product</span>

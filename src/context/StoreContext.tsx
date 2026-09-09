@@ -316,6 +316,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           const currentName = meta.name || meta.full_name || currentEmail.split('@')[0] || 'Patron';
           const currentPhone = meta.phone || '';
           const activeUser: UserProfile = {
+            id: u.id,
             name: currentName,
             email: currentEmail,
             phone: currentPhone,
@@ -360,6 +361,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           const currentName = meta.name || meta.full_name || currentEmail.split('@')[0] || 'Patron';
           const currentPhone = meta.phone || '';
           const activeUser: UserProfile = {
+            id: u.id,
             name: currentName,
             email: currentEmail,
             phone: currentPhone,
@@ -390,7 +392,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             });
           }
         } else if (event === 'SIGNED_OUT') {
-          setUser({ name: '', email: '', phone: '' });
+          setUser({ id: undefined, name: '', email: '', phone: '' });
           setAddresses([]);
           try {
             localStorage.removeItem('purnya_user');
@@ -543,7 +545,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             const parsedUser = JSON.parse(savedUser);
             setUser(parsedUser);
           } catch {
-            setUser({ name: '', email: '', phone: '' });
+            setUser({ id: undefined, name: '', email: '', phone: '' });
           }
         }
       } catch (e) {
@@ -1132,7 +1134,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const logoutUser = () => {
-    setUser({ name: '', email: '', phone: '' });
+    setUser({ id: undefined, name: '', email: '', phone: '' });
     setAddresses([]);
     try {
       localStorage.removeItem('purnya_user');

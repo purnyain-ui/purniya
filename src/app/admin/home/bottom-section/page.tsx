@@ -20,19 +20,19 @@ const DEFAULT_BOTTOM_SECTION: HomeBottomSection = {
       iconText: '18K',
       title: 'Gold Vermeil & Anti-Tarnish Sealing',
       description: 'Handcrafted jewellery plated with genuine 18-karat gold over hypoallergenic brass and finished with proprietary nano-ceramic sealing.',
-      image: '',
+      image: 'https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=800&fit=crop&auto=format',
     },
     {
       iconText: '100%',
       title: 'Clean Natural Sand Wax Formulations',
       description: 'Granulated plant-based sand and pearl wax that burns soot-free with pure cotton wicks and distilled aromatic botanicals.',
-      image: '',
+      image: 'https://images.unsplash.com/photo-1603006905003-be475563bc59?w=800&fit=crop&auto=format',
     },
     {
       iconText: 'Origin',
       title: 'Direct Single-Origin Ethical Sourcing',
       description: 'Herbal wellness infusions and handcrafted stoneware produced in ethical artisan cooperatives with traceable, conscious materials.',
-      image: '',
+      image: 'https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?w=800&fit=crop&auto=format',
     },
   ],
   isActive: true,
@@ -281,9 +281,20 @@ export default function AdminIntegrityStandardsPage() {
                     <h3 className="font-serif-title text-lg font-bold text-[#0B241C]">{card.title}</h3>
                     <p className="text-xs text-[#2C4A3E] leading-relaxed">{card.description}</p>
                   </div>
-                  {card.image && (
+                  {card.image ? (
                     <div className="w-full h-36 rounded-2xl overflow-hidden border border-[#E2DBD0] shadow-xs">
-                      <img src={card.image} alt={card.title || 'Card visual'} className="w-full h-full object-cover" />
+                      <img
+                        src={card.image}
+                        alt={card.title || 'Card visual'}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          e.currentTarget.style.display = 'none';
+                        }}
+                      />
+                    </div>
+                  ) : (
+                    <div className="w-full h-24 rounded-2xl border border-dashed border-[#E2DBD0] bg-white flex items-center justify-center text-[11px] text-[#5A7469]">
+                      No card visual uploaded
                     </div>
                   )}
                 </div>

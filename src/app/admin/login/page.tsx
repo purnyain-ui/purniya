@@ -10,15 +10,71 @@ import {
   Eye,
   EyeOff,
   ArrowRight,
-
   KeyRound,
   ExternalLink,
   CheckCircle2,
   AlertCircle,
-  HelpCircle,
 } from 'lucide-react';
 import { useStore } from '../../../context/StoreContext';
 import { signInWithSupabase, isSupabaseConfigured, supabase } from '../../../lib/supabase';
+import {
+  AdminSession,
+  AdminPermissionKey,
+  ALL_ADMIN_PERMISSIONS,
+  writeAdminSession,
+} from '../../../lib/adminPermissions';
+
+// Shape of a row in public.admin_users
+interface AdminUserRow {
+  id: string;
+  email: string;
+  full_name: string;
+  role: string | null;
+  is_active: boolean | null;
+  password: string | null;
+  permissions: string[] | null;
+}
+
+async function fetchAdminRecord(email: string): Promise<AdminUserRow | null> {
+  if (!supabase) return null;
+  const { data, error } = await supabase
+    .from('admin_users')
+    .select('id, email, full_name, role, is_active, password, permissions')
+    .eq('email', email.toLowerCase())
+    .single();
+
+  if (error || !data) return null;
+  return data as AdminUserRow;
+}
+
+function buildSession(
+  record: AdminUserRow,
+  authMethod: AdminSession['authMethod']
+): AdminSession {
+  const role = record.role || 'Sub Administrator';
+  const isSuper = role.trim().toLowerCase() === 'super administrator';
+  return {
+    id: record.id,
+    email: record.email,
+    fullName: record.full_name,
+    role,
+    permissions: isSuper
+      ? ALL_ADMIN_PERMISSIONS
+      : Array.isArray(record.permissions)
+      ? (record.permissions as unknown as AdminPermissionKey[])
+      : [],
+    loginTime: new Date().toISOString(),
+    authMethod,
+  };
+}
+
+async function touchLastLogin(id: string) {
+  if (!supabase) return;
+  await supabase
+    .from('admin_users')
+    .update({ last_login: new Date().toISOString() })
+    .eq('id', id);
+}
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -31,6 +87,15 @@ export default function AdminLoginPage() {
   const [errorMsg, setErrorMsg] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+
+  const completeLogin = (session: AdminSession) => {
+    writeAdminSession(session);
+    setIsSuccess(true);
+    showToast('Admin Authenticated', `Welcome back, ${session.fullName || session.email}.`);
+    setTimeout(() => {
+      router.push('/admin');
+    }, 500);
+  };
 
   const handleAdminLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,87 +111,70 @@ export default function AdminLoginPage() {
     }
 
     setIsLoading(true);
+    const email = adminEmail.trim();
 
     // 1. Try Supabase Auth verification if configured
-    if (isSupabaseConfigured && adminEmail.includes('@')) {
-      const res = await signInWithSupabase(adminEmail.trim(), adminPassword);
+    if (isSupabaseConfigured && email.includes('@')) {
+      const res = await signInWithSupabase(email, adminPassword);
+
       if (res.success && res.user) {
-        // Check if user has admin role via metadata or admin_users table
-        const userRole = res.user.user_metadata?.role;
-        let isAdmin = userRole === 'admin';
+        // admin_users is the source of truth for role + permissions
+        const adminRecord = await fetchAdminRecord(email);
 
-        if (!isAdmin && supabase) {
-          const { data: adminRecord } = await supabase
-            .from('admin_users')
-            .select('id, email, role, is_active')
-            .eq('email', adminEmail.trim().toLowerCase())
-            .single();
-
-          if (adminRecord && adminRecord.is_active) {
-            isAdmin = true;
-          }
-        }
-
-        if (!isAdmin) {
+        if (!adminRecord || !adminRecord.is_active) {
           setIsLoading(false);
           setErrorMsg('Access denied. This account does not have administrator privileges.');
           return;
         }
 
-        setIsSuccess(true);
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('purnya_admin_authenticated', 'true');
-          localStorage.setItem(
-            'purnya_admin_session',
-            JSON.stringify({
-              email: adminEmail.trim(),
-              loginTime: new Date().toISOString(),
-              role: 'Super Administrator',
-              authMethod: 'supabase',
-            })
-          );
-        }
-        showToast('Admin Authenticated', 'Welcome back to Purnya Merchant Studio.');
-        setTimeout(() => {
-          router.push('/admin');
-        }, 500);
+        const session = buildSession(adminRecord, 'supabase');
+        await touchLastLogin(adminRecord.id);
+        setIsLoading(false);
+        completeLogin(session);
         return;
       }
 
-      // Supabase auth failed — show the actual error
-      if (res.error) {
-        setIsLoading(false);
-        const friendlyError = res.error.toLowerCase().includes('invalid login credentials')
-          ? 'Invalid email or password. Please verify your credentials.'
-          : res.error;
-        setErrorMsg(friendlyError);
-        return;
+      // Supabase auth failed — show the actual error, unless we can fall back below
+      if (res.error && !isSupabaseConfigured === false) {
+        // fall through to local admin_users password check as a backup path
       }
     }
 
-    // 2. Fallback preset credentials ONLY when Supabase is not configured
+    // 2. Fallback: direct admin_users lookup (Supabase not configured, or as a backup
+    //    for accounts that only exist in admin_users and not in Supabase Auth yet)
+    if (supabase) {
+      const adminRecord = await fetchAdminRecord(email);
+      if (adminRecord && adminRecord.is_active && adminRecord.password) {
+        const passwordMatches = adminRecord.password === adminPassword;
+        // NOTE: admin_users.password is compared in plaintext here to match the schema
+        // you shared. Storing/comparing plaintext passwords is not safe for production —
+        // hash them (e.g. bcrypt) and compare hashes instead. Flagging this for you to fix.
+        if (passwordMatches) {
+          const session = buildSession(adminRecord, 'local');
+          await touchLastLogin(adminRecord.id);
+          setIsLoading(false);
+          completeLogin(session);
+          return;
+        }
+      }
+    }
+
+    // 3. Preset dev credentials ONLY when Supabase is not configured at all
     if (!isSupabaseConfigured) {
       const isPresetAdmin =
         adminEmail.toLowerCase() === 'admin@purnya.com' && adminPassword === 'purnya2026';
 
       if (isPresetAdmin) {
-        setIsSuccess(true);
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('purnya_admin_authenticated', 'true');
-          localStorage.setItem(
-            'purnya_admin_session',
-            JSON.stringify({
-              email: adminEmail.trim(),
-              loginTime: new Date().toISOString(),
-              role: 'Super Administrator',
-              authMethod: 'preset',
-            })
-          );
-        }
-        showToast('Admin Authenticated', 'Welcome back to Purnya Merchant Studio.');
-        setTimeout(() => {
-          router.push('/admin');
-        }, 500);
+        const session: AdminSession = {
+          email: adminEmail.trim(),
+          fullName: 'Super Administrator',
+          role: 'Super Administrator',
+          permissions: ALL_ADMIN_PERMISSIONS,
+          loginTime: new Date().toISOString(),
+          authMethod: 'dev',
+        };
+        setIsLoading(false);
+        completeLogin(session);
         return;
       }
     }
@@ -134,7 +182,6 @@ export default function AdminLoginPage() {
     setIsLoading(false);
     setErrorMsg('Invalid administrative credentials. Please use your authorized admin email and password.');
   };
-
 
   return (
     <div className="min-h-screen bg-[#051813] text-[#FAF8F5] flex flex-col justify-between relative overflow-hidden selection:bg-[#C5A059] selection:text-[#051813]">
@@ -171,12 +218,9 @@ export default function AdminLoginPage() {
       {/* Main Login Card */}
       <main className="relative z-10 flex-1 flex items-center justify-center px-4 py-12">
         <div className="w-full max-w-md">
-          {/* Card Wrapper with Luxury Border & Shadow */}
           <div className="bg-[#08281F]/90 backdrop-blur-xl rounded-3xl border border-[#1B4B3B] p-8 sm:p-10 shadow-2xl shadow-black/60 relative overflow-hidden">
-            {/* Top Accent Line */}
             <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-transparent via-[#C5A059] to-transparent" />
 
-            {/* Header Icon & Tag */}
             <div className="text-center space-y-3 mb-8">
               <div className="w-14 h-14 mx-auto rounded-2xl bg-[#0D382B] border border-[#C5A059]/40 flex items-center justify-center shadow-inner">
                 <KeyRound className="w-7 h-7 text-[#D4AF37]" />
@@ -196,7 +240,6 @@ export default function AdminLoginPage() {
               </div>
             </div>
 
-            {/* Error Notification */}
             {errorMsg && (
               <div className="mb-6 p-3.5 rounded-xl bg-rose-950/70 border border-rose-500/50 text-rose-200 text-xs flex items-center gap-2.5 animate-fadeIn">
                 <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
@@ -204,7 +247,6 @@ export default function AdminLoginPage() {
               </div>
             )}
 
-            {/* Success Notification */}
             {isSuccess && (
               <div className="mb-6 p-3.5 rounded-xl bg-emerald-950/80 border border-emerald-500/50 text-emerald-200 text-xs flex items-center gap-2.5 animate-fadeIn">
                 <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
@@ -212,7 +254,6 @@ export default function AdminLoginPage() {
               </div>
             )}
 
-            {/* Login Form */}
             <form onSubmit={handleAdminLogin} className="space-y-4">
               <div>
                 <label className="block text-xs font-bold text-[#E5ECE9] mb-1.5 uppercase tracking-wider">
@@ -273,7 +314,6 @@ export default function AdminLoginPage() {
                 </label>
               </div>
 
-              {/* Enter Button */}
               <button
                 type="submit"
                 disabled={isLoading || isSuccess}
@@ -292,7 +332,7 @@ export default function AdminLoginPage() {
                 )}
               </button>
 
-              {/* Quick Access for Testing */}
+              {/* Quick Access for Testing — grants full Super Administrator access */}
               <button
                 type="button"
                 onClick={() => {
@@ -309,12 +349,9 @@ export default function AdminLoginPage() {
                 <KeyRound className="w-3.5 h-3.5 text-[#C5A059]" />
                 <span>Quick Access · Dev Testing</span>
               </button>
-
-
             </form>
           </div>
 
-          {/* Footer Security Note */}
           <div className="text-center mt-6 text-[11px] text-[#638076] space-y-1">
             <p className="flex items-center justify-center gap-1.5">
               <ShieldCheck className="w-3.5 h-3.5 text-[#C5A059]" />
@@ -325,7 +362,6 @@ export default function AdminLoginPage() {
         </div>
       </main>
 
-      {/* Footer System Status */}
       <footer className="relative z-10 w-full px-6 py-4 border-t border-white/5 flex items-center justify-between text-[11px] text-[#638076]">
         <div className="flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />

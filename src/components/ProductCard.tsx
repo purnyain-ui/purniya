@@ -10,9 +10,10 @@ import { useRouter } from 'next/navigation';
 interface ProductCardProps {
   product: Product;
   compact?: boolean;
+  hidePrice?: boolean;
 }
 
-export default function ProductCard({ product, compact = false }: ProductCardProps) {
+export default function ProductCard({ product, compact = false, hidePrice = false }: ProductCardProps) {
   const router = useRouter();
   const { toggleWishlist, isInWishlist, addToCart, user, openAuthModal } = useStore();
   const isWished = isInWishlist(product.id);
@@ -45,7 +46,7 @@ export default function ProductCard({ product, compact = false }: ProductCardPro
               {product.badge}
             </span>
           )}
-          {discount > 0 && (
+          {discount > 0 && !hidePrice && (
             <span className="px-2 py-0.5 text-[10px] font-bold tracking-wider rounded-md shadow-xs bg-[#C5A059] text-[#08281F]">
               {discount}% OFF
             </span>
@@ -98,16 +99,18 @@ export default function ProductCard({ product, compact = false }: ProductCardPro
           {product.name}
         </Link>
 
-        <div className="mt-auto flex items-baseline gap-2 pt-1 border-t border-[#EFEBE3]">
-          <span className="text-sm sm:text-base font-bold text-[#0B241C]">
-            ₹{product.price.toLocaleString('en-IN')}
-          </span>
-          {product.originalPrice && (
-            <span className="text-xs text-[#5A7469] line-through">
-              ₹{product.originalPrice.toLocaleString('en-IN')}
+        {!hidePrice && (
+          <div className="mt-auto flex items-baseline gap-2 pt-1 border-t border-[#EFEBE3]">
+            <span className="text-sm sm:text-base font-bold text-[#0B241C]">
+              ₹{product.price.toLocaleString('en-IN')}
             </span>
-          )}
-        </div>
+            {product.originalPrice && (
+              <span className="text-xs text-[#5A7469] line-through">
+                ₹{product.originalPrice.toLocaleString('en-IN')}
+              </span>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
