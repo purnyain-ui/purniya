@@ -111,6 +111,9 @@ interface StoreContextType {
     customer: { name: string; email: string; phone: string };
     shippingAddress: Address;
     paymentMethod: Order['paymentMethod'];
+    razorpayOrderId?: string;
+    razorpayPaymentId?: string;
+    razorpaySignature?: string;
   }) => Order;
 
   // Calculations
@@ -764,6 +767,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     customer: { name: string; email: string; phone: string };
     shippingAddress: Address;
     paymentMethod: Order['paymentMethod'];
+    razorpayOrderId?: string;
+    razorpayPaymentId?: string;
+    razorpaySignature?: string;
   }): Order => {
     const randomSuffix = Math.floor(1000 + Math.random() * 9000);
     const newOrderId = `PUR-2026-${randomSuffix}`;
@@ -796,6 +802,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       customer: details.customer,
       shippingAddress: details.shippingAddress,
       paymentMethod: details.paymentMethod,
+      razorpayOrderId: details.razorpayOrderId,
+      razorpayPaymentId: details.razorpayPaymentId,
+      razorpaySignature: details.razorpaySignature,
+      paymentStatus: details.razorpayPaymentId ? 'paid' : 'pending',
       trackingNumber: `BD-${randomSuffix}992IN`,
       courierPartner: 'BlueDart Express',
       estimatedDelivery: '3 - 5 Business Days',

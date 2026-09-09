@@ -1992,7 +1992,7 @@ export async function sendPasswordResetEmail(email: string, redirectTo?: string)
   }
   try {
     const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
-    const redirect = redirectTo || `${origin}/login?mode=reset`;
+    const redirect = redirectTo || `${origin}/`;
     const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
       redirectTo: redirect,
     });

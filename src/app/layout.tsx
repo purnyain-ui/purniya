@@ -6,6 +6,7 @@ import Footer from '../components/Footer';
 import SearchModal from '../components/SearchModal';
 import Toast from '../components/Toast';
 import AuthModal from '../components/AuthModal';
+   import ResetPasswordModal from '../components/ResetPasswordModal';
 
 export const metadata: Metadata = {
   title: 'Purnya.in | Official Multi-Category Premium Lifestyle E-Commerce',
@@ -38,6 +39,7 @@ export default function RootLayout({
         />
       </head>
       <body className="min-h-screen flex flex-col bg-[#FAF8F5] text-[#0B241C]">
+         <ResetPasswordModal />
         <StoreProvider>
           <Header />
           <main className="flex-1">{children}</main>

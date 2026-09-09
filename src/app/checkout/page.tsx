@@ -2,20 +2,22 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import Script from 'next/script';
 import { useRouter } from 'next/navigation';
 import {
   Lock,
   ShieldCheck,
   CheckCircle2,
-  Truck,
-  CreditCard,
-  QrCode,
-  Building,
-  Banknote,
-  ArrowRight,
+  AlertCircle,
 } from 'lucide-react';
 import { useStore } from '../../context/StoreContext';
 import { Address, Order } from '../../types';
+
+declare global {
+  interface Window {
+    Razorpay: any;
+  }
+}
 
 export default function CheckoutPage() {
   const router = useRouter();
@@ -42,9 +44,10 @@ export default function CheckoutPage() {
   const [state, setState] = useState(defaultAddr?.state || '');
   const [pincode, setPincode] = useState(defaultAddr?.pincode || '');
 
-  const [paymentMethod, setPaymentMethod] = useState<Order['paymentMethod']>('UPI');
   const [confirmedOrder, setConfirmedOrder] = useState<Order | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [paymentError, setPaymentError] = useState('');
+  const [razorpayReady, setRazorpayReady] = useState(false);
 
   useEffect(() => {
     if (!user?.email) {
@@ -53,31 +56,137 @@ export default function CheckoutPage() {
     }
   }, [user?.email, router, showToast]);
 
-  const handlePlaceOrder = (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsProcessing(true);
+  const finalizeOrder = (paymentMeta: {
+    paymentMethod: string;
+    razorpayPaymentId: string;
+    razorpayOrderId: string;
+    razorpaySignature: string;
+  }) => {
+    const shippingAddress: Address = {
+      id: 'addr-checkout',
+      label: 'Home',
+      fullName: customerName,
+      phone: customerPhone,
+      addressLine,
+      city,
+      state,
+      pincode,
+    };
 
-    setTimeout(() => {
-      const shippingAddress: Address = {
-        id: 'addr-checkout',
-        label: 'Home',
-        fullName: customerName,
-        phone: customerPhone,
-        addressLine,
-        city,
-        state,
-        pincode,
+    const newOrder = placeOrder({
+      customer: { name: customerName, email: customerEmail, phone: customerPhone },
+      shippingAddress,
+      paymentMethod: paymentMeta.paymentMethod,
+      razorpayPaymentId: paymentMeta.razorpayPaymentId,
+      razorpayOrderId: paymentMeta.razorpayOrderId,
+      razorpaySignature: paymentMeta.razorpaySignature,
+    } as any);
+
+    setConfirmedOrder(newOrder);
+    setIsProcessing(false);
+  };
+
+  const handleRazorpayPayment = async () => {
+    setPaymentError('');
+
+    if (!razorpayReady || typeof window === 'undefined' || !window.Razorpay) {
+      setPaymentError('Payment gateway is still loading — please try again in a moment.');
+      setIsProcessing(false);
+      return;
+    }
+
+    try {
+      // Amount is created and verified server-side — never trust a client-supplied total.
+      const orderRes = await fetch('/api/razorpay/create-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          amount: cartTotal,
+          receipt: `purnya_${Date.now()}`,
+        }),
+      });
+      const orderData = await orderRes.json();
+
+      if (!orderData.success) {
+        setPaymentError(orderData.error || 'Could not initiate payment. Please try again.');
+        setIsProcessing(false);
+        return;
+      }
+
+      const { order } = orderData;
+
+      const options: any = {
+        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+        amount: order.amount,
+        currency: order.currency,
+        name: 'Purnya',
+        description: `Order payment · ${cart.length} item${cart.length > 1 ? 's' : ''}`,
+        image: '/purnya-logo.png',
+        order_id: order.id,
+        prefill: {
+          name: customerName,
+          email: customerEmail,
+          contact: customerPhone,
+        },
+        notes: {
+          address: `${addressLine}, ${city}, ${state} ${pincode}`,
+        },
+        theme: {
+          color: '#0C3B2E',
+        },
+        handler: async (response: any) => {
+          try {
+            const verifyRes = await fetch('/api/razorpay/verify-payment', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(response),
+            });
+            const verifyData = await verifyRes.json();
+
+            if (!verifyData.success) {
+              setPaymentError(
+                'Payment could not be verified. If money was deducted, please contact support with your payment ID: ' +
+                  response.razorpay_payment_id
+              );
+              setIsProcessing(false);
+              return;
+            }
+
+            finalizeOrder({
+              paymentMethod: verifyData.paymentMethod, // e.g. "UPI", "Card", "Netbanking" — decided inside Razorpay's checkout
+              razorpayPaymentId: response.razorpay_payment_id,
+              razorpayOrderId: response.razorpay_order_id,
+              razorpaySignature: response.razorpay_signature,
+            });
+          } catch {
+            setPaymentError('Payment verification failed. Please contact support if money was deducted.');
+            setIsProcessing(false);
+          }
+        },
+        modal: {
+          ondismiss: () => {
+            setIsProcessing(false);
+          },
+        },
       };
 
-      const newOrder = placeOrder({
-        customer: { name: customerName, email: customerEmail, phone: customerPhone },
-        shippingAddress,
-        paymentMethod,
+      const rzp = new window.Razorpay(options);
+      rzp.on('payment.failed', (resp: any) => {
+        setPaymentError(resp?.error?.description || 'Payment failed. Please try again.');
+        setIsProcessing(false);
       });
-
-      setConfirmedOrder(newOrder);
+      rzp.open();
+    } catch (err: any) {
+      setPaymentError(err?.message || 'Something went wrong while starting payment.');
       setIsProcessing(false);
-    }, 1200);
+    }
+  };
+
+  const handlePlaceOrder = (e: React.FormEvent) => {
+    e.preventDefault();
+    setPaymentError('');
+    setIsProcessing(true);
+    handleRazorpayPayment();
   };
 
   // Order Confirmed View
@@ -173,6 +282,13 @@ export default function CheckoutPage() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-16 space-y-8">
+      {/* Razorpay checkout script */}
+      <Script
+        src="https://checkout.razorpay.com/v1/checkout.js"
+        strategy="afterInteractive"
+        onLoad={() => setRazorpayReady(true)}
+      />
+
       {/* Title */}
       <div>
         <h1 className="font-serif-title text-3xl sm:text-4xl font-bold text-[#0B241C]">
@@ -278,66 +394,6 @@ export default function CheckoutPage() {
             </div>
           </div>
 
-          {/* 3. Payment Selection (SOW Section 13) */}
-          <div className="bg-white p-6 sm:p-8 rounded-3xl border border-[#E2DBD0] shadow-sm space-y-4">
-            <h3 className="font-serif-title text-lg font-bold text-[#0B241C] border-b border-[#EFEBE3] pb-3">
-              3. Payment Method
-            </h3>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-              {[
-                {
-                  id: 'UPI',
-                  title: 'UPI (GPay / PhonePe / Paytm)',
-                  desc: 'Instant 0% transaction fee payment via QR/app',
-                  icon: <QrCode className="w-5 h-5 text-[#C5A059]" />,
-                },
-                {
-                  id: 'Credit / Debit Card',
-                  title: 'Cards (Visa / Master / RuPay)',
-                  desc: 'All Indian & International cards supported',
-                  icon: <CreditCard className="w-5 h-5 text-[#C5A059]" />,
-                },
-                {
-                  id: 'Razorpay',
-                  title: 'Razorpay Payment Gateway',
-                  desc: 'Unified checkout with Net Banking & Wallets',
-                  icon: <ShieldCheck className="w-5 h-5 text-[#C5A059]" />,
-                },
-                {
-                  id: 'Cash on Delivery',
-                  title: 'Cash on Delivery (COD)',
-                  desc: 'Pay cash or UPI upon package arrival',
-                  icon: <Banknote className="w-5 h-5 text-[#C5A059]" />,
-                },
-              ].map((opt) => (
-                <label
-                  key={opt.id}
-                  className={`flex items-start gap-3 p-4 rounded-2xl border cursor-pointer transition-all ${
-                    paymentMethod === opt.id
-                      ? 'border-[#0C3B2E] bg-[#FAF5EA] shadow-sm ring-1 ring-[#C5A059]'
-                      : 'border-[#E2DBD0] hover:border-[#0C3B2E]/60'
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="payment"
-                    value={opt.id}
-                    checked={paymentMethod === opt.id}
-                    onChange={() => setPaymentMethod(opt.id as any)}
-                    className="mt-1 text-[#0C3B2E] focus:ring-[#0C3B2E]"
-                  />
-                  <div>
-                    <div className="flex items-center gap-2 font-bold text-[#0B241C]">
-                      {opt.icon}
-                      <span>{opt.title}</span>
-                    </div>
-                    <p className="text-[11px] text-[#5A7469] mt-1">{opt.desc}</p>
-                  </div>
-                </label>
-              ))}
-            </div>
-          </div>
         </div>
 
         {/* Right Summary */}
@@ -387,17 +443,35 @@ export default function CheckoutPage() {
               </div>
             </div>
 
+            {paymentError && (
+              <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-[11px] flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                <span>{paymentError}</span>
+              </div>
+            )}
+
             <button
               type="submit"
               disabled={isProcessing}
               className="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-[#D4AF37] to-[#C5A059] hover:from-[#E6C25B] hover:to-[#D4AF37] text-[#08281F] font-bold text-xs uppercase tracking-widest shadow-xl flex items-center justify-center gap-2 transition-all hover:scale-[1.01] disabled:opacity-50"
             >
               <Lock className="w-4 h-4" />
-              <span>{user?.email ? (isProcessing ? 'Processing Order...' : `Place Order · ₹${cartTotal.toLocaleString('en-IN')}`) : 'Login to Purchase'}</span>
+              <span>
+                {!user?.email
+                  ? 'Login to Purchase'
+                  : isProcessing
+                  ? 'Processing...'
+                  : `Pay & Place Order · ₹${cartTotal.toLocaleString('en-IN')}`}
+              </span>
             </button>
 
+            <p className="text-[11px] text-[#5A7469] flex items-center justify-center gap-1.5">
+              <ShieldCheck className="w-3.5 h-3.5 text-[#C5A059]" />
+              <span>You'll choose UPI, Card, Netbanking or Wallet securely inside Razorpay's checkout.</span>
+            </p>
+
             <p className="text-[10px] text-center text-[#5A7469]">
-              By clicking "Place Order", you agree to Purnya's terms of service and shipping policies.
+              By clicking "Pay & Place Order", you agree to Purnya's terms of service and shipping policies.
             </p>
           </div>
         </div>
