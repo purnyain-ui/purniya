@@ -11,12 +11,36 @@ interface ProductCardProps {
   product: Product;
   compact?: boolean;
   hidePrice?: boolean;
+  showVariants?: boolean;
 }
 
-export default function ProductCard({ product, compact = false, hidePrice = false }: ProductCardProps) {
+export default function ProductCard({
+  product,
+  compact = false,
+  hidePrice = false,
+  showVariants = true,
+}: ProductCardProps) {
   const router = useRouter();
-  const { toggleWishlist, isInWishlist, addToCart, user, openAuthModal } = useStore();
+  const { toggleWishlist, isInWishlist, addToCart } = useStore();
   const isWished = isInWishlist(product.id);
+
+  // Variant resolution:
+  // "if it has only size it need to show if it as sizes then it need to show it perfectly without breaking it okay if both exists show only size in card okay"
+  const sizeVariant = product.variants?.find((v) =>
+    v.name.toLowerCase().includes('size') || v.name.toLowerCase() === 'sizes'
+  );
+  const otherVariant = product.variants?.find((v) => v.options && v.options.length > 0);
+  const activeVariant = sizeVariant || otherVariant;
+
+  const [selectedVariantOption, setSelectedVariantOption] = React.useState<string>(
+    activeVariant?.options?.[0] || ''
+  );
+
+  React.useEffect(() => {
+    if (activeVariant?.options?.[0]) {
+      setSelectedVariantOption(activeVariant.options[0]);
+    }
+  }, [product.id, activeVariant]);
 
   const discount = product.originalPrice
     ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
@@ -76,7 +100,13 @@ export default function ProductCard({ product, compact = false, hidePrice = fals
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
-              addToCart(product, 1);
+              addToCart(
+                product,
+                1,
+                activeVariant && selectedVariantOption
+                  ? { [activeVariant.name]: selectedVariantOption }
+                  : undefined
+              );
             }}
             className="w-full py-2.5 px-4 rounded-xl bg-white/95 hover:bg-[#0C3B2E] hover:text-white text-[#0B241C] font-semibold text-xs tracking-wider uppercase shadow-lg backdrop-blur-md flex items-center justify-center gap-2 transition-all border border-[#E2DBD0] cursor-pointer"
           >
@@ -94,10 +124,54 @@ export default function ProductCard({ product, compact = false, hidePrice = fals
 
         <Link
           href={`/product/${product.id}`}
-          className="text-xs sm:text-sm font-semibold text-[#0B241C] hover:text-[#0C3B2E] transition-colors line-clamp-1 mb-2"
+          className="text-xs sm:text-sm font-semibold text-[#0B241C] hover:text-[#0C3B2E] transition-colors line-clamp-1 mb-1.5"
         >
           {product.name}
         </Link>
+
+        {/* Variant / Size Options display (omitted on home page or compact) */}
+        {showVariants && !compact && activeVariant && activeVariant.options && activeVariant.options.length > 0 && (
+          <div className="my-1.5 pt-1.5 border-t border-[#F0ECE1]">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="text-[10px] font-bold text-[#8C7A6B] uppercase tracking-wider">
+                {activeVariant.name}:
+              </span>
+              <div className="flex items-center gap-1 flex-wrap">
+                {activeVariant.options.slice(0, 4).map((option, idx) => {
+                  const isSelected = selectedVariantOption === option;
+                  return (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setSelectedVariantOption(option);
+                      }}
+                      className={`px-1.5 py-0.5 text-[10px] font-semibold rounded transition-all border cursor-pointer leading-tight ${
+                        isSelected
+                          ? 'bg-[#0C3B2E] text-white border-[#0C3B2E] shadow-2xs'
+                          : 'bg-[#FAF8F5] text-[#2C4A3E] border-[#E2DBD0] hover:border-[#0C3B2E] hover:bg-white'
+                      }`}
+                      title={`${activeVariant.name}: ${option}`}
+                    >
+                      {option}
+                    </button>
+                  );
+                })}
+                {activeVariant.options.length > 4 && (
+                  <Link
+                    href={`/product/${product.id}`}
+                    onClick={(e) => e.stopPropagation()}
+                    className="text-[10px] font-semibold text-[#C5A059] hover:underline whitespace-nowrap"
+                  >
+                    +{activeVariant.options.length - 4} more
+                  </Link>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
 
         {!hidePrice && (
           <div className="mt-auto flex items-baseline gap-2 pt-1 border-t border-[#EFEBE3]">

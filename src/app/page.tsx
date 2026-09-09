@@ -167,9 +167,11 @@ export default function HomePage() {
                     {categories.length > 0 && (
                       <Link
                         href={`/category/${categories[0].slug}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
                         className="px-8 py-3.5 rounded-full bg-white/10 hover:bg-white/20 text-white font-semibold text-xs sm:text-sm uppercase tracking-widest backdrop-blur-md border border-white/25 transition-all"
                       >
-                        Explore {categories[0].title}
+                        Explore {categories[0].title} ↗
                       </Link>
                     )}
                   </div>
@@ -327,11 +329,9 @@ export default function HomePage() {
                           {validSubcats.slice(0, 6).map((sub) => (
                             <Link
                               key={sub.name}
-                              href={`/category/${cat.slug}?sub=${encodeURIComponent(sub.name)}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
+                              href={`/category/${cat.slug}/${encodeURIComponent(sub.name)}`}
                               className="flex flex-col items-center gap-2 shrink-0 group"
-                              title={`Shop ${sub.name} in new tab`}
+                              title={`Shop ${sub.name}`}
                             >
                               <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full overflow-hidden border-2 border-[#E2DBD0] p-0.5 group-hover:border-[#0C3B2E] group-hover:shadow-md transition-all bg-[#EBF3EF] shadow-xs">
                                 <img
@@ -357,7 +357,7 @@ export default function HomePage() {
                       {catProducts.length > 0 ? (
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
                           {catProducts.map((prod) => (
-                            <ProductCard key={prod.id} product={prod} compact hidePrice />
+                            <ProductCard key={prod.id} product={prod} compact hidePrice showVariants={false} />
                           ))}
                         </div>
                       ) : (
@@ -421,9 +421,9 @@ export default function HomePage() {
               </div>
               <div>
                 <h4 className="font-serif-title text-sm sm:text-base font-bold text-[#0B241C]">
-                  Personal Concierge
+                  Dedicated Support
                 </h4>
-                <p className="text-xs text-[#2C4A3E]">Daily customer support care@purnya.in</p>
+                <p className="text-xs text-[#2C4A3E]">Direct customer care +91 7892297609</p>
               </div>
             </div>
           </div>

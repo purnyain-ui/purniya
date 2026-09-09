@@ -1,35 +1,43 @@
 'use client';
 
 import React, { useState } from 'react';
-import { ChevronDown, HelpCircle } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 
 export default function FAQPage() {
   const [openIndex, setOpenIndex] = useState<number | null>(0);
 
   const faqs = [
     {
-      q: 'What makes Purnya Sand Wax candles unique?',
-      a: 'Purnya Sand Wax candles are composed of natural micro-granules derived from clean plant waxes. Unlike conventional paraffin, sand wax requires zero container cleanup; you can refill any heat-resistant vessel indefinitely by simply inserting a new wick. They emit clean aromatic vapor with zero toxic black soot.',
+      q: 'How do I place an order?',
+      a: 'Browse the Purnya collections, select your preferred product, add it to your cart and complete checkout using an available payment method.',
     },
     {
-      q: 'How long does shipping take across India?',
-      a: 'All orders are dispatched within 24 to 48 hours from our central warehouse in Bengaluru. Metro city deliveries arrive in 2 to 3 business days; all other regions across India arrive in 4 to 6 business days. Express courier tracking with BlueDart or Delhivery is provided via SMS and email.',
+      q: 'Can I cancel my order?',
+      a: 'Cancellation may be requested before dispatch. Personalised, customised or made-to-order products may not be cancellable once processing has started.',
     },
     {
-      q: 'Is shipping free on Purnya.in?',
-      a: 'Yes! We provide complimentary domestic express shipping on all orders totaling ₹999 or above. For orders under ₹999, a flat nominal shipping fee of ₹99 is applied at checkout.',
+      q: 'How can I track my order?',
+      a: 'Where tracking is available, shipment details are shared after dispatch.',
     },
     {
-      q: 'Are the jewellery pieces waterproof and anti-tarnish?',
-      a: 'Our gold-plated collections feature high-micron 18K gold electroplating over hypoallergenic premium brass or 925 sterling silver posts, sealed with an invisible protective anti-tarnish lacquer. While resilient to casual splashes, we advise removing pieces before hot showers or pool swimming to maintain their mirror luster.',
+      q: 'What should I do if I receive a damaged or incorrect product?',
+      a: 'Contact Purnya within 48 hours of delivery with your order number and clear photographs or videos showing the issue.',
     },
     {
-      q: 'What is your return and exchange policy?',
-      a: 'We proudly offer a 7-day hassle-free return and exchange policy from the date of package delivery. Items must be unused, unburned, and in their original Purnya presentation box with tags. You can initiate a return directly from your Account portal or by writing to care@purnya.in.',
+      q: 'Can I return a product if I change my mind?',
+      a: 'Change-of-mind returns are available only where expressly offered for that product.',
     },
     {
-      q: 'Can I customize corporate gifts or wedding hampers?',
-      a: 'Absolutely. Purnya specializes in bespoke corporate hampers, festive Diwali sets, and personalized monogrammed jewellery. Please reach out through our Contact page or email corporate@purnya.in for personalized curation catalogues.',
+      q: 'Why does the product colour look slightly different from the website?',
+      a: 'Colour and appearance can vary slightly due to device screens, display settings, lighting and photography. Refer to the product description for full details.',
+    },
+    {
+      q: 'Where can I find product care instructions?',
+      a: 'Relevant care, usage, safety or storage information is provided on the product page and/or packaging.',
+    },
+    {
+      q: 'What if I have a complaint that hasn\'t been resolved?',
+      a: 'You may escalate to our Grievance Redressal Desk at care@purnya.in, which will acknowledge your complaint within 48 hours and aim to resolve it within one month.',
     },
   ];
 
@@ -43,7 +51,7 @@ export default function FAQPage() {
           Frequently Asked Questions
         </h1>
         <p className="text-xs sm:text-sm text-[#2C4A3E]">
-          Everything you need to know about our products, delivery timelines, and care guidelines.
+          Everything you need to know about our products, orders, delivery, and policies.
         </p>
       </div>
 
@@ -74,6 +82,16 @@ export default function FAQPage() {
             </div>
           );
         })}
+      </div>
+
+      {/* Grievance escalation info */}
+      <div className="bg-[#FAF8F5] p-6 rounded-2xl border border-[#EFEBE3] text-center space-y-2">
+        <p className="text-xs font-bold uppercase tracking-wider text-[#C5A059]">Still need help?</p>
+        <p className="text-xs sm:text-sm text-[#2C4A3E]">
+          Contact our Grievance Redressal Desk at{' '}
+          <a href="mailto:care@purnya.in" className="text-[#C5A059] font-semibold">care@purnya.in</a>{' '}
+          for unresolved complaints. Acknowledgement within 48 hours.
+        </p>
       </div>
     </div>
   );

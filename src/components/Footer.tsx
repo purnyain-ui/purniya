@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Mail, Phone, MapPin, ArrowRight, ShieldCheck } from 'lucide-react';
+import { Mail, Phone, MapPin, ArrowRight, ShieldCheck, ArrowUpRight } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 
 export default function Footer() {
@@ -46,21 +46,25 @@ export default function Footer() {
 
             <p className="text-xs sm:text-sm text-[#B4C9BF] leading-relaxed max-w-sm pt-2">
               Purnya is a unified lifestyle sanctuary offering curated collections across handcrafted jewellery, 
-              clean sand wax home fragrances, timeless décor, pure organic wellness, and personalized gifts.
+              clean sand wax home fragrances, timeless decor, pure organic wellness, and personalized gifts.
             </p>
 
             <div className="pt-2 text-xs text-[#B4C9BF] space-y-2">
               <p className="flex items-center gap-2">
                 <MapPin className="w-4 h-4 text-[#D4AF37] shrink-0" />
-                <span>Indiranagar 100ft Rd, Bengaluru, Karnataka 560038</span>
+                <span>No.138, Canara Bank Main Road, Neraluru, Virupakshipura Hobli, Channapattana Taluk, Bengaluru South District, Karnataka 562138</span>
               </p>
               <p className="flex items-center gap-2">
                 <Phone className="w-4 h-4 text-[#D4AF37] shrink-0" />
-                <span>+91 98765 43210 (Mon-Sat, 10am - 7pm IST)</span>
+                <a href="tel:+917892297609" className="hover:text-[#FAF8F5] transition-colors">
+                  +91 7892297609 (Mon–Sat, 10 AM–6 PM IST)
+                </a>
               </p>
               <p className="flex items-center gap-2">
                 <Mail className="w-4 h-4 text-[#D4AF37] shrink-0" />
-                <span>care@purnya.in</span>
+                <a href="mailto:care@purnya.in" className="hover:text-[#FAF8F5] transition-colors">
+                  care@purnya.in
+                </a>
               </p>
             </div>
           </div>
@@ -77,23 +81,14 @@ export default function Footer() {
                     href={`/category/${cat.slug}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="hover:text-[#D4AF37] transition-colors flex items-center gap-1"
+                    className="hover:text-[#D4AF37] transition-colors flex items-center justify-between group"
+                    title={`Open ${cat.title} Boutique in new tab`}
                   >
                     <span>{cat.title}</span>
-                    <span className="text-[10px] opacity-70">↗</span>
+                    <ArrowUpRight className="w-3 h-3 text-[#D4AF37]/60 group-hover:text-[#D4AF37] transition-colors" />
                   </Link>
                 </li>
               ))}
-              <li className="pt-1">
-                <Link href="/new-arrivals" className="text-[#D4AF37] hover:underline font-semibold text-xs">
-                  New Arrivals Collection →
-                </Link>
-              </li>
-              <li>
-                <Link href="/best-sellers" className="text-[#D4AF37] hover:underline font-semibold text-xs">
-                  Best Selling Icons →
-                </Link>
-              </li>
             </ul>
           </div>
 
@@ -109,11 +104,6 @@ export default function Footer() {
               <li><Link href="/about" className="hover:text-[#D4AF37] transition-colors">About Purnya</Link></li>
               <li><Link href="/contact" className="hover:text-[#D4AF37] transition-colors">Contact Us</Link></li>
               <li><Link href="/faq" className="hover:text-[#D4AF37] transition-colors">FAQs</Link></li>
-              <li>
-                <Link href="/admin" className="text-[#D4AF37] font-semibold hover:underline flex items-center gap-1.5 pt-1">
-                  <ShieldCheck className="w-3.5 h-3.5" /> Merchant Admin Console
-                </Link>
-              </li>
             </ul>
           </div>
 

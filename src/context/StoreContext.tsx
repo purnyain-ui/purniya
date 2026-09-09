@@ -58,7 +58,7 @@ interface ToastState {
 
 export interface AuthModalState {
   isOpen: boolean;
-  actionType?: 'order' | 'wishlist' | 'bag';
+  actionType?: 'order' | 'wishlist' | 'bag' | 'review';
   title?: string;
   message?: string;
   redirectUrl?: string;
@@ -74,12 +74,13 @@ interface StoreContextType {
   banners: HeroSlide[];
   announcement: string;
   user: UserProfile;
+  isAuthLoading: boolean;
   addresses: Address[];
   appliedCoupon: Coupon | null;
   toast: ToastState | null;
   authModal: AuthModalState | null;
   openAuthModal: (options?: {
-    actionType?: 'order' | 'wishlist' | 'bag';
+    actionType?: 'order' | 'wishlist' | 'bag' | 'review';
     title?: string;
     message?: string;
     redirectUrl?: string;
@@ -154,26 +155,72 @@ const StoreContext = createContext<StoreContextType | undefined>(undefined);
 export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // Client-side initialization flag
   const [mounted, setMounted] = useState(false);
+  const [isAuthLoading, setIsAuthLoading] = useState(true);
 
   const [products, setProducts] = useState<Product[]>(initialProducts);
   const [categories, setCategories] = useState<CategoryMeta[]>(initialCategories);
-  const [cart, setCart] = useState<CartItem[]>([]);
-  const [wishlist, setWishlist] = useState<Product[]>([]);
-  const [orders, setOrders] = useState<Order[]>(initialOrders);
+  const [cart, setCart] = useState<CartItem[]>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem('purnya_cart');
+        if (saved) return JSON.parse(saved);
+      } catch { }
+    }
+    return [];
+  });
+  const [wishlist, setWishlist] = useState<Product[]>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem('purnya_wishlist');
+        if (saved) return JSON.parse(saved);
+      } catch { }
+    }
+    return [];
+  });
+  const [orders, setOrders] = useState<Order[]>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem('purnya_orders');
+        if (saved) return JSON.parse(saved);
+      } catch { }
+    }
+    return initialOrders;
+  });
   const [coupons, setCoupons] = useState<Coupon[]>(initialCoupons);
   const [banners, setBanners] = useState<HeroSlide[]>(initialHeroSlides);
   const [announcement, setAnnouncement] = useState<string>(
     'Free Express Shipping on Orders Above ₹999  |  Cash on Delivery Available Pan-India'
   );
-  const [user, setUser] = useState<UserProfile>(initialUser);
-  const [addresses, setAddresses] = useState<Address[]>(initialAddresses);
+  const [user, setUser] = useState<UserProfile>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem('purnya_user');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed && (parsed.email || parsed.name)) {
+            return parsed;
+          }
+        }
+      } catch { }
+    }
+    return initialUser;
+  });
+  const [addresses, setAddresses] = useState<Address[]>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem('purnya_addresses');
+        if (saved) return JSON.parse(saved);
+      } catch { }
+    }
+    return initialAddresses;
+  });
   const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
   const [toast, setToast] = useState<ToastState | null>(null);
   const [authModal, setAuthModal] = useState<AuthModalState | null>(null);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
 
   const openAuthModal = (options?: {
-    actionType?: 'order' | 'wishlist' | 'bag';
+    actionType?: 'order' | 'wishlist' | 'bag' | 'review';
     title?: string;
     message?: string;
     redirectUrl?: string;
@@ -237,7 +284,16 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setOrders(prev => {
           const dbIds = new Set(dbOrders.map(o => o.id));
           const localOnly = prev.filter(o => !dbIds.has(o.id));
-          const merged = [...dbOrders, ...localOnly];
+          const merged = [...dbOrders, ...localOnly].map(ord => {
+            const existing = prev.find(p => p.id === ord.id);
+            return {
+              ...ord,
+              razorpayPaymentId: ord.razorpayPaymentId || existing?.razorpayPaymentId,
+              razorpayOrderId: ord.razorpayOrderId || existing?.razorpayOrderId,
+              razorpaySignature: ord.razorpaySignature || existing?.razorpaySignature,
+              paymentStatus: ord.paymentStatus || existing?.paymentStatus,
+            };
+          });
           try {
             localStorage.setItem('purnya_orders', JSON.stringify(merged));
           } catch { }
@@ -345,7 +401,16 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               setOrders(prev => {
                 const dbIds = new Set(cloudOrders.map(o => o.id));
                 const localOnly = prev.filter(o => !dbIds.has(o.id));
-                const merged = [...cloudOrders, ...localOnly];
+                const merged = [...cloudOrders, ...localOnly].map(ord => {
+                  const existing = prev.find(p => p.id === ord.id);
+                  return {
+                    ...ord,
+                    razorpayPaymentId: ord.razorpayPaymentId || existing?.razorpayPaymentId,
+                    razorpayOrderId: ord.razorpayOrderId || existing?.razorpayOrderId,
+                    razorpaySignature: ord.razorpaySignature || existing?.razorpaySignature,
+                    paymentStatus: ord.paymentStatus || existing?.paymentStatus,
+                  };
+                });
                 try {
                   localStorage.setItem('purnya_orders', JSON.stringify(merged));
                 } catch { }
@@ -354,6 +419,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             }
           });
         }
+        setIsAuthLoading(false);
+      }).catch(() => {
+        setIsAuthLoading(false);
       });
 
       const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
@@ -373,6 +441,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           try {
             localStorage.setItem('purnya_user', JSON.stringify(activeUser));
           } catch { }
+          setIsAuthLoading(false);
 
           const cloudAddrs = await getAddressesFromSupabase(currentEmail);
           if (cloudAddrs && cloudAddrs.length > 0) {
@@ -387,7 +456,16 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             setOrders(prev => {
               const dbIds = new Set(cloudOrders.map(o => o.id));
               const localOnly = prev.filter(o => !dbIds.has(o.id));
-              const merged = [...cloudOrders, ...localOnly];
+              const merged = [...cloudOrders, ...localOnly].map(ord => {
+                const existing = prev.find(p => p.id === ord.id);
+                return {
+                  ...ord,
+                  razorpayPaymentId: ord.razorpayPaymentId || existing?.razorpayPaymentId,
+                  razorpayOrderId: ord.razorpayOrderId || existing?.razorpayOrderId,
+                  razorpaySignature: ord.razorpaySignature || existing?.razorpaySignature,
+                  paymentStatus: ord.paymentStatus || existing?.paymentStatus,
+                };
+              });
               try {
                 localStorage.setItem('purnya_orders', JSON.stringify(merged));
               } catch { }
@@ -395,12 +473,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             });
           }
         } else if (event === 'SIGNED_OUT') {
-          setUser({ id: undefined, name: '', email: '', phone: '' });
-          setAddresses([]);
-          try {
-            localStorage.removeItem('purnya_user');
-            localStorage.removeItem('purnya_addresses');
-          } catch { }
+          setIsAuthLoading(false);
         }
       });
 
@@ -555,6 +628,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         console.warn('LocalStorage load error', e);
       }
       setMounted(true);
+      setIsAuthLoading(false);
     });
   }, []);
 
@@ -1230,6 +1304,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         banners,
         announcement,
         user,
+        isAuthLoading,
         addresses,
         appliedCoupon,
         toast,

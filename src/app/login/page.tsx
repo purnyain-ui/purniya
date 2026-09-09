@@ -28,12 +28,17 @@ function AuthContent() {
   const searchParams = useSearchParams();
   const initialMode = searchParams.get('mode') === 'signup' ? 'signup' : 'login';
   const redirectUrl = searchParams.get('redirect') || '/account';
-
-  const { loginUser, showToast, user } = useStore();
+  const { loginUser, showToast, user, isAuthLoading } = useStore();
 
   const [mode, setMode] = useState<'login' | 'signup' | 'reset'>(
     searchParams.get('mode') === 'reset' ? 'reset' : initialMode
   );
+
+  React.useEffect(() => {
+    if (!isAuthLoading && user?.email && mode !== 'reset') {
+      router.replace(redirectUrl || '/account');
+    }
+  }, [user?.email, isAuthLoading, redirectUrl, mode, router]);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);

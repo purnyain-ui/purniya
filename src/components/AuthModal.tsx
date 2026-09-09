@@ -48,9 +48,16 @@ export default function AuthModal() {
       defaultDesc: 'Please sign in to your account to add artisanal pieces to your bag and enjoy uninterrupted shopping.',
       primaryBtn: 'Sign In to Add to Bag',
     },
+    review: {
+      icon: <Sparkles className="w-7 h-7 text-[#D4AF37]" />,
+      badge: 'Patron Reviews',
+      defaultTitle: 'Sign In to Share Your Review 💎',
+      defaultDesc: 'Please sign in to your Purnya Circle account to share your thoughts and experience with this piece.',
+      primaryBtn: 'Sign In to Review',
+    },
   };
 
-  const config = actionConfig[actionType || 'order'] || actionConfig.order;
+  const config = (actionConfig as any)[actionType || 'order'] || actionConfig.order;
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-200">

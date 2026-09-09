@@ -11,7 +11,7 @@ import AuthModal from '../components/AuthModal';
 export const metadata: Metadata = {
   title: 'Purnya.in | Official Multi-Category Premium Lifestyle E-Commerce',
   description:
-    'Discover Purnya.in — a unified lifestyle destination featuring handcrafted Jewellery & Accessories, artisanal Candle & Home Fragrances, Home Décor, Organic Wellness, and curated Gifts.',
+    'Discover Purnya.in — a unified lifestyle destination featuring handcrafted Jewellery & Accessories, artisanal Candle & Home Fragrances, Home Decor, Organic Wellness, and curated Gifts.',
   keywords: [
     'Purnya',
     'Purnya.in',

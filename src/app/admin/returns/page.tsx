@@ -198,7 +198,7 @@ export default function AdminReturnsPage() {
             <p className="text-sm font-bold text-[#0B241C]">No Return Requests</p>
             <p className="text-xs text-[#5A7469] max-w-sm mx-auto">
               {returnRequests.length === 0
-                ? 'No returns or exchange claims have been filed. When customers initiate a 7-day return request from their account or concierge support, it will appear here for management.'
+                ? 'No returns or exchange claims have been filed. When customers initiate a 7-day return request from their account or customer support, it will appear here for management.'
                 : 'No return requests match your current search and filter settings.'}
             </p>
           </div>

@@ -29,6 +29,7 @@ export default function CheckoutPage() {
     cartTotal,
     appliedCoupon,
     user,
+    isAuthLoading,
     addresses,
     placeOrder,
     showToast,
@@ -49,12 +50,40 @@ export default function CheckoutPage() {
   const [paymentError, setPaymentError] = useState('');
   const [razorpayReady, setRazorpayReady] = useState(false);
 
+  // Sync user details when auth finishes hydrating
   useEffect(() => {
+    if (user?.name) setCustomerName((prev) => prev || user.name);
+    if (user?.email) setCustomerEmail((prev) => prev || user.email);
+    if (user?.phone) setCustomerPhone((prev) => prev || user.phone);
+  }, [user]);
+
+  useEffect(() => {
+    if (defaultAddr) {
+      setAddressLine((prev) => prev || defaultAddr.addressLine || '');
+      setCity((prev) => prev || defaultAddr.city || '');
+      setState((prev) => prev || defaultAddr.state || '');
+      setPincode((prev) => prev || defaultAddr.pincode || '');
+    }
+  }, [defaultAddr]);
+
+  useEffect(() => {
+    if (isAuthLoading) return;
     if (!user?.email) {
       showToast('Sign In to Place Order 💎', 'Please sign in to finalize delivery and place your order.', 'info');
       router.push('/login?redirect=/checkout');
     }
-  }, [user?.email, router, showToast]);
+  }, [user?.email, isAuthLoading, router, showToast]);
+
+  if (isAuthLoading) {
+    return (
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-20 text-center">
+        <div className="bg-white rounded-3xl p-12 border border-[#E8E1D5] shadow-sm flex flex-col items-center justify-center space-y-4">
+          <div className="w-10 h-10 border-2 border-[#C5A059] border-t-transparent rounded-full animate-spin" />
+          <p className="font-serif-title text-base font-bold text-[#0B241C]">Preparing your checkout...</p>
+        </div>
+      </div>
+    );
+  }
 
   const finalizeOrder = (paymentMeta: {
     paymentMethod: string;
@@ -116,7 +145,7 @@ export default function CheckoutPage() {
       const { order } = orderData;
 
       const options: any = {
-        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || 'rzp_test_TJeWi2eGUrJwHC',
         amount: order.amount,
         currency: order.currency,
         name: 'Purnya',

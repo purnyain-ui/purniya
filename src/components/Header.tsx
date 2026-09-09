@@ -23,6 +23,7 @@ import {
   EyeOff,
   AlertCircle,
   Loader2,
+  Leaf,
 } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import { signInWithSupabase, signUpWithSupabase, isSupabaseConfigured, sendPasswordResetEmail } from '../lib/supabase';
@@ -44,6 +45,7 @@ function HeaderContent() {
   } = useStore();
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [expandedMobileCategory, setExpandedMobileCategory] = useState<string | null>(null);
   const [otherBoutiquesOpen, setOtherBoutiquesOpen] = useState(false);
 
   // Profile Dropdown Popover (for logged-in patrons)
@@ -81,6 +83,35 @@ function HeaderContent() {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [profileDropdownOpen]);
+
+  // Lock body scroll when mobile menu is open & listen for Escape key
+  useEffect(() => {
+    if (mobileMenuOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setMobileMenuOpen(false);
+      }
+    };
+
+    if (mobileMenuOpen) {
+      window.addEventListener('keydown', handleKeyDown);
+    }
+
+    return () => {
+      document.body.style.overflow = '';
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [mobileMenuOpen]);
+
+  // Close mobile menu automatically on route change
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [pathname, searchParams]);
 
   // Handle Profile click
   const handleProfileClick = () => {
@@ -278,18 +309,13 @@ function HeaderContent() {
                   .slice(0, 4)
                   .map((sub) => {
                     const cleanSub = (sub || '').trim();
-                    const isSubActive = currentSub === cleanSub;
                     return (
                       <Link
                         key={cleanSub}
-                        href={`/category/${(currentCategory.slug || '').trim()}?sub=${encodeURIComponent(cleanSub)}`}
-                        className={`py-2 relative transition-colors duration-200 hover:text-[#0C3B2E] ${isSubActive ? 'text-[#0C3B2E] font-bold' : ''
-                          }`}
+                        href={`/category/${(currentCategory.slug || '').trim()}/${encodeURIComponent(cleanSub)}`}
+                        className={`py-2 relative transition-colors duration-200 hover:text-[#0C3B2E]`}
                       >
                         {cleanSub}
-                        {isSubActive && (
-                          <span className="absolute bottom-0 left-0 right-0 h-[2.5px] bg-[#0C3B2E] rounded-full" />
-                        )}
                       </Link>
                     );
                   })}
@@ -357,7 +383,7 @@ function HeaderContent() {
                 </Link>
               </>
             ) : (
-              // Main Multi-Category Portal Navigation
+              // Main Multi-Category Portal Navigation (Opens boutique in new tab)
               navLinks.map((link) => {
                 const isActive = pathname === link.href;
                 return (
@@ -366,11 +392,13 @@ function HeaderContent() {
                     href={link.href}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className={`py-2 relative transition-colors duration-200 hover:text-[#0C3B2E] inline-flex items-center gap-1 ${isActive ? 'text-[#0C3B2E] font-bold' : ''
-                      }`}
-                    title={`Open ${link.name} in a new website tab`}
+                    className={`py-2 relative transition-colors duration-200 hover:text-[#0C3B2E] inline-flex items-center gap-1 ${
+                      isActive ? 'text-[#0C3B2E] font-bold' : ''
+                    }`}
+                    title={`Open ${link.name} Boutique in new tab`}
                   >
                     <span>{link.name}</span>
+                    <ArrowUpRight className="w-3.5 h-3.5 text-[#C5A059]" />
                     {isActive && (
                       <span className="absolute bottom-0 left-0 right-0 h-[2.5px] bg-[#0C3B2E] rounded-full" />
                     )}
@@ -574,132 +602,329 @@ function HeaderContent() {
           </div>
         </div>
 
-        {/* Mobile Navigation Drawer */}
-        {mobileMenuOpen && (
-          <div className="lg:hidden fixed inset-x-0 top-[117px] bottom-0 bg-black/40 backdrop-blur-sm z-50">
-            <div className="bg-[#FAF8F5] h-full max-w-sm w-full p-6 shadow-2xl border-r border-[#E2DBD0] overflow-y-auto">
-              <div className="flex items-center gap-2 mb-4">
-                <img src="/purnya-logo.png" alt="Purnya" className="w-8 h-8 object-contain" />
-                <p className="text-xs font-bold uppercase tracking-widest text-[#0C3B2E]">
-                  {currentCategory ? `${currentCategory.title.trim()} Store` : 'Shop Five Worlds'}
-                </p>
-              </div>
+      </header>
 
-              {currentCategory ? (
-                <div className="space-y-1">
-                  <Link
-                    href={`/category/${currentCategory.slug.trim()}`}
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="flex items-center justify-between py-2.5 px-3 rounded-xl text-sm font-bold text-[#0C3B2E] bg-[#EBF3EF]"
+      {/* Mobile Navigation Drawer (Rendered outside header to avoid backdrop-filter containment issues) */}
+      {mobileMenuOpen && (
+        <div className="lg:hidden fixed inset-0 z-[100] flex" role="dialog" aria-modal="true">
+          {/* Backdrop with fade-in and tap-to-close */}
+          <div
+            className="fixed inset-0 bg-black/60 backdrop-blur-xs transition-opacity duration-300 animate-in fade-in cursor-pointer"
+            onClick={() => setMobileMenuOpen(false)}
+            aria-label="Close menu backdrop"
+          />
+
+          {/* Drawer Panel with smooth slide-in */}
+          <div className="relative w-[86vw] max-w-sm bg-[#FAF8F5] h-full shadow-2xl z-10 flex flex-col overflow-hidden animate-in slide-in-from-left duration-300 border-r border-[#E2DBD0]">
+            {/* Drawer Header */}
+            <div className="flex items-center justify-between p-4 sm:p-5 border-b border-[#E2DBD0] bg-white shrink-0">
+              <Link
+                href="/"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center gap-2.5"
+              >
+                <div className="w-9 h-9 rounded-full overflow-hidden flex items-center justify-center p-0.5 bg-[#FAF8F5] border border-[#C5A059]/50 shadow-xs">
+                  <img src="/purnya-logo.png" alt="Purnya" className="w-full h-full object-contain" />
+                </div>
+                <div>
+                  <span className="font-serif-title text-xl font-bold tracking-[0.14em] text-[#0C3B2E] block leading-none">
+                    PURNYA
+                  </span>
+                  <span className="text-[9px] uppercase tracking-[0.2em] text-[#C5A059] font-bold block mt-0.5">
+                    Maison of Luxury
+                  </span>
+                </div>
+              </Link>
+
+              <button
+                onClick={() => setMobileMenuOpen(false)}
+                className="w-9 h-9 flex items-center justify-center text-[#0C3B2E] hover:text-[#C5A059] hover:bg-[#FAF8F5] rounded-full transition-colors border border-transparent hover:border-[#E2DBD0] cursor-pointer"
+                aria-label="Close menu"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Patron Profile Banner */}
+            <div className="p-4 bg-[#08281F] text-[#FAF8F5] shrink-0 border-b border-[#144234]">
+              {user?.email ? (
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-full bg-[#164E3D] text-[#D4AF37] border border-[#C5A059] font-bold text-xs flex items-center justify-center">
+                      {(user.name || user.email || 'U').charAt(0).toUpperCase()}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-xs font-bold text-[#FAF8F5] truncate">{user.name || 'Patron'}</p>
+                      <p className="text-[10px] text-[#C5A059] truncate">Purnya Circle Member</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      handleSignOut();
+                    }}
+                    className="text-[10px] uppercase font-bold text-rose-300 hover:text-rose-100 flex items-center gap-1 cursor-pointer"
                   >
-                    <span>Home ({currentCategory.title.trim()})</span>
-                    <ChevronRight className="w-4 h-4 text-[#C5A059]" />
+                    <LogOut className="w-3 h-3" />
+                    <span>Sign Out</span>
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-bold text-[#FAF8F5]">Welcome to Purnya</p>
+                    <p className="text-[10px] text-[#A3B8B0]">Sign in for wishlist, orders &amp; perks</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      setAuthMode('login');
+                      setAuthModalOpen(true);
+                    }}
+                    className="px-3.5 py-1.5 rounded-full bg-[#C5A059] hover:bg-[#D4AF37] text-[#08281F] font-bold text-[10px] uppercase tracking-wider transition-all cursor-pointer shadow-xs"
+                  >
+                    Sign In
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Scrollable Navigation Body */}
+            <div className="flex-1 overflow-y-auto overscroll-contain p-4 space-y-5">
+              {/* If Logged In: Quick Actions */}
+              {user?.email && (
+                <div className="grid grid-cols-3 gap-2 pb-1">
+                  <Link
+                    href="/account?tab=orders"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex flex-col items-center justify-center p-2.5 rounded-2xl bg-white border border-[#E2DBD0] text-center hover:bg-[#EBF3EF] transition-colors"
+                  >
+                    <Package className="w-4 h-4 text-[#C5A059] mb-1" />
+                    <span className="text-[10px] font-bold text-[#0B241C]">Orders</span>
                   </Link>
+                  <Link
+                    href="/wishlist"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex flex-col items-center justify-center p-2.5 rounded-2xl bg-white border border-[#E2DBD0] text-center hover:bg-[#EBF3EF] transition-colors relative"
+                  >
+                    <Heart className="w-4 h-4 text-[#C5A059] mb-1" />
+                    <span className="text-[10px] font-bold text-[#0B241C]">Wishlist</span>
+                    {wishlistCount > 0 && (
+                      <span className="absolute top-1 right-2 text-[9px] font-bold text-white bg-[#C5A059] rounded-full w-3.5 h-3.5 flex items-center justify-center">
+                        {wishlistCount}
+                      </span>
+                    )}
+                  </Link>
+                  <Link
+                    href="/cart"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex flex-col items-center justify-center p-2.5 rounded-2xl bg-white border border-[#E2DBD0] text-center hover:bg-[#EBF3EF] transition-colors relative"
+                  >
+                    <ShoppingBag className="w-4 h-4 text-[#C5A059] mb-1" />
+                    <span className="text-[10px] font-bold text-[#0B241C]">Cart</span>
+                    {cartCount > 0 && (
+                      <span className="absolute top-1 right-2 text-[9px] font-bold text-white bg-[#0C3B2E] rounded-full w-3.5 h-3.5 flex items-center justify-center">
+                        {cartCount}
+                      </span>
+                    )}
+                  </Link>
+                </div>
+              )}
 
-                  {currentCategory.subcategories.map((sub) => (
-                    <Link
-                      key={sub}
-                      href={`/category/${currentCategory.slug.trim()}?sub=${encodeURIComponent(sub.trim())}`}
-                      onClick={() => setMobileMenuOpen(false)}
-                      className="flex items-center justify-between py-2.5 px-3 rounded-xl text-sm font-semibold text-[#0B241C] hover:bg-white"
-                    >
-                      <span>{sub.trim()}</span>
-                      <ChevronRight className="w-4 h-4 text-[#C5A059]" />
-                    </Link>
-                  ))}
+              {/* Categories Section with Interactive Subcategory Accordion */}
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#C5A059] mb-2.5 px-1">
+                  Explore The Five Worlds
+                </p>
+                <div className="space-y-2">
+                  {categories.map((cat) => {
+                    const catSlug = (cat.slug || '').trim();
+                    const isCurrent = currentCategorySlug?.toLowerCase() === catSlug.toLowerCase();
+                    const isExpanded = expandedMobileCategory === catSlug;
+                    const cleanSubs = (cat.subcategories || []).filter((s) => (s || '').trim() !== 'All');
 
-                  <div className="pt-4 border-t border-[#E2DBD0]/70 mt-2 space-y-2">
-                    <p className="px-3 text-[10px] font-bold uppercase tracking-widest text-[#5A7469]">
-                      Switch Category (Opens New Tab)
-                    </p>
-                    {categories
-                      .filter((c) => c.slug.trim() !== currentCategory.slug.trim())
-                      .map((otherCat) => (
-                        <Link
-                          key={otherCat.id}
-                          href={`/category/${otherCat.slug.trim()}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          onClick={() => setMobileMenuOpen(false)}
-                          className="flex items-center justify-between py-2 px-3 rounded-xl text-xs font-semibold text-[#0B241C] hover:bg-white transition-colors"
-                        >
-                          <div className="flex items-center gap-2">
-                            <div className="w-5 h-5 rounded-full overflow-hidden shrink-0 border border-[#C5A059]/40 bg-[#EBF3EF]">
+                    return (
+                      <div
+                        key={cat.id || catSlug}
+                        className={`rounded-2xl border transition-all overflow-hidden ${
+                          isCurrent
+                            ? 'bg-[#EBF3EF] border-[#C5A059]/60 shadow-xs'
+                            : 'bg-white border-[#E2DBD0]'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between p-3">
+                          <Link
+                            href={`/category/${catSlug}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={() => setMobileMenuOpen(false)}
+                            className="flex items-center gap-2.5 flex-1 min-w-0"
+                          >
+                            <div className="w-7 h-7 rounded-full overflow-hidden shrink-0 border border-[#C5A059]/40 bg-[#FAF8F5]">
                               <img
-                                src={otherCat.bannerImage || otherCat.heroImage}
+                                src={cat.bannerImage || cat.heroImage}
                                 alt=""
                                 className="w-full h-full object-cover"
                               />
                             </div>
-                            <span>{otherCat.title.trim()}</span>
+                            <span className={`text-xs font-bold truncate ${isCurrent ? 'text-[#0C3B2E]' : 'text-[#0B241C]'}`}>
+                              {(cat.title || '').trim()}
+                            </span>
+                            <ArrowUpRight className="w-3 h-3 text-[#C5A059] shrink-0" />
+                          </Link>
+
+                          {cleanSubs.length > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => setExpandedMobileCategory(isExpanded ? null : catSlug)}
+                              className="p-1.5 text-[#5A7469] hover:text-[#0C3B2E] rounded-lg transition-transform cursor-pointer"
+                              aria-label={`Toggle ${(cat.title || '').trim()} subcategories`}
+                            >
+                              <ChevronDown
+                                className={`w-4 h-4 text-[#C5A059] transition-transform duration-200 ${
+                                  isExpanded ? 'rotate-180' : ''
+                                }`}
+                              />
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Subcategories Accordion */}
+                        {isExpanded && cleanSubs.length > 0 && (
+                          <div className="bg-[#FAF8F5] border-t border-[#EFEBE3] px-3 py-2 space-y-1 animate-in fade-in duration-150">
+                            <Link
+                              href={`/category/${catSlug}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={() => setMobileMenuOpen(false)}
+                              className="flex items-center justify-between py-1.5 px-2.5 text-[11px] font-bold text-[#0C3B2E] hover:bg-white rounded-lg transition-colors"
+                            >
+                              <span>All {(cat.title || '').trim()}</span>
+                              <ArrowUpRight className="w-3 h-3 text-[#C5A059]" />
+                            </Link>
+                            {cleanSubs.map((sub) => {
+                              const cleanSub = (sub || '').trim();
+                              return (
+                                <Link
+                                  key={cleanSub}
+                                  href={`/category/${catSlug}/${encodeURIComponent(cleanSub)}`}
+                                  onClick={() => setMobileMenuOpen(false)}
+                                  className="flex items-center justify-between py-1.5 px-2.5 text-[11px] text-[#2C4A3E] hover:text-[#0C3B2E] hover:bg-white rounded-lg transition-colors font-medium"
+                                >
+                                  <span>{cleanSub}</span>
+                                  <ChevronRight className="w-3 h-3 text-[#C5A059]/60" />
+                                </Link>
+                              );
+                            })}
                           </div>
-                          <ArrowUpRight className="w-3.5 h-3.5 text-[#C5A059]" />
-                        </Link>
-                      ))}
-                  </div>
-
-                  <div className="pt-3">
-                    <Link
-                      href="/"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={() => setMobileMenuOpen(false)}
-                      className="flex items-center justify-between py-2.5 px-3 rounded-xl text-sm font-bold text-[#08281F] bg-[#FAF5EA] border border-[#C5A059]/40"
-                    >
-                      <span>Explore Main Portal ↗</span>
-                      <ArrowUpRight className="w-4 h-4 text-[#C5A059]" />
-                    </Link>
-                  </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
-              ) : (
-                <div className="space-y-1">
-                  {navLinks.map((link) => (
-                    <Link
-                      key={link.href}
-                      href={link.href}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={() => setMobileMenuOpen(false)}
-                      className="flex items-center justify-between py-3 px-3 rounded-xl text-sm font-semibold text-[#0B241C] hover:bg-white transition-colors"
-                    >
-                      <span>{link.name}</span>
-                      <ArrowUpRight className="w-4 h-4 text-[#C5A059]" />
-                    </Link>
-                  ))}
-                </div>
-              )}
+              </div>
 
-              <div className="border-t border-[#E2DBD0] my-6 pt-6 space-y-3">
+              {/* Main Brand Links */}
+              <div className="space-y-1 pt-2 border-t border-[#E2DBD0]">
+                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#C5A059] mb-2 px-1">
+                  Discover Purnya
+                </p>
+                <Link
+                  href="/"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="flex items-center justify-between p-2.5 rounded-xl text-xs font-semibold text-[#0B241C] hover:bg-white transition-colors"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Sparkles className="w-4 h-4 text-[#C5A059]" />
+                    <span>Main Storefront</span>
+                  </div>
+                  <ChevronRight className="w-3.5 h-3.5 text-[#5A7469]" />
+                </Link>
+
+                <Link
+                  href="/about"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="flex items-center justify-between p-2.5 rounded-xl text-xs font-semibold text-[#0B241C] hover:bg-white transition-colors"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Leaf className="w-4 h-4 text-[#C5A059]" />
+                    <span>Our Story &amp; Ethos</span>
+                  </div>
+                  <ChevronRight className="w-3.5 h-3.5 text-[#5A7469]" />
+                </Link>
+
                 <Link
                   href="/order-tracking"
                   onClick={() => setMobileMenuOpen(false)}
-                  className="flex items-center gap-3 py-2 px-3 text-sm text-[#2C4A3E] hover:text-[#0C3B2E]"
+                  className="flex items-center justify-between p-2.5 rounded-xl text-xs font-semibold text-[#0B241C] hover:bg-white transition-colors"
                 >
-                  <Package className="w-4 h-4 text-[#C5A059]" />
-                  <span>Track Your Order</span>
+                  <div className="flex items-center gap-2.5">
+                    <Package className="w-4 h-4 text-[#C5A059]" />
+                    <span>Track Your Order</span>
+                  </div>
+                  <ChevronRight className="w-3.5 h-3.5 text-[#5A7469]" />
                 </Link>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMobileMenuOpen(false);
-                    handleProfileClick();
-                  }}
-                  className="w-full flex items-center gap-3 py-2 px-3 text-sm text-[#2C4A3E] hover:text-[#0C3B2E] text-left cursor-pointer"
+                <Link
+                  href="/faq"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="flex items-center justify-between p-2.5 rounded-xl text-xs font-semibold text-[#0B241C] hover:bg-white transition-colors"
                 >
-                  <User className="w-4 h-4 text-[#C5A059]" />
-                  <span>{user?.email ? `My Account (${user.name || 'Member'})` : 'Sign In / Register'}</span>
-                </button>
+                  <div className="flex items-center gap-2.5">
+                    <AlertCircle className="w-4 h-4 text-[#C5A059]" />
+                    <span>Help &amp; FAQs</span>
+                  </div>
+                  <ChevronRight className="w-3.5 h-3.5 text-[#5A7469]" />
+                </Link>
+
+                <Link
+                  href="/contact"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="flex items-center justify-between p-2.5 rounded-xl text-xs font-semibold text-[#0B241C] hover:bg-white transition-colors"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Phone className="w-4 h-4 text-[#C5A059]" />
+                    <span>Customer Care Support</span>
+                  </div>
+                  <ChevronRight className="w-3.5 h-3.5 text-[#5A7469]" />
+                </Link>
               </div>
 
-              <div className="bg-white p-4 rounded-xl border border-[#E2DBD0] mt-4 text-xs text-[#5A7469] space-y-2">
-                <p className="font-semibold text-[#0B241C]">Purnya Concierge Support</p>
-                <p>care@purnya.in | +91 98765 43210</p>
+              {/* Policy Links */}
+              <div className="pt-2 border-t border-[#E2DBD0]">
+                <div className="flex flex-wrap gap-x-3 gap-y-1.5 text-[11px] text-[#5A7469] px-1">
+                  <Link href="/terms" onClick={() => setMobileMenuOpen(false)} className="hover:text-[#0C3B2E]">
+                    Terms &amp; Conditions
+                  </Link>
+                  <span>·</span>
+                  <Link href="/privacy-policy" onClick={() => setMobileMenuOpen(false)} className="hover:text-[#0C3B2E]">
+                    Privacy Policy
+                  </Link>
+                  <span>·</span>
+                  <Link href="/shipping-policy" onClick={() => setMobileMenuOpen(false)} className="hover:text-[#0C3B2E]">
+                    Shipping
+                  </Link>
+                  <span>·</span>
+                  <Link href="/return-policy" onClick={() => setMobileMenuOpen(false)} className="hover:text-[#0C3B2E]">
+                    Returns
+                  </Link>
+                </div>
+              </div>
+
+              {/* Customer Care Support Card */}
+              <div className="bg-white p-3.5 rounded-2xl border border-[#E2DBD0] text-xs text-[#5A7469] space-y-1.5 shadow-xs">
+                <p className="font-bold text-[#0B241C] flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                  <span>Purnya Customer Support</span>
+                </p>
+                <p className="text-[11px] text-[#2C4A3E]">care@purnya.in | +91 7892297609</p>
+                <p className="text-[10px] text-[#849C92]">Mon–Sat: 10 AM–6 PM IST</p>
               </div>
             </div>
           </div>
-        )}
-      </header>
+        </div>
+      )}
 
       {/* 4. AUTHENTICATION POP-UP MODAL (Appears on clicking profile instead of redirecting to page!) */}
       {authModalOpen && !user?.email && (

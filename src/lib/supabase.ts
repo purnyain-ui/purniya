@@ -186,8 +186,19 @@ export async function getProductsFromSupabase(): Promise<Product[] | null> {
       const allImages = dbImages.length > 0 ? dbImages : (Array.isArray(p.images) && p.images.length > 0 ? p.images : [firstImage]);
 
       // 2. Real price & selling_price
-      const rawPrice = Number(p.price || 0);
-      const sellingPrice = p.selling_price != null ? Number(p.selling_price) : (p.offer_price != null ? Number(p.offer_price) : null);
+      let rawPrice = Number(p.price || 0);
+      let sellingPrice = p.selling_price != null ? Number(p.selling_price) : (p.offer_price != null ? Number(p.offer_price) : null);
+
+      // If base price is 0 or missing, derive the starting price from product variants
+      if (rawPrice <= 0 && (!sellingPrice || sellingPrice <= 0) && myVariants.length > 0) {
+        const variantPrices = myVariants
+          .map((v: any) => Number(v.selling_price != null && Number(v.selling_price) > 0 ? v.selling_price : (v.price || 0)))
+          .filter((pr: number) => pr > 0);
+        if (variantPrices.length > 0) {
+          rawPrice = Math.min(...variantPrices);
+        }
+      }
+
       const finalPrice = (sellingPrice !== null && sellingPrice > 0) ? sellingPrice : rawPrice;
       const originalPrice = (sellingPrice !== null && rawPrice > sellingPrice) ? rawPrice : (p.original_price ? Number(p.original_price) : undefined);
 
@@ -234,9 +245,9 @@ export async function getProductsFromSupabase(): Promise<Product[] | null> {
       return {
         id: p.id,
         name: title,
-        category: catTitle,
+        category: (catTitle || '').replace(/é/g, 'e').replace(/É/g, 'E'),
         categorySlug: catSlug,
-        subcategory: subName,
+        subcategory: (subName || '').replace(/é/g, 'e').replace(/É/g, 'E'),
         price: finalPrice,
         originalPrice,
         image: firstImage,
@@ -296,19 +307,21 @@ export async function getCategoriesFromSupabase(): Promise<CategoryMeta[] | null
       const hero = (c.hero_image?.trim() || c.banner_image?.trim() || c.heroImage?.trim() || c.bannerImage?.trim() || '');
       const banner = (c.banner_image?.trim() || c.hero_image?.trim() || c.bannerImage?.trim() || c.heroImage?.trim() || '');
 
+      const cleanDecor = (str: string) => (str || '').replace(/é/g, 'e').replace(/É/g, 'E');
+
       const subcatNames = matchingSubs.length > 0
-        ? ['All', ...matchingSubs.map((s: any) => (s.name || '').trim())]
-        : (Array.isArray(c.subcategories) && c.subcategories.length > 0 ? c.subcategories : ['All']);
+        ? ['All', ...matchingSubs.map((s: any) => cleanDecor((s.name || '').trim()))]
+        : (Array.isArray(c.subcategories) && c.subcategories.length > 0 ? c.subcategories.map((s: any) => cleanDecor((s || '').trim())) : ['All']);
 
       const subcatImgs = matchingSubs.length > 0
-        ? matchingSubs.map((s: any) => ({ name: (s.name || '').trim(), image: (s.image || '').trim() || hero }))
-        : (Array.isArray(c.subcat_images) ? c.subcat_images : (c.subcatImages || []));
+        ? matchingSubs.map((s: any) => ({ name: cleanDecor((s.name || '').trim()), image: (s.image || '').trim() || hero }))
+        : (Array.isArray(c.subcat_images) ? c.subcat_images.map((s: any) => ({ ...s, name: cleanDecor((s.name || '').trim()) })) : (c.subcatImages || []));
 
       return {
         id: c.id,
         slug: (c.slug || '').trim(),
-        title: (c.title || '').trim(),
-        subtitle: (c.subtitle || '').trim(),
+        title: cleanDecor((c.title || '').trim()),
+        subtitle: cleanDecor((c.subtitle || '').trim()),
         heroImage: hero,
         bannerImage: banner,
         subcategories: subcatNames,
@@ -340,6 +353,10 @@ export async function saveOrderToSupabase(order: Order): Promise<boolean> {
         items: order.items,
         shipping_address: order.shippingAddress,
         payment_method: order.paymentMethod,
+        razorpay_order_id: order.razorpayOrderId || null,
+        razorpay_payment_id: order.razorpayPaymentId || null,
+        razorpay_signature: order.razorpaySignature || null,
+        payment_status: order.paymentStatus || (order.razorpayPaymentId ? 'paid' : (order.paymentMethod === 'Cash on Delivery' ? 'cod' : 'pending')),
         created_at: order.date,
       },
     ]);
@@ -1170,6 +1187,10 @@ export async function getOrdersForCustomerFromSupabase(userEmail: string): Promi
       },
       shippingAddress: row.shipping_address || {},
       paymentMethod: row.payment_method || 'Razorpay',
+      razorpayOrderId: row.razorpay_order_id || undefined,
+      razorpayPaymentId: row.razorpay_payment_id || undefined,
+      razorpaySignature: row.razorpay_signature || undefined,
+      paymentStatus: row.payment_status || (row.razorpay_payment_id ? 'paid' : (row.payment_method === 'Cash on Delivery' ? 'cod' : 'pending')),
       trackingNumber: row.tracking_number,
       courierPartner: row.courier || 'BlueDart Express',
     }));
@@ -1389,6 +1410,10 @@ export async function getCustomersAndPatronsFromSupabase(): Promise<CustomerReco
         },
         shippingAddress: o.shipping_address || {},
         paymentMethod: o.payment_method || 'Razorpay',
+        razorpayOrderId: o.razorpay_order_id || undefined,
+        razorpayPaymentId: o.razorpay_payment_id || undefined,
+        razorpaySignature: o.razorpay_signature || undefined,
+        paymentStatus: o.payment_status || (o.razorpay_payment_id ? 'paid' : (o.payment_method === 'Cash on Delivery' ? 'cod' : 'pending')),
         trackingNumber: o.tracking_number,
         courierPartner: o.courier || 'BlueDart Express',
       };
@@ -1472,6 +1497,10 @@ export async function getAllOrdersFromSupabase(): Promise<Order[]> {
       },
       shippingAddress: row.shipping_address || {},
       paymentMethod: row.payment_method || 'Razorpay',
+      razorpayOrderId: row.razorpay_order_id || undefined,
+      razorpayPaymentId: row.razorpay_payment_id || undefined,
+      razorpaySignature: row.razorpay_signature || undefined,
+      paymentStatus: row.payment_status || (row.razorpay_payment_id ? 'paid' : (row.payment_method === 'Cash on Delivery' ? 'cod' : 'pending')),
       trackingNumber: row.tracking_number,
       courierPartner: row.courier || 'BlueDart Express',
     }));

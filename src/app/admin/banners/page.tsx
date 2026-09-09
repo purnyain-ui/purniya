@@ -19,7 +19,7 @@ const defaultNewSlide: HeroSlide = {
 
 const SUGGESTED_LINKS = [
   { label: 'Jewellery', path: '/category/apparel' },
-  { label: 'Home Décor', path: '/category/Lifestyle' },
+  { label: 'Home Decor', path: '/category/Lifestyle' },
   { label: 'Gifts', path: '/category/Gift' },
   { label: 'Wellness', path: '/category/Wellness' },
   { label: 'Fragrance', path: '/category/Fragrance' },

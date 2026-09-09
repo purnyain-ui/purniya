@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import {
   User,
   Package,
@@ -20,9 +21,17 @@ import {
 import { useStore } from '../../context/StoreContext';
 import { Address } from '../../types';
 
-export default function AccountPage() {
-  const { user, updateUser, orders, addresses, addAddress, deleteAddress, showToast, logoutUser } = useStore();
+function AccountContent() {
+  const { user, isAuthLoading, updateUser, orders, addresses, addAddress, deleteAddress, showToast, logoutUser } = useStore();
+  const searchParams = useSearchParams();
+  const tabParam = searchParams.get('tab');
   const [activeTab, setActiveTab] = useState<'profile' | 'orders' | 'addresses' | 'returns'>('orders');
+
+  useEffect(() => {
+    if (tabParam && ['profile', 'orders', 'addresses', 'returns'].includes(tabParam)) {
+      setActiveTab(tabParam as any);
+    }
+  }, [tabParam]);
 
   // Edit Profile modal state
   const [isEditingProfile, setIsEditingProfile] = useState(false);
@@ -114,6 +123,20 @@ export default function AccountPage() {
     Returned: 'bg-gray-100 text-gray-800 border-gray-300',
   };
 
+  // 1. Loading state while authentication hydrates from Supabase / localStorage
+  if (isAuthLoading) {
+    return (
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-20 text-center">
+        <div className="bg-white rounded-3xl p-12 border border-[#E8E1D5] shadow-sm flex flex-col items-center justify-center space-y-4">
+          <div className="w-10 h-10 border-2 border-[#C5A059] border-t-transparent rounded-full animate-spin" />
+          <p className="font-serif-title text-base font-bold text-[#0B241C]">Loading your account...</p>
+          <p className="text-xs text-[#5A7469]">Retrieving your orders and profile details</p>
+        </div>
+      </div>
+    );
+  }
+
+  // 2. Unauthenticated patron prompt — only rendered once auth verification is complete!
   if (!user.email && !user.name) {
     return (
       <div className="max-w-4xl mx-auto px-4 sm:px-6 py-16 sm:py-24 text-center">
@@ -131,14 +154,14 @@ export default function AccountPage() {
           </div>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
             <Link
-              href="/login"
+              href="/login?redirect=/account"
               className="w-full sm:w-auto px-8 py-3.5 rounded-xl bg-[#08281F] hover:bg-[#0C3B2E] text-white font-bold text-xs sm:text-sm tracking-wide shadow-md transition-all flex items-center justify-center gap-2"
             >
               <span>Sign In to Account</span>
               <ChevronRight className="w-4 h-4 text-[#D4AF37]" />
             </Link>
             <Link
-              href="/signup"
+              href="/signup?redirect=/account"
               className="w-full sm:w-auto px-8 py-3.5 rounded-xl border border-[#08281F] text-[#08281F] hover:bg-[#FAF8F5] font-bold text-xs sm:text-sm transition-all"
             >
               Join Purnya Circle
@@ -385,7 +408,7 @@ export default function AccountPage() {
                   </div>
                   <div className="p-4 rounded-2xl bg-[#FAF8F5] border border-[#E2DBD0]">
                     <span className="text-[#5A7469] block mb-1 uppercase tracking-wider">Account Tier</span>
-                    <p className="text-sm font-bold text-[#C5A059]">Purnya Concierge Circle</p>
+                    <p className="text-sm font-bold text-[#C5A059]">Purnya Patron Circle</p>
                   </div>
                 </div>
               )}
@@ -598,5 +621,22 @@ export default function AccountPage() {
         </main>
       </div>
     </div>
+  );
+}
+
+export default function AccountPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 py-20 text-center">
+          <div className="bg-white rounded-3xl p-12 border border-[#E8E1D5] shadow-sm flex flex-col items-center justify-center space-y-4">
+            <div className="w-10 h-10 border-2 border-[#C5A059] border-t-transparent rounded-full animate-spin" />
+            <p className="font-serif-title text-base font-bold text-[#0B241C]">Loading your account...</p>
+          </div>
+        </div>
+      }
+    >
+      <AccountContent />
+    </Suspense>
   );
 }

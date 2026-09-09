@@ -2,10 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 import Razorpay from 'razorpay';
 
-const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID!,
-  key_secret: process.env.RAZORPAY_KEY_SECRET!,
-});
+function getRazorpay() {
+  const key_id = process.env.RAZORPAY_KEY_ID || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
+  const key_secret = process.env.RAZORPAY_KEY_SECRET;
+  if (!key_id || !key_secret) {
+    throw new Error('Razorpay API keys are not configured.');
+  }
+  return new Razorpay({ key_id, key_secret });
+}
 
 // Turns Razorpay's internal method codes into a friendly label for storage/display.
 function humanizeMethod(method?: string): string {
@@ -58,8 +62,9 @@ export async function POST(req: NextRequest) {
     // (UPI, card, netbanking, wallet) so it can be saved against the order.
     let method: string | undefined;
     try {
+      const razorpay = getRazorpay();
       const payment = await razorpay.payments.fetch(razorpay_payment_id);
-      method = payment.method;
+      method = (payment as any).method;
     } catch (fetchErr) {
       console.warn('Could not fetch payment method detail:', fetchErr);
     }

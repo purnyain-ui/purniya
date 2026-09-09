@@ -91,6 +91,10 @@ export interface Order {
   };
   shippingAddress: Address;
   paymentMethod: 'UPI' | 'Credit / Debit Card' | 'Net Banking' | 'Razorpay' | 'Cash on Delivery';
+  razorpayOrderId?: string;
+  razorpayPaymentId?: string;
+  razorpaySignature?: string;
+  paymentStatus?: string;
   trackingNumber?: string;
   courierPartner?: string;
   estimatedDelivery?: string;
@@ -129,6 +133,7 @@ export interface HeroSlide {
 }
 
 export interface UserProfile {
+  id?: string;
   name: string;
   email: string;
   phone: string;

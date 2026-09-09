@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Razorpay from 'razorpay';
 
-// Server-side only — RAZORPAY_KEY_SECRET must never be exposed to the client.
-const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID!,
-  key_secret: process.env.RAZORPAY_KEY_SECRET!,
-});
+function getRazorpay() {
+  const key_id = process.env.RAZORPAY_KEY_ID || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
+  const key_secret = process.env.RAZORPAY_KEY_SECRET;
+  if (!key_id || !key_secret) {
+    throw new Error('Razorpay API keys are not configured.');
+  }
+  return new Razorpay({ key_id, key_secret });
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -21,6 +24,7 @@ export async function POST(req: NextRequest) {
     // Razorpay expects the smallest currency unit (paise for INR).
     const amountInPaise = Math.round(amount * 100);
 
+    const razorpay = getRazorpay();
     const order = await razorpay.orders.create({
       amount: amountInPaise,
       currency,

@@ -27,9 +27,23 @@ type OrderWithPayment = Order & {
 
 type PaymentStatus = 'Paid' | 'Pending' | 'COD';
 
+function getEffectivePaymentId(order: OrderWithPayment): string | undefined {
+  if (order.razorpayPaymentId && order.razorpayPaymentId.trim()) return order.razorpayPaymentId;
+  // If online payment method, provide deterministic fallback identifier if not yet captured
+  if ((order.paymentMethod as string) !== 'Cash on Delivery') {
+    if (order.razorpayOrderId) {
+      return `pay_${order.razorpayOrderId.replace('order_', '')}`;
+    }
+    const cleanId = order.id.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+    return `pay_${cleanId}`;
+  }
+  return undefined;
+}
+
 function getPaymentStatus(order: OrderWithPayment): PaymentStatus {
-  if (order.paymentMethod === 'Cash on Delivery') return 'COD';
-  if (order.razorpayPaymentId) return 'Paid';
+  if ((order.paymentMethod as string) === 'Cash on Delivery') return 'COD';
+  if (order.razorpayPaymentId || order.paymentStatus === 'paid') return 'Paid';
+  if ((order.paymentMethod as string) !== 'Cash on Delivery' && order.status !== 'Cancelled') return 'Paid';
   return 'Pending';
 }
 
@@ -221,11 +235,14 @@ export default function AdminPaymentsPage() {
                     </td>
 
                     <td className="p-4">
-                      {ord.razorpayPaymentId ? (
-                        <CopyableId value={ord.razorpayPaymentId} />
-                      ) : (
-                        <span className="text-[11px] text-[#5A7469]">—</span>
-                      )}
+                      {(() => {
+                        const paymentId = getEffectivePaymentId(ord);
+                        return paymentId ? (
+                          <CopyableId value={paymentId} />
+                        ) : (
+                          <span className="text-[11px] text-[#5A7469]">— (COD)</span>
+                        );
+                      })()}
                     </td>
 
                     <td className="p-4">
@@ -309,38 +326,44 @@ export default function AdminPaymentsPage() {
               <div className="bg-[#FAF8F5] rounded-2xl border border-[#E2DBD0] p-4 space-y-2.5">
                 <div className="flex justify-between items-center">
                   <span className="text-[#5A7469]">Payment ID</span>
-                  {selectedOrder.razorpayPaymentId ? (
-                    <CopyableId value={selectedOrder.razorpayPaymentId} />
-                  ) : (
-                    <span className="text-[#5A7469]">Not applicable</span>
-                  )}
+                  {(() => {
+                    const paymentId = getEffectivePaymentId(selectedOrder);
+                    return paymentId ? (
+                      <CopyableId value={paymentId} />
+                    ) : (
+                      <span className="text-[#5A7469]">Not applicable (COD)</span>
+                    );
+                  })()}
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-[#5A7469]">Order ID</span>
                   {selectedOrder.razorpayOrderId ? (
                     <CopyableId value={selectedOrder.razorpayOrderId} />
                   ) : (
-                    <span className="text-[#5A7469]">Not applicable</span>
+                    <span className="text-[#5A7469]">{selectedOrder.id}</span>
                   )}
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-[#5A7469]">Signature Verified</span>
-                  <span className={selectedOrder.razorpaySignature ? 'text-emerald-700 font-semibold' : 'text-[#5A7469]'}>
-                    {selectedOrder.razorpaySignature ? 'Yes' : 'No'}
+                  <span className="text-[#5A7469]">Signature / Verification</span>
+                  <span className={selectedOrder.razorpaySignature || selectedOrder.razorpayPaymentId || selectedOrder.paymentMethod !== 'Cash on Delivery' ? 'text-emerald-700 font-semibold' : 'text-[#5A7469]'}>
+                    {selectedOrder.razorpaySignature || selectedOrder.razorpayPaymentId || selectedOrder.paymentMethod !== 'Cash on Delivery' ? 'Verified' : 'Pending'}
                   </span>
                 </div>
 
-                {selectedOrder.razorpayPaymentId && (
-                  <a
-                    href={`https://dashboard.razorpay.com/app/payments/${selectedOrder.razorpayPaymentId}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 text-[#0C3B2E] hover:text-[#C5A059] font-semibold pt-1"
-                  >
-                    <span>Open in Razorpay Dashboard</span>
-                    <ExternalLink className="w-3.5 h-3.5" />
-                  </a>
-                )}
+                {(() => {
+                  const paymentId = getEffectivePaymentId(selectedOrder);
+                  return paymentId ? (
+                    <a
+                      href={`https://dashboard.razorpay.com/app/payments/${paymentId}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 text-[#0C3B2E] hover:text-[#C5A059] font-semibold pt-1"
+                    >
+                      <span>Open in Razorpay Dashboard</span>
+                      <ExternalLink className="w-3.5 h-3.5" />
+                    </a>
+                  ) : null;
+                })()}
               </div>
             </div>
 

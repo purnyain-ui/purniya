@@ -576,7 +576,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
   const cartProduct = {
     id: product.id,
     name: product.name,
-    price: displaySellingPrice ?? 0,
+    price: (displaySellingPrice ?? displayOriginalPrice ?? 0),
     originalPrice: showStrike ? displayOriginalPrice ?? undefined : undefined,
     image: galleryImages[0] || '',
     images: galleryImages,
@@ -584,6 +584,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
     categorySlug: category?.slug || '',
     subcategory: subcategory?.name || '',
     stock: displayStock,
+    status: ((product as any).status || 'Published') as any,
     sku: (hasVariants ? currentVariant?.sku : product.sku) || '',
     description: product.description || '',
   };
