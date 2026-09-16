@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Plus, X, Edit3, Trash2, Loader2, CheckCircle2, ShieldCheck, Mail } from 'lucide-react';
+import { Plus, X, Edit3, Trash2, Loader2, CheckCircle2, ShieldCheck, Mail, ChevronDown, ChevronRight } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient'; // Updated to point correctly to supabaseClient.ts
 
 interface SubAdmin {
@@ -15,14 +15,16 @@ interface SubAdmin {
   created_at: string;
 }
 
+type CategoryLite = { id: string; slug: string; title: string };
+
+// Tabs that are NOT split by category. Products Catalog and Inventory &
+// Stock are rendered separately below as expandable category groups.
 const ALL_AVAILABLE_TABS = [
   { id: 'dashboard', label: 'Dashboard Overview' },
   { id: 'home', label: 'Home Management' },
-  { id: 'products', label: 'Products Catalog' },
   { id: 'categories', label: 'Categories & Subcats' },
   { id: 'attributes', label: 'Attributes & Badges' },
   { id: 'orders', label: 'Orders Management' },
-  { id: 'inventory', label: 'Inventory & Stock' },
   { id: 'payments', label: 'Payments Update' },
   { id: 'customers', label: 'Customers & Patrons' },
   { id: 'shipping', label: 'Shipping & Logistics' },
@@ -33,8 +35,17 @@ const ALL_AVAILABLE_TABS = [
   { id: 'management', label: 'Admin Management' },
 ];
 
+// The two catalog-style tabs that get a per-category breakdown.
+// permission ids: 'products' / 'inventory' = full/"All" access,
+// 'products:<categoryId>' / 'inventory:<categoryId>' = single-category access.
+const CATALOG_GROUPS: { key: 'products' | 'inventory'; allId: string; label: string; allLabel: string }[] = [
+  { key: 'products', allId: 'products', label: 'Products Catalog', allLabel: 'All Products' },
+  { key: 'inventory', allId: 'inventory', label: 'Inventory & Stock', allLabel: 'All Inventory' },
+];
+
 export default function AdminManagementPage() {
   const [subAdmins, setSubAdmins] = useState<SubAdmin[]>([]);
+  const [categories, setCategories] = useState<CategoryLite[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [notification, setNotification] = useState<string | null>(null);
@@ -48,6 +59,12 @@ export default function AdminManagementPage() {
   const [role, setRole] = useState('Staff Manager');
   const [password, setPassword] = useState('');
   const [selectedPermissions, setSelectedPermissions] = useState<string[]>(['dashboard', 'orders', 'products']);
+
+  // Which catalog groups are expanded in the modal (Products Catalog / Inventory & Stock)
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({
+    products: true,
+    inventory: true,
+  });
 
   // Fetch SubAdmins from Supabase table on load
   const fetchSubAdmins = async () => {
@@ -68,8 +85,21 @@ export default function AdminManagementPage() {
     }
   };
 
+  // Fetch categories so we can list them under Products Catalog / Inventory & Stock,
+  // same source + ordering as the sidebar dropdowns.
+  const fetchCategories = async () => {
+    const { data, error } = await supabase
+      .from('categories')
+      .select('id, slug, title')
+      .order('priority', { ascending: true })
+      .order('title', { ascending: true });
+
+    if (!error) setCategories(data || []);
+  };
+
   useEffect(() => {
     fetchSubAdmins();
+    fetchCategories();
   }, []);
 
   const showNotificationMsg = (msg: string) => {
@@ -105,11 +135,45 @@ export default function AdminManagementPage() {
     }
   };
 
+  // Toggling "All Products" / "All Inventory" also clears any single-category
+  // picks for that group (they're redundant once the whole tab is granted),
+  // and toggling a single category clears the "All" flag for that group.
+  const toggleCatalogAll = (groupKey: 'products' | 'inventory') => {
+    const catIds = categories.map((c) => `${groupKey}:${c.id}`);
+    setSelectedPermissions((prev) => {
+      const hasAll = prev.includes(groupKey);
+      if (hasAll) {
+        return prev.filter((id) => id !== groupKey);
+      }
+      return [...prev.filter((id) => !catIds.includes(id)), groupKey];
+    });
+  };
+
+  const toggleCatalogCategory = (groupKey: 'products' | 'inventory', categoryId: string) => {
+    const permId = `${groupKey}:${categoryId}`;
+    setSelectedPermissions((prev) => {
+      const withoutAll = prev.filter((id) => id !== groupKey);
+      if (withoutAll.includes(permId)) {
+        return withoutAll.filter((id) => id !== permId);
+      }
+      return [...withoutAll, permId];
+    });
+  };
+
   const handleSelectAllPermissions = () => {
-    if (selectedPermissions.length === ALL_AVAILABLE_TABS.length) {
+    const catalogAllIds = categories.flatMap((c) => [`products:${c.id}`, `inventory:${c.id}`]);
+    const fullSet = [...ALL_AVAILABLE_TABS.map((t) => t.id), 'products', 'inventory', ...catalogAllIds];
+    // "select all" only needs to check against the base tabs + the two group flags,
+    // since granting 'products' / 'inventory' already implies every category.
+    const currentlyAll =
+      ALL_AVAILABLE_TABS.every((t) => selectedPermissions.includes(t.id)) &&
+      selectedPermissions.includes('products') &&
+      selectedPermissions.includes('inventory');
+
+    if (currentlyAll) {
       setSelectedPermissions([]);
     } else {
-      setSelectedPermissions(ALL_AVAILABLE_TABS.map((t) => t.id));
+      setSelectedPermissions([...ALL_AVAILABLE_TABS.map((t) => t.id), 'products', 'inventory']);
     }
   };
 
@@ -136,12 +200,21 @@ export default function AdminManagementPage() {
           updatePayload.password = password;
         }
 
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from('admin_users')
           .update(updatePayload)
-          .eq('id', editingId);
+          .eq('id', editingId)
+          .select();
 
         if (error) throw error;
+
+        // .update() does not error when the id matches nothing — it just
+        // affects zero rows. Catch that case explicitly so "Save" never
+        // silently does nothing.
+        if (!data || data.length === 0) {
+          throw new Error('No matching subadmin record was found to update (id may be stale — refresh and try again).');
+        }
+
         showNotificationMsg('Subadmin account successfully updated!');
       } else {
         // INSERT new record into Supabase
@@ -164,7 +237,14 @@ export default function AdminManagementPage() {
       fetchSubAdmins();
     } catch (err: any) {
       console.error('Database save error:', err.message);
-      showNotificationMsg(`Error: ${err.message}`);
+
+      // Postgres unique_violation code — give a readable message instead of
+      // surfacing the raw constraint name.
+      if (err.code === '23505' || (err.message || '').includes('admin_users_email_key')) {
+        showNotificationMsg('That email is already used by another subadmin. Use a different email.');
+      } else {
+        showNotificationMsg(`Error: ${err.message}`);
+      }
     } finally {
       setSaving(false);
     }
@@ -175,7 +255,7 @@ export default function AdminManagementPage() {
       try {
         const { error } = await supabase.from('admin_users').delete().eq('id', id);
         if (error) throw error;
-        
+
         showNotificationMsg('Subadmin removed successfully.');
         fetchSubAdmins();
       } catch (err: any) {
@@ -185,6 +265,25 @@ export default function AdminManagementPage() {
     }
   };
 
+  // Resolve a stored permission id ('products', 'inventory:<id>', 'orders', ...)
+  // to a human-readable label for the "Permitted Modules" badges.
+  const labelForPermission = (permId: string): string => {
+    const staticTab = ALL_AVAILABLE_TABS.find((t) => t.id === permId);
+    if (staticTab) return staticTab.label;
+
+    const group = CATALOG_GROUPS.find((g) => g.key === permId);
+    if (group) return group.allLabel;
+
+    const [groupKey, categoryId] = permId.split(':');
+    const groupDef = CATALOG_GROUPS.find((g) => g.key === groupKey);
+    if (groupDef && categoryId) {
+      const cat = categories.find((c) => c.id === categoryId);
+      return `${groupDef.label}: ${cat ? cat.title : categoryId}`;
+    }
+
+    return permId;
+  };
+
   if (loading) {
     return (
       <div className="flex h-screen items-center justify-center bg-[#FAF9F5]">
@@ -192,6 +291,14 @@ export default function AdminManagementPage() {
       </div>
     );
   }
+
+  const totalTabsForSelectAllLabel = (() => {
+    const baseAll =
+      ALL_AVAILABLE_TABS.every((t) => selectedPermissions.includes(t.id)) &&
+      selectedPermissions.includes('products') &&
+      selectedPermissions.includes('inventory');
+    return baseAll ? 'Deselect All' : 'Select All Tabs';
+  })();
 
   return (
     <div className="space-y-8 max-w-7xl mx-auto p-4 sm:p-6 bg-[#FAF9F5] min-h-screen relative font-sans text-[#0B241C]">
@@ -269,14 +376,11 @@ export default function AdminManagementPage() {
                   <div className="space-y-1.5">
                     <p className="text-[10px] font-bold text-[#5A7469] uppercase tracking-wider">Permitted Modules:</p>
                     <div className="flex flex-wrap gap-1 max-h-24 overflow-y-auto">
-                      {adminPermissions.map((pId) => {
-                        const tabObj = ALL_AVAILABLE_TABS.find((t) => t.id === pId);
-                        return (
-                          <span key={pId} className="px-2 py-0.5 rounded-md text-[10px] bg-[#EBF3EF] text-[#0B241C] border border-[#E2DBD0] font-medium">
-                            {tabObj ? tabObj.label : pId}
-                          </span>
-                        );
-                      })}
+                      {adminPermissions.map((pId) => (
+                        <span key={pId} className="px-2 py-0.5 rounded-md text-[10px] bg-[#EBF3EF] text-[#0B241C] border border-[#E2DBD0] font-medium">
+                          {labelForPermission(pId)}
+                        </span>
+                      ))}
                     </div>
                   </div>
                 </div>
@@ -333,18 +437,86 @@ export default function AdminManagementPage() {
               <div className="flex items-center justify-between">
                 <h4 className="font-bold text-sm text-[#0B241C]">Granular Tab & Section Permissions</h4>
                 <button type="button" onClick={handleSelectAllPermissions} className="text-[11px] text-[#C5A059] font-bold hover:underline">
-                  {selectedPermissions.length === ALL_AVAILABLE_TABS.length ? 'Deselect All' : 'Select All Tabs'}
+                  {totalTabsForSelectAllLabel}
                 </button>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 max-h-56 overflow-y-auto p-3 rounded-2xl bg-[#FAF9F5] border border-[#E2DBD0]">
-                {ALL_AVAILABLE_TABS.map((tab) => {
-                  const isChecked = selectedPermissions.includes(tab.id);
+              <div className="space-y-3 max-h-72 overflow-y-auto p-3 rounded-2xl bg-[#FAF9F5] border border-[#E2DBD0]">
+                {/* Plain, non-catalog tabs */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
+                  {ALL_AVAILABLE_TABS.map((tab) => {
+                    const isChecked = selectedPermissions.includes(tab.id);
+                    return (
+                      <label key={tab.id} className={`flex items-center gap-2.5 p-2 rounded-xl border cursor-pointer transition ${isChecked ? 'bg-[#0B241C] text-white border-[#0B241C]' : 'bg-white text-[#2C4A3E] border-[#E2DBD0] hover:bg-gray-50'}`}>
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => togglePermission(tab.id)}
+                          className="rounded text-[#C5A059] focus:ring-0 w-3.5 h-3.5 cursor-pointer"
+                        />
+                        <span className="text-[11px] font-semibold truncate">{tab.label}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+
+                {/* Products Catalog & Inventory & Stock — expandable, per-category permissions */}
+                {CATALOG_GROUPS.map((group) => {
+                  const isAllChecked = selectedPermissions.includes(group.allId);
+                  const isExpanded = expandedGroups[group.key];
                   return (
-                    <label key={tab.id} onClick={() => togglePermission(tab.id)} className={`flex items-center gap-2.5 p-2 rounded-xl border cursor-pointer transition ${isChecked ? 'bg-[#0B241C] text-white border-[#0B241C]' : 'bg-white text-[#2C4A3E] border-[#E2DBD0] hover:bg-gray-50'}`}>
-                      <input type="checkbox" checked={isChecked} onChange={() => {}} className="rounded text-[#C5A059] focus:ring-0 w-3.5 h-3.5 pointer-events-none" />
-                      <span className="text-[11px] font-semibold truncate">{tab.label}</span>
-                    </label>
+                    <div key={group.key} className="rounded-xl border border-[#E2DBD0] bg-white overflow-hidden">
+                      <div className="flex items-center">
+                        <label
+                          className={`flex-1 flex items-center gap-2.5 p-2.5 cursor-pointer transition ${isAllChecked ? 'bg-[#0B241C] text-white' : 'text-[#2C4A3E] hover:bg-gray-50'}`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isAllChecked}
+                            onChange={() => toggleCatalogAll(group.key)}
+                            className="rounded text-[#C5A059] focus:ring-0 w-3.5 h-3.5 cursor-pointer"
+                          />
+                          <span className="text-[11px] font-semibold truncate">{group.label} — {group.allLabel}</span>
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => setExpandedGroups((prev) => ({ ...prev, [group.key]: !prev[group.key] }))}
+                          className="p-2.5 text-[#5A7469] hover:text-[#0B241C]"
+                          title="Show categories"
+                        >
+                          {isExpanded ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+                        </button>
+                      </div>
+
+                      {isExpanded && (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 p-2.5 pt-0">
+                          {categories.length === 0 && (
+                            <p className="text-[10px] text-[#5A7469] px-1">No categories yet.</p>
+                          )}
+                          {categories.map((cat) => {
+                            const permId = `${group.key}:${cat.id}`;
+                            const isChecked = isAllChecked || selectedPermissions.includes(permId);
+                            return (
+                              <label
+                                key={cat.id}
+                                className={`flex items-center gap-2.5 p-2 rounded-lg border transition ${
+                                  isAllChecked ? 'opacity-50 cursor-not-allowed bg-gray-50 border-[#E2DBD0] text-[#5A7469]' : isChecked ? 'bg-[#0B241C] text-white border-[#0B241C] cursor-pointer' : 'bg-white text-[#2C4A3E] border-[#E2DBD0] hover:bg-gray-50 cursor-pointer'
+                                }`}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={isChecked}
+                                  disabled={isAllChecked}
+                                  onChange={() => toggleCatalogCategory(group.key, cat.id)}
+                                  className="rounded text-[#C5A059] focus:ring-0 w-3.5 h-3.5 cursor-pointer disabled:cursor-not-allowed"
+                                />
+                                <span className="text-[11px] font-semibold truncate">{cat.title}</span>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
                   );
                 })}
               </div>

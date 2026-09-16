@@ -194,7 +194,7 @@ export default function AdminLoginPage() {
       <header className="relative z-10 w-full px-6 py-6 flex items-center justify-between border-b border-white/5">
         <Link href="/" className="inline-flex items-center gap-3 group">
           <div className="w-10 h-10 rounded-full bg-[#FAF8F5] border-2 border-[#C5A059] flex items-center justify-center p-0.5 shadow-lg group-hover:scale-105 transition-transform">
-            <img src="/purnya-logo.png" alt="Purnya" className="w-full h-full object-contain" />
+            <img src="/logoicon.png" alt="Purnya" className="w-full h-full object-contain" />
           </div>
           <div>
             <span className="font-serif-title font-bold text-lg tracking-widest text-white block leading-tight">

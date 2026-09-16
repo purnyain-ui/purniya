@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useCallback } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import {
   Search,
   ChevronDown,
@@ -111,6 +112,7 @@ type AssembledProduct = {
   id: string
   name: string
   sku: string
+  categoryId: string
   categoryTitle: string
   subcategoryName: string | null
   hasVariants: boolean
@@ -297,15 +299,41 @@ function StatCard({
 }
 
 export default function AdminInventoryPage() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+
   const [loading, setLoading] = useState(true)
   const [products, setProducts] = useState<AssembledProduct[]>([])
   const [categories, setCategories] = useState<Category[]>([])
 
   const [search, setSearch] = useState('')
+  // Holds a category id (matches the sidebar's ?category=<id> links),
+  // not a title. '' means "All categories".
   const [categoryFilter, setCategoryFilter] = useState('')
   const [stockFilter, setStockFilter] = useState<StockFilter>('all')
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const [savingIds, setSavingIds] = useState<Set<string>>(new Set())
+
+  // ---------------------------------------------------------------
+  // Keep the active category in sync with the URL's ?category= param,
+  // exactly like the Products page. This is what makes clicking a
+  // category in the sidebar's "Inventory & Stock" dropdown filter this
+  // page correctly, and also covers direct links / refreshes / back-forward.
+  // ---------------------------------------------------------------
+  useEffect(() => {
+    const catParam = searchParams.get('category') || ''
+    setCategoryFilter(catParam)
+  }, [searchParams])
+
+  // Selecting a category here also updates the URL, so the sidebar's own
+  // highlighting (which reads the same ?category= param) stays correct.
+  const handleCategorySelect = useCallback(
+    (categoryId: string) => {
+      setCategoryFilter(categoryId)
+      router.push(categoryId ? `/admin/inventory?category=${categoryId}` : '/admin/inventory')
+    },
+    [router]
+  )
 
   useEffect(() => {
     loadInventory()
@@ -430,6 +458,7 @@ export default function AdminInventoryPage() {
           id: product.id,
           name: product.name,
           sku: product.sku,
+          categoryId: product.category_id,
           categoryTitle: category?.title || 'Uncategorized',
           subcategoryName: subcategory?.name || null,
           hasVariants: product.has_variants,
@@ -525,12 +554,20 @@ export default function AdminInventoryPage() {
     }
   }
 
+  // ---------------------------------------------------------------
+  // Stats — scoped to the active category only when one is selected,
+  // same behavior as the Products page's stat cards.
+  // ---------------------------------------------------------------
   const stats = useMemo(() => {
+    const scoped = categoryFilter
+      ? products.filter((product) => product.categoryId === categoryFilter)
+      : products
+
     let totalUnits = 0
     let lowCount = 0
     let outCount = 0
 
-    for (const product of products) {
+    for (const product of scoped) {
       const rows = product.hasVariants
         ? product.variants.map((v) => v.stock)
         : [product.stock]
@@ -544,18 +581,18 @@ export default function AdminInventoryPage() {
     }
 
     return {
-      totalProducts: products.length,
+      totalProducts: scoped.length,
       totalUnits,
       lowCount,
       outCount,
     }
-  }, [products])
+  }, [products, categoryFilter])
 
   const filteredProducts = useMemo(() => {
     const query = search.trim().toLowerCase()
 
     return products.filter((product) => {
-      if (categoryFilter && product.categoryTitle !== categoryFilter) {
+      if (categoryFilter && product.categoryId !== categoryFilter) {
         return false
       }
 
@@ -599,6 +636,10 @@ export default function AdminInventoryPage() {
     })
   }
 
+  const activeCategoryLabel = categoryFilter
+    ? categories.find((c) => c.id === categoryFilter)?.title || 'Category'
+    : 'All Categories'
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64 text-[#5A7469] gap-2">
@@ -621,13 +662,36 @@ export default function AdminInventoryPage() {
         </p>
       </div>
 
-      {/* STATS */}
+      {/* STATS — scoped to the active category, same as Products page */}
       <div className="flex flex-wrap gap-3">
         <StatCard label="Products" value={stats.totalProducts} />
         <StatCard label="Units in stock" value={stats.totalUnits} accent="#C5A059" />
         <StatCard label="Low stock lines" value={stats.lowCount} accent="#C97C2C" />
         <StatCard label="Out of stock lines" value={stats.outCount} accent="#E0748C" />
       </div>
+
+      {/* CATEGORY LOCK BAR — when a category comes in via the sidebar's
+          dropdown (or a direct ?category= link), lock the page to that
+          single category instead of exposing the full category picker. */}
+      {categoryFilter && (
+        <div className="flex items-center justify-between gap-3 bg-white border border-[#E2DBD0] rounded-2xl px-4 py-3">
+          <div className="flex items-center gap-2">
+            <span className="font-serif-title font-bold text-sm text-[#0B241C]">
+              {activeCategoryLabel}
+            </span>
+            <span className="px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-[#0B241C] text-white">
+              {stats.totalProducts}
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => handleCategorySelect('')}
+            className="text-[11px] font-bold text-[#C5A059] hover:underline cursor-pointer shrink-0"
+          >
+            View All Categories
+          </button>
+        </div>
+      )}
 
       {/* FILTERS */}
       <div className="bg-white border border-[#E2DBD0] rounded-2xl p-4 flex flex-col md:flex-row gap-3 md:items-center">
@@ -636,23 +700,28 @@ export default function AdminInventoryPage() {
           <input
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            placeholder="Search by product name or SKU"
+            placeholder={`Search in ${activeCategoryLabel}…`}
             className="w-full pl-10 pr-3.5 py-2.5 bg-[#FAF8F5] border border-[#E2DBD0] rounded-xl font-semibold text-[#0B241C] focus:outline-none focus:border-[#C5A059]"
           />
         </div>
 
-        <select
-          value={categoryFilter}
-          onChange={(event) => setCategoryFilter(event.target.value)}
-          className="px-3.5 py-2.5 bg-[#FAF8F5] border border-[#E2DBD0] rounded-xl font-semibold text-[#0B241C] focus:outline-none focus:border-[#C5A059]"
-        >
-          <option value="">All categories</option>
-          {categories.map((category) => (
-            <option key={category.id} value={category.title}>
-              {category.title}
-            </option>
-          ))}
-        </select>
+        {/* Category dropdown only shows when NOT locked to a single
+            category — once locked, other categories aren't selectable
+            from this page; use "View All Categories" above to leave. */}
+        {!categoryFilter && (
+          <select
+            value={categoryFilter}
+            onChange={(event) => handleCategorySelect(event.target.value)}
+            className="px-3.5 py-2.5 bg-[#FAF8F5] border border-[#E2DBD0] rounded-xl font-semibold text-[#0B241C] focus:outline-none focus:border-[#C5A059]"
+          >
+            <option value="">All categories</option>
+            {categories.map((category) => (
+              <option key={category.id} value={category.id}>
+                {category.title}
+              </option>
+            ))}
+          </select>
+        )}
 
         <div className="flex gap-2">
           {(

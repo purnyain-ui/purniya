@@ -7,7 +7,7 @@ import {
   Search,
   User,
   Heart,
-  ShoppingBag,
+  ShoppingCart,
   Menu,
   X,
   ChevronDown,
@@ -66,6 +66,11 @@ function HeaderContent() {
   const [authForgotSent, setAuthForgotSent] = useState(false);
 
   const isAdminRoute = pathname?.startsWith('/admin');
+
+  // Sort categories by priority so nav always follows admin-defined order
+  const sortedCategories = [...categories].sort(
+    (a: any, b: any) => (a.priority ?? 1) - (b.priority ?? 1)
+  );
 
   // Close profile dropdown when clicking outside
   useEffect(() => {
@@ -227,7 +232,7 @@ function HeaderContent() {
   );
 
   // Dynamic navigation links directly from Supabase categories
-  const navLinks = categories.map((cat) => ({
+  const navLinks = sortedCategories.map((cat) => ({
     name: (cat.title || '').trim(),
     href: `/category/${(cat.slug || '').trim()}`,
   }));
@@ -237,11 +242,26 @@ function HeaderContent() {
   return (
     <>
       {/* Emerald & Gold Announcement Bar */}
-      <div className="bg-[#08281F] text-[#FAF8F5] text-[11px] sm:text-xs font-medium py-2.5 px-4 text-center tracking-widest uppercase flex items-center justify-center gap-2 border-b border-[#144234]">
-        <span className="font-semibold tracking-[0.15em]">
-          {announcement}
-        </span>
+    <div className="sticky top-0 z-50 overflow-hidden border-b border-[#144234] bg-[#08281F] py-2.5 text-[11px] font-medium uppercase text-[#FAF8F5] sm:text-xs">
+  <span className="sr-only">{announcement}</span>
+
+  <div className="announcement-track flex w-max" aria-hidden="true">
+    {[0, 1].map((group) => (
+      <div key={group} className="flex shrink-0">
+        {[0, 1].map((item) => (
+          <span
+            key={item}
+            className="flex shrink-0 items-center gap-12 whitespace-nowrap px-6 font-semibold tracking-[0.15em]"
+          >
+            {announcement}
+            <span className="text-[#D4AF37]">✦</span>
+          </span>
+        ))}
       </div>
+    ))}
+  </div>
+</div>     
+
 
       {/* Main Header */}
       <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-[#E2DBD0] transition-all shadow-xs">
@@ -264,7 +284,7 @@ function HeaderContent() {
             >
               <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full overflow-hidden flex items-center justify-center p-0.5 bg-[#FAF8F5] border border-[#C5A059]/40 shadow-xs group-hover:scale-105 transition-transform duration-300">
                 <img
-                  src="/purnya-logo.png"
+                  src="/logoicon.png"
                   alt="Purnya Emblem"
                   className="w-full h-full object-contain"
                 />
@@ -342,7 +362,7 @@ function HeaderContent() {
                         <div className="px-3.5 py-1.5 border-b border-[#F0ECE4] text-[10px] uppercase tracking-wider text-[#5A7469] font-bold">
                           Open in Separate Tab ↗
                         </div>
-                        {categories
+                        {sortedCategories
                           .filter((c) => (c.slug || '').trim() !== (currentCategory.slug || '').trim())
                           .map((otherCat) => (
                             <Link
@@ -446,7 +466,7 @@ function HeaderContent() {
                 aria-label="Cart"
                 title="Shopping Cart"
               >
-                <ShoppingBag className="w-5 h-5" />
+                <ShoppingCart className="w-5 h-5" />
                 {cartCount > 0 && (
                   <span className="absolute top-1 right-1 w-4 h-4 rounded-full bg-[#0C3B2E] text-[#FAF8F5] text-[10px] font-bold flex items-center justify-center shadow-xs animate-pulse">
                     {cartCount}
@@ -554,11 +574,11 @@ function HeaderContent() {
                     >
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-xl bg-[#FAF8F5] group-hover:bg-white flex items-center justify-center text-[#0C3B2E] border border-[#E2DBD0]">
-                          <ShoppingBag className="w-4 h-4 text-[#C5A059]" />
+                          <ShoppingCart className="w-4 h-4 text-[#C5A059]" />
                         </div>
                         <div className="text-left">
                           <p className="text-xs font-bold text-[#0B241C] group-hover:text-[#0C3B2E]">
-                            Shopping Bag
+                            Shopping Cart
                           </p>
                           <p className="text-[10px] text-[#5A7469]">{cartCount} items selected</p>
                         </div>
@@ -625,7 +645,7 @@ function HeaderContent() {
                 className="flex items-center gap-2.5"
               >
                 <div className="w-9 h-9 rounded-full overflow-hidden flex items-center justify-center p-0.5 bg-[#FAF8F5] border border-[#C5A059]/50 shadow-xs">
-                  <img src="/purnya-logo.png" alt="Purnya" className="w-full h-full object-contain" />
+                  <img src="/logoicon.png" alt="Purnya" className="w-full h-full object-contain" />
                 </div>
                 <div>
                   <span className="font-serif-title text-xl font-bold tracking-[0.14em] text-[#0C3B2E] block leading-none">
@@ -722,7 +742,7 @@ function HeaderContent() {
                     onClick={() => setMobileMenuOpen(false)}
                     className="flex flex-col items-center justify-center p-2.5 rounded-2xl bg-white border border-[#E2DBD0] text-center hover:bg-[#EBF3EF] transition-colors relative"
                   >
-                    <ShoppingBag className="w-4 h-4 text-[#C5A059] mb-1" />
+                    <ShoppingCart className="w-4 h-4 text-[#C5A059] mb-1" />
                     <span className="text-[10px] font-bold text-[#0B241C]">Cart</span>
                     {cartCount > 0 && (
                       <span className="absolute top-1 right-2 text-[9px] font-bold text-white bg-[#0C3B2E] rounded-full w-3.5 h-3.5 flex items-center justify-center">
@@ -739,7 +759,7 @@ function HeaderContent() {
                   Explore The Five Worlds
                 </p>
                 <div className="space-y-2">
-                  {categories.map((cat) => {
+                  {sortedCategories.map((cat) => {
                     const catSlug = (cat.slug || '').trim();
                     const isCurrent = currentCategorySlug?.toLowerCase() === catSlug.toLowerCase();
                     const isExpanded = expandedMobileCategory === catSlug;
@@ -903,11 +923,11 @@ function HeaderContent() {
                     Privacy Policy
                   </Link>
                   <span>·</span>
-                  <Link href="/shipping-policy" onClick={() => setMobileMenuOpen(false)} className="hover:text-[#0C3B2E]">
+                  <Link   href="/return-policy#shipping" onClick={() => setMobileMenuOpen(false)} className="hover:text-[#0C3B2E]">
                     Shipping
                   </Link>
                   <span>·</span>
-                  <Link href="/return-policy" onClick={() => setMobileMenuOpen(false)} className="hover:text-[#0C3B2E]">
+                  <Link  href="/return-policy#returns" onClick={() => setMobileMenuOpen(false)} className="hover:text-[#0C3B2E]">
                     Returns
                   </Link>
                 </div>
@@ -948,7 +968,7 @@ function HeaderContent() {
             <div className="flex flex-col items-center justify-center text-center space-y-1.5">
               <div className="w-14 h-14 rounded-full overflow-hidden flex items-center justify-center p-1 bg-[#FAF8F5] border-2 border-[#C5A059] mx-auto shadow-md">
                 <img
-                  src="/purnya-logo.png"
+                  src="/logoicon.png"
                   alt="Purnya Logo"
                   className="w-full h-full object-contain"
                 />
@@ -1237,6 +1257,8 @@ function HeaderContent() {
           </div>
         </div>
       )}
+
+      
     </>
   );
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useMemo, useState, use } from 'react';
+import React, { useEffect, useMemo, useState, use, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -12,11 +12,19 @@ import {
   RotateCcw,
   ShieldCheck,
   ChevronRight,
+  ChevronLeft,Video ,
   Star,
   CheckCircle2,
   ArrowUpRight,
   Loader2,
   ImageIcon,
+  Share2,
+  ZoomIn,
+  ZoomOut,
+  X,
+  Copy,
+  Check,
+  Maximize2,
 } from 'lucide-react';
 import { useStore } from '../../../context/StoreContext';
 import { supabase } from '../../../lib/supabaseClient';
@@ -397,6 +405,23 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
   const [submittingReview, setSubmittingReview] = useState(false);
   const [reviewError, setReviewError] = useState('');
 
+  // ---------------------------------------------------------------
+  // Share + Zoom state
+  // ---------------------------------------------------------------
+  const [shareOpen, setShareOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const [zoomOpen, setZoomOpen] = useState(false);
+  const [zoomScale, setZoomScale] = useState(1);
+  const [zoomOffset, setZoomOffset] = useState({ x: 0, y: 0 });
+  const draggingRef = useRef<{ active: boolean; startX: number; startY: number; originX: number; originY: number }>({
+    active: false,
+    startX: 0,
+    startY: 0,
+    originX: 0,
+    originY: 0,
+  });
+
   useEffect(() => {
     let isCancelled = false;
     setLoading(true);
@@ -412,6 +437,8 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
     setNewRating(5);
     setNewComment('');
     setReviewError('');
+    setZoomOpen(false);
+    setShareOpen(false);
 
     fetchFullProduct(id).then(async (result) => {
       if (isCancelled) return;
@@ -450,6 +477,29 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
       setNewComment(existing.comment || '');
     }
   }, [reviews, user]);
+
+  // Reset zoom transform whenever the lightbox opens/closes or the
+  // visible image changes, and lock body scroll while it's open.
+  useEffect(() => {
+    setZoomScale(1);
+    setZoomOffset({ x: 0, y: 0 });
+  }, [zoomOpen, activeImgIndex]);
+
+  useEffect(() => {
+    if (!zoomOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [zoomOpen]);
+
+  // Auto-clear the "Link copied" confirmation.
+  useEffect(() => {
+    if (!copied) return;
+    const timer = setTimeout(() => setCopied(false), 2000);
+    return () => clearTimeout(timer);
+  }, [copied]);
 
   const hasReviewed = useMemo(
     () => Boolean(user?.id) && reviews.some((r) => r.user_id === user.id),
@@ -541,6 +591,8 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
       ? data.images
       : [];
 
+  const safeImgIndex = Math.min(activeImgIndex, Math.max(galleryImages.length - 1, 0));
+
   const rawPrice = hasVariants ? currentVariant?.price : product.price;
   const rawSellingPrice = hasVariants ? currentVariant?.selling_price : product.selling_price;
 
@@ -571,12 +623,14 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
 
   const isWished = isInWishlist(product.id);
 
+  const finalPrice = displaySellingPrice ?? displayOriginalPrice ?? 0;
+
   // Shape the data the way StoreContext's cart/wishlist actions expect,
   // reflecting whichever variant is currently selected.
   const cartProduct = {
     id: product.id,
     name: product.name,
-    price: (displaySellingPrice ?? displayOriginalPrice ?? 0),
+    price: finalPrice,
     originalPrice: showStrike ? displayOriginalPrice ?? undefined : undefined,
     image: galleryImages[0] || '',
     images: galleryImages,
@@ -592,6 +646,121 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
   const activeVariantLabels: Record<string, string> = {};
   if (hasVariants && currentVariant?.color) activeVariantLabels['Color'] = currentVariant.color.name;
   if (hasVariants && currentVariant?.size) activeVariantLabels['Size'] = currentVariant.size.name;
+
+  // ---------------------------------------------------------------
+  // Share — the URL, title and text all carry real product detail so
+  // WhatsApp / Instagram / SMS previews read like a product card.
+  // ---------------------------------------------------------------
+  const shareUrl = typeof window !== 'undefined' ? window.location.href : `/product/${product.id}`;
+
+  const shareTitle = `${product.name} · Purnya`;
+
+  const shareText = [
+    product.name,
+    [category?.title, subcategory?.name].filter(Boolean).join(' · '),
+    `₹${finalPrice.toLocaleString('en-IN')}${showStrike ? ` (${discount}% off M.R.P ₹${(displayOriginalPrice as number).toLocaleString('en-IN')})` : ''}`,
+    hasVariants && currentVariant?.color ? `Color: ${currentVariant.color.name}` : '',
+    hasVariants && currentVariant?.size ? `Size: ${currentVariant.size.name}` : '',
+    reviewStats.review_count > 0
+      ? `Rated ${reviewStats.average_rating.toFixed(1)}★ by ${reviewStats.review_count} customer${reviewStats.review_count === 1 ? '' : 's'}`
+      : '',
+    product.description ? product.description.slice(0, 140) : '',
+  ]
+    .filter(Boolean)
+    .join('\n');
+
+  const copyShareLink = async () => {
+    try {
+      await navigator.clipboard.writeText(`${shareText}\n\n${shareUrl}`);
+      setCopied(true);
+    } catch {
+      setCopied(false);
+    }
+  };
+
+  const handleShare = async () => {
+    // Mobile / supported browsers: open the OS share sheet with full detail.
+    if (typeof navigator !== 'undefined' && (navigator as any).share) {
+      try {
+        await (navigator as any).share({ title: shareTitle, text: shareText, url: shareUrl });
+        return;
+      } catch {
+        // User dismissed the sheet, or sharing isn't permitted — fall through.
+      }
+    }
+    // Desktop fallback: show the inline share panel.
+    setShareOpen((prev) => !prev);
+  };
+
+  const whatsappHref = `https://wa.me/?text=${encodeURIComponent(`${shareText}\n\n${shareUrl}`)}`;
+  const telegramHref = `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(shareText)}`;
+  const mailHref = `mailto:?subject=${encodeURIComponent(shareTitle)}&body=${encodeURIComponent(`${shareText}\n\n${shareUrl}`)}`;
+
+  // ---------------------------------------------------------------
+  // Zoom controls
+  // ---------------------------------------------------------------
+  const openZoom = () => {
+    if (galleryImages.length === 0) return;
+    setZoomOpen(true);
+  };
+
+  const zoomIn = () => setZoomScale((s) => Math.min(4, +(s + 0.5).toFixed(2)));
+  const zoomOut = () =>
+    setZoomScale((s) => {
+      const next = Math.max(1, +(s - 0.5).toFixed(2));
+      if (next === 1) setZoomOffset({ x: 0, y: 0 });
+      return next;
+    });
+  const resetZoom = () => {
+    setZoomScale(1);
+    setZoomOffset({ x: 0, y: 0 });
+  };
+
+  const stepImage = (direction: 1 | -1) => {
+    if (galleryImages.length < 2) return;
+    setActiveImgIndex((i) => (i + direction + galleryImages.length) % galleryImages.length);
+  };
+
+  const onZoomWheel = (e: React.WheelEvent) => {
+    e.preventDefault();
+    setZoomScale((s) => {
+      const next = Math.min(4, Math.max(1, +(s - e.deltaY * 0.002).toFixed(2)));
+      if (next === 1) setZoomOffset({ x: 0, y: 0 });
+      return next;
+    });
+  };
+
+  const onDragStart = (clientX: number, clientY: number) => {
+    if (zoomScale <= 1) return;
+    draggingRef.current = {
+      active: true,
+      startX: clientX,
+      startY: clientY,
+      originX: zoomOffset.x,
+      originY: zoomOffset.y,
+    };
+  };
+
+  const onDragMove = (clientX: number, clientY: number) => {
+    const drag = draggingRef.current;
+    if (!drag.active) return;
+    setZoomOffset({
+      x: drag.originX + (clientX - drag.startX),
+      y: drag.originY + (clientY - drag.startY),
+    });
+  };
+
+  const onDragEnd = () => {
+    draggingRef.current.active = false;
+  };
+
+  const handleZoomKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Escape') setZoomOpen(false);
+    if (e.key === 'ArrowRight') stepImage(1);
+    if (e.key === 'ArrowLeft') stepImage(-1);
+    if (e.key === '+' || e.key === '=') zoomIn();
+    if (e.key === '-') zoomOut();
+  };
 
   const handleAddToCart = () => {
     if (!inStock) return;
@@ -694,7 +863,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
                   <button
                     key={idx}
                     onClick={() => setActiveImgIndex(idx)}
-                    className={`w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden border-2 transition-all bg-[#EBF3EF] shrink-0 ${activeImgIndex === idx
+                    className={`w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden border-2 transition-all bg-[#EBF3EF] shrink-0 ${safeImgIndex === idx
                         ? 'border-[#0C3B2E] shadow-md scale-105 ring-1 ring-[#C5A059]'
                         : 'border-[#E2DBD0] hover:border-[#0C3B2E]/50'
                       }`}
@@ -707,11 +876,12 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
 
             {/* Main Preview */}
             <div className="relative aspect-square w-full rounded-3xl overflow-hidden bg-[#EBF3EF] border border-[#E2DBD0] shadow-xs group">
-              {galleryImages[activeImgIndex] ? (
+              {galleryImages[safeImgIndex] ? (
                 <img
-                  src={galleryImages[activeImgIndex]}
+                  src={galleryImages[safeImgIndex]}
                   alt={product.name}
-                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                  onClick={openZoom}
+                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 cursor-zoom-in"
                 />
               ) : (
                 <div className="w-full h-full flex flex-col items-center justify-center gap-2 text-[#5A7469]">
@@ -719,9 +889,40 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
                   <span className="text-xs font-semibold">No image available</span>
                 </div>
               )}
+
               {product.is_featured && (
                 <span className="absolute top-4 left-4 px-3 py-1 text-xs uppercase font-bold tracking-wider rounded-md bg-[#0C3B2E] text-white shadow-xs">
                   Featured
+                </span>
+              )}
+
+              {/* Zoom + Share floating controls */}
+              {galleryImages.length > 0 && (
+                <div className="absolute top-4 right-4 flex flex-col gap-2">
+                  <button
+                    onClick={openZoom}
+                    aria-label="Zoom image"
+                    title="Zoom image"
+                    className="w-10 h-10 rounded-full bg-white/90 backdrop-blur-md border border-[#E2DBD0] text-[#0C3B2E] flex items-center justify-center shadow-md hover:bg-white hover:text-[#C5A059] transition-colors cursor-pointer"
+                  >
+                    <ZoomIn className="w-4.5 h-4.5" />
+                  </button>
+                  <button
+                    onClick={handleShare}
+                    aria-label="Share this product"
+                    title="Share this product"
+                    className="w-10 h-10 rounded-full bg-white/90 backdrop-blur-md border border-[#E2DBD0] text-[#0C3B2E] flex items-center justify-center shadow-md hover:bg-white hover:text-[#C5A059] transition-colors cursor-pointer sm:hidden"
+                  >
+                    <Share2 className="w-4.5 h-4.5" />
+                  </button>
+                </div>
+              )}
+
+              {/* Tap-to-zoom hint */}
+              {galleryImages.length > 0 && (
+                <span className="absolute bottom-4 left-4 hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/85 backdrop-blur-md border border-[#E2DBD0] text-[10px] font-semibold uppercase tracking-wider text-[#2C4A3E] shadow-xs">
+                  <Maximize2 className="w-3 h-3 text-[#C5A059]" />
+                  Click image to zoom
                 </span>
               )}
             </div>
@@ -733,9 +934,78 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
               <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#C5A059] mb-1">
                 {[category?.title, subcategory?.name].filter(Boolean).join(' · ')}
               </p>
-              <h1 className="font-serif-title text-2xl sm:text-3xl lg:text-4xl font-bold text-[#0B241C] leading-snug">
-                {product.name}
-              </h1>
+
+              <div className="flex items-start justify-between gap-4">
+                <h1 className="font-serif-title text-2xl sm:text-3xl lg:text-4xl font-bold text-[#0B241C] leading-snug">
+                  {product.name}
+                </h1>
+
+                {/* Share button — desktop / inline */}
+                <div className="relative shrink-0 hidden sm:block">
+                  <button
+                    onClick={handleShare}
+                    aria-label="Share this product"
+                    className="w-11 h-11 rounded-xl border border-[#E2DBD0] bg-white text-[#2C4A3E] flex items-center justify-center hover:border-[#0C3B2E] hover:text-[#0C3B2E] shadow-xs transition-colors cursor-pointer"
+                  >
+                    <Share2 className="w-4.5 h-4.5" />
+                  </button>
+
+                  {shareOpen && (
+                    <>
+                      {/* Click-away layer */}
+                      <div
+                        className="fixed inset-0 z-40"
+                        onClick={() => setShareOpen(false)}
+                      />
+                      <div className="absolute right-0 mt-2 w-64 z-50 rounded-2xl border border-[#E2DBD0] bg-white shadow-xl p-3 space-y-1.5">
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-[#5A7469] px-2 pb-1">
+                          Share this piece
+                        </p>
+
+                        <button
+                          onClick={copyShareLink}
+                          className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-xs font-semibold text-[#2C4A3E] hover:bg-[#EBF3EF] transition-colors cursor-pointer"
+                        >
+                          {copied ? (
+                            <Check className="w-4 h-4 text-[#0C3B2E]" />
+                          ) : (
+                            <Copy className="w-4 h-4 text-[#C5A059]" />
+                          )}
+                          <span>{copied ? 'Details copied!' : 'Copy product details'}</span>
+                        </button>
+
+                        <a
+                          href={whatsappHref}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-xs font-semibold text-[#2C4A3E] hover:bg-[#EBF3EF] transition-colors"
+                        >
+                          <span className="w-4 h-4 rounded-full bg-[#25D366] shrink-0" />
+                          <span>Share on WhatsApp</span>
+                        </a>
+
+                        <a
+                          href={telegramHref}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-xs font-semibold text-[#2C4A3E] hover:bg-[#EBF3EF] transition-colors"
+                        >
+                          <span className="w-4 h-4 rounded-full bg-[#29A9EB] shrink-0" />
+                          <span>Share on Telegram</span>
+                        </a>
+
+                        <a
+                          href={mailHref}
+                          className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-xs font-semibold text-[#2C4A3E] hover:bg-[#EBF3EF] transition-colors"
+                        >
+                          <span className="w-4 h-4 rounded-full bg-[#C5A059] shrink-0" />
+                          <span>Share via Email</span>
+                        </a>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
 
               <button
                 onClick={() => setActiveTab('reviews')}
@@ -749,6 +1019,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
                 </span>
               </button>
             </div>
+
             {/* Price Row */}
             <div className="border-y border-[#E2DBD0] py-4 space-y-2">
               <div className="flex flex-col gap-1">
@@ -763,7 +1034,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
 
                 <div className="flex items-baseline gap-3">
                   <span className="font-serif-title text-2xl sm:text-3xl font-bold text-[#0B241C]">
-                    ₹{(displaySellingPrice ?? displayOriginalPrice ?? 0).toLocaleString('en-IN')}
+                    ₹{finalPrice.toLocaleString('en-IN')}
                   </span>
                   {showStrike && (
                     <span className="px-2 py-0.5 text-xs font-bold rounded-md bg-[#C5A059] text-[#08281F]">
@@ -889,17 +1160,29 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
               >
                 Buy It Now
               </button>
-            </div>
 
+              {/* Full-width share row — always visible, works on every device */}
+              <button
+                onClick={handleShare}
+                className="w-full py-3 px-6 rounded-xl border border-[#E2DBD0] bg-white text-[#2C4A3E] font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 hover:border-[#0C3B2E] hover:text-[#0C3B2E] transition-colors cursor-pointer"
+              >
+                {copied ? <Check className="w-4 h-4 text-[#0C3B2E]" /> : <Share2 className="w-4 h-4 text-[#C5A059]" />}
+                <span>{copied ? 'Product details copied' : 'Share this product'}</span>
+              </button>
+            </div>
             {/* Trust Assurances */}
             <div className="bg-[#EBF3EF]/60 p-4 rounded-2xl border border-[#E2DBD0] space-y-2 text-xs text-[#2C4A3E]">
               <div className="flex items-center gap-2.5">
                 <Truck className="w-4 h-4 text-[#0C3B2E] shrink-0" />
-                <span>Express courier delivery within 3 to 5 business days</span>
+                <span>Express courier delivery within 5 to 6 business days</span>
               </div>
               <div className="flex items-center gap-2.5">
                 <RotateCcw className="w-4 h-4 text-[#0C3B2E] shrink-0" />
-                <span>Hassle-free 7-day return and exchange policy</span>
+                <span>Free replacement if the product arrives damaged</span>
+              </div>
+              <div className="flex items-center gap-2.5">
+                <Video className="w-4 h-4 text-[#0C3B2E] shrink-0" />
+                <span>360° unboxing video required to claim a replacement</span>
               </div>
               <div className="flex items-center gap-2.5">
                 <ShieldCheck className="w-4 h-4 text-[#0C3B2E] shrink-0" />
@@ -1131,6 +1414,160 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
             ))}
           </div>
         </section>
+      )}
+
+      {/* ---------------------------------------------------------------
+          ZOOM LIGHTBOX — full screen, scroll/pinch to scale, drag to pan,
+          arrow keys + on-screen arrows to move between gallery images.
+      --------------------------------------------------------------- */}
+      {zoomOpen && galleryImages.length > 0 && (
+        <div
+          className="fixed inset-0 z-[100] bg-[#050F0C]/95 backdrop-blur-sm flex flex-col"
+          role="dialog"
+          aria-modal="true"
+          aria-label={`${product.name} image viewer`}
+          tabIndex={-1}
+          autoFocus
+          onKeyDown={handleZoomKeyDown}
+        >
+          {/* Top bar */}
+          <div className="flex items-center justify-between gap-3 px-4 sm:px-6 py-4 shrink-0">
+            <div className="min-w-0">
+              <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#C5A059] truncate">
+                {[category?.title, subcategory?.name].filter(Boolean).join(' · ')}
+              </p>
+              <p className="text-sm font-semibold text-white truncate">{product.name}</p>
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0">
+              <span className="hidden sm:inline text-xs font-semibold text-white/70 px-2">
+                {Math.round(zoomScale * 100)}%
+              </span>
+              <button
+                onClick={zoomOut}
+                disabled={zoomScale <= 1}
+                aria-label="Zoom out"
+                className="w-10 h-10 rounded-full bg-white/10 border border-white/20 text-white flex items-center justify-center hover:bg-white/20 transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+              >
+                <ZoomOut className="w-4.5 h-4.5" />
+              </button>
+              <button
+                onClick={zoomIn}
+                disabled={zoomScale >= 4}
+                aria-label="Zoom in"
+                className="w-10 h-10 rounded-full bg-white/10 border border-white/20 text-white flex items-center justify-center hover:bg-white/20 transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+              >
+                <ZoomIn className="w-4.5 h-4.5" />
+              </button>
+              <button
+                onClick={handleShare}
+                aria-label="Share this product"
+                className="w-10 h-10 rounded-full bg-white/10 border border-white/20 text-white flex items-center justify-center hover:bg-white/20 transition-colors cursor-pointer"
+              >
+                <Share2 className="w-4.5 h-4.5" />
+              </button>
+              <button
+                onClick={() => setZoomOpen(false)}
+                aria-label="Close image viewer"
+                className="w-10 h-10 rounded-full bg-[#C5A059] text-[#08281F] flex items-center justify-center hover:bg-[#D4AF37] transition-colors cursor-pointer"
+              >
+                <X className="w-4.5 h-4.5" />
+              </button>
+            </div>
+          </div>
+
+          {/* Stage */}
+          <div
+            className="relative flex-1 overflow-hidden flex items-center justify-center select-none"
+            onWheel={onZoomWheel}
+            onMouseDown={(e) => onDragStart(e.clientX, e.clientY)}
+            onMouseMove={(e) => onDragMove(e.clientX, e.clientY)}
+            onMouseUp={onDragEnd}
+            onMouseLeave={onDragEnd}
+            onTouchStart={(e) => onDragStart(e.touches[0].clientX, e.touches[0].clientY)}
+            onTouchMove={(e) => onDragMove(e.touches[0].clientX, e.touches[0].clientY)}
+            onTouchEnd={onDragEnd}
+            onDoubleClick={() => (zoomScale > 1 ? resetZoom() : setZoomScale(2))}
+          >
+            <img
+              src={galleryImages[safeImgIndex]}
+              alt={`${product.name} — view ${safeImgIndex + 1}`}
+              draggable={false}
+              style={{
+                transform: `translate(${zoomOffset.x}px, ${zoomOffset.y}px) scale(${zoomScale})`,
+                cursor: zoomScale > 1 ? 'grab' : 'zoom-in',
+              }}
+              className="max-h-full max-w-full object-contain transition-transform duration-150 ease-out"
+            />
+
+            {/* Prev / Next */}
+            {galleryImages.length > 1 && (
+              <>
+                <button
+                  onClick={() => stepImage(-1)}
+                  aria-label="Previous image"
+                  className="absolute left-3 sm:left-6 w-11 h-11 rounded-full bg-white/10 border border-white/20 text-white flex items-center justify-center hover:bg-white/25 transition-colors cursor-pointer"
+                >
+                  <ChevronLeft className="w-5 h-5" />
+                </button>
+                <button
+                  onClick={() => stepImage(1)}
+                  aria-label="Next image"
+                  className="absolute right-3 sm:right-6 w-11 h-11 rounded-full bg-white/10 border border-white/20 text-white flex items-center justify-center hover:bg-white/25 transition-colors cursor-pointer"
+                >
+                  <ChevronRight className="w-5 h-5" />
+                </button>
+              </>
+            )}
+          </div>
+
+          {/* Bottom bar: price snapshot + thumbnails */}
+          <div className="shrink-0 px-4 sm:px-6 py-4 space-y-3">
+            <div className="flex items-center justify-center gap-3 text-xs text-white/80">
+              <span className="font-serif-title text-base font-bold text-white">
+                ₹{finalPrice.toLocaleString('en-IN')}
+              </span>
+              {showStrike && (
+                <>
+                  <span className="line-through text-white/50">
+                    ₹{(displayOriginalPrice as number).toLocaleString('en-IN')}
+                  </span>
+                  <span className="px-2 py-0.5 rounded-md bg-[#C5A059] text-[#08281F] font-bold">
+                    {discount}% OFF
+                  </span>
+                </>
+              )}
+              {hasVariants && currentVariant?.color && (
+                <span className="hidden sm:inline text-white/60">· {currentVariant.color.name}</span>
+              )}
+              {hasVariants && currentVariant?.size && (
+                <span className="hidden sm:inline text-white/60">· {currentVariant.size.name}</span>
+              )}
+            </div>
+
+            {galleryImages.length > 1 && (
+              <div className="flex items-center justify-center gap-2.5 overflow-x-auto scrollbar-none">
+                {galleryImages.map((img, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => setActiveImgIndex(idx)}
+                    aria-label={`View image ${idx + 1}`}
+                    className={`w-12 h-12 sm:w-14 sm:h-14 rounded-xl overflow-hidden border-2 shrink-0 transition-all cursor-pointer ${safeImgIndex === idx
+                        ? 'border-[#C5A059] scale-105'
+                        : 'border-white/20 opacity-60 hover:opacity-100'
+                      }`}
+                  >
+                    <img src={img} alt="" className="w-full h-full object-cover" />
+                  </button>
+                ))}
+              </div>
+            )}
+
+            <p className="text-center text-[10px] uppercase tracking-wider text-white/40">
+              Scroll or pinch to zoom · Drag to pan · Double-click to reset · Esc to close
+            </p>
+          </div>
+        </div>
       )}
     </div>
   );

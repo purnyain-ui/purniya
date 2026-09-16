@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   Plus,
   Edit2,
@@ -78,6 +78,8 @@ type ViewDetails = {
 
 export default function AdminProductsPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<CategoryLite[]>([]);
   const [subcategories, setSubcategories] = useState<SubcategoryLite[]>([]);
@@ -90,6 +92,8 @@ export default function AdminProductsPage() {
   // Filters
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState<'all' | 'active' | 'inactive'>('all');
+  // '' means "All Categories" tab
+  const [activeCategoryId, setActiveCategoryId] = useState<string>('');
 
   // "View" modal state
   const [viewProduct, setViewProduct] = useState<Product | null>(null);
@@ -101,6 +105,27 @@ export default function AdminProductsPage() {
     setToast({ title, message, kind });
     setTimeout(() => setToast(null), 4000);
   };
+
+  // ---------------------------------------------------------------
+  // Keep the active category tab in sync with the URL's ?category=
+  // param. This is what makes clicking a category in the sidebar's
+  // "Products Catalog" dropdown filter this page correctly, and also
+  // covers direct links / page refreshes / back-forward navigation.
+  // ---------------------------------------------------------------
+  useEffect(() => {
+    const catParam = searchParams.get('category') || '';
+    setActiveCategoryId(catParam);
+  }, [searchParams]);
+
+  // Selecting a tab on this page also updates the URL, so the sidebar's
+  // own highlighting (which reads the same ?category= param) stays correct.
+  const handleCategorySelect = useCallback(
+    (categoryId: string) => {
+      setActiveCategoryId(categoryId);
+      router.push(categoryId ? `/admin/products?category=${categoryId}` : '/admin/products');
+    },
+    [router]
+  );
 
   // ---------------------------------------------------------------
   // Fetch products + categories
@@ -332,11 +357,21 @@ export default function AdminProductsPage() {
     });
 
   // ---------------------------------------------------------------
-  // Derived: filtered list + quick stats
+  // Derived: product count per category (for the tab badges)
+  // ---------------------------------------------------------------
+  const productCountForCategory = (categoryId: string) =>
+    products.filter((p) => p.category_id === categoryId).length;
+
+  // ---------------------------------------------------------------
+  // Derived: filtered list (category tab + search + active/inactive) + stats
+  // ---------------------------------------------------------------
+  // ---------------------------------------------------------------
+  // Derived: filtered list (category tab + search + active/inactive)
   // ---------------------------------------------------------------
   const filteredProducts = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     return products.filter((p) => {
+      const matchesCategory = !activeCategoryId || p.category_id === activeCategoryId;
       const matchesActive =
         activeFilter === 'all' ||
         (activeFilter === 'active' && p.is_active) ||
@@ -346,25 +381,42 @@ export default function AdminProductsPage() {
         p.name.toLowerCase().includes(q) ||
         p.slug.toLowerCase().includes(q) ||
         (p.sku || '').toLowerCase().includes(q);
-      return matchesActive && matchesQuery;
+      return matchesCategory && matchesActive && matchesQuery;
     });
-  }, [products, searchQuery, activeFilter]);
+  }, [products, searchQuery, activeFilter, activeCategoryId]);
 
+  // ---------------------------------------------------------------
+  // Derived: stat cards — scoped to the active category only, so
+  // "Total / Active / Low stock / Out of stock" reflect just the
+  // products in whichever category tab is currently selected.
+  // Search text and the active/inactive filter are intentionally
+  // NOT applied here, so the cards always show the full category
+  // picture even while the person is typing a search.
+  // ---------------------------------------------------------------
   const stats = useMemo(() => {
-    const active = products.filter((p) => p.is_active).length;
-    const lowStock = products.filter((p) => p.is_active && p.stock > 0 && p.stock <= 5).length;
-    const outOfStock = products.filter((p) => p.stock === 0).length;
-    return { total: products.length, active, lowStock, outOfStock };
-  }, [products]);
+    const scoped = activeCategoryId
+      ? products.filter((p) => p.category_id === activeCategoryId)
+      : products;
+
+    const active = scoped.filter((p) => p.is_active).length;
+    const lowStock = scoped.filter((p) => p.is_active && p.stock > 0 && p.stock <= 5).length;
+    const outOfStock = scoped.filter((p) => p.stock === 0).length;
+    return { total: scoped.length, active, lowStock, outOfStock };
+  }, [products, activeCategoryId]);
+
+
+  const activeCategoryLabel = activeCategoryId
+    ? categories.find((c) => c.id === activeCategoryId)?.title || 'Category'
+    : 'All Categories';
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
+    <div className="space-y-8 max-w-7xl mx-auto">
       {/* Toast */}
       {toast && (
         <div
           className={`fixed top-4 right-4 z-[70] px-4 py-3 rounded-xl shadow-lg text-xs font-semibold border ${toast.kind === 'success'
-              ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
-              : 'bg-rose-50 text-rose-800 border-rose-300'
+            ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+            : 'bg-rose-50 text-rose-800 border-rose-300'
             }`}
         >
           <p className="font-bold">{toast.title}</p>
@@ -376,8 +428,8 @@ export default function AdminProductsPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="font-serif-title text-2xl sm:text-3xl font-bold text-[#0B241C]">Products</h1>
-          <p className="text-xs sm:text-sm text-[#5A7469] mt-0.5">
-            {stats.total} product{stats.total === 1 ? '' : 's'} in your catalog
+          <p className="text-xs sm:text-sm text-[#2C4A3E]">
+            {stats.total} product{stats.total === 1 ? '' : 's'} in your catalog, organized by category.
           </p>
         </div>
         <button
@@ -417,6 +469,55 @@ export default function AdminProductsPage() {
         </div>
       )}
 
+      {/* Category Tabs — full switcher only shows when NOT scoped to one
+          category. When a category comes in via the sidebar's dropdown
+          (or a direct ?category= link), we lock the page to that single
+          category instead of exposing every other category as a tab. */}
+      {!activeCategoryId ? (
+        <div className="flex border-b border-[#E2DBD0] gap-2 overflow-x-auto text-xs font-bold pb-1">
+          <button
+            onClick={() => handleCategorySelect('')}
+            className="px-4 py-3 border-b-2 transition-all flex items-center gap-2 cursor-pointer shrink-0 border-[#C5A059] text-[#0B241C] bg-white rounded-t-xl"
+          >
+            <span>All Categories</span>
+            <span className="px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-[#0B241C] text-white">
+              {products.length}
+            </span>
+          </button>
+
+          {categories.map((cat) => {
+            const count = productCountForCategory(cat.id);
+            return (
+              <button
+                key={cat.id}
+                onClick={() => handleCategorySelect(cat.id)}
+                className="px-4 py-3 border-b-2 transition-all flex items-center gap-2 cursor-pointer shrink-0 border-transparent text-[#5A7469] hover:text-[#0B241C]"
+              >
+                <span>{cat.title}</span>
+                <span className="px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-gray-100 text-[#5A7469]">
+                  {count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="flex items-center justify-between gap-3 pb-1 border-b border-[#E2DBD0]">
+          <div className="px-4 py-3 border-b-2 border-[#C5A059] text-[#0B241C] font-bold text-xs flex items-center gap-2 -mb-px">
+            <span>{activeCategoryLabel}</span>
+            <span className="px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-[#0B241C] text-white">
+              {stats.total}
+            </span>
+          </div>
+          <button
+            onClick={() => handleCategorySelect('')}
+            className="text-[11px] font-bold text-[#C5A059] hover:underline cursor-pointer shrink-0 mb-2"
+          >
+            View All Categories
+          </button>
+        </div>
+      )}
+
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-2.5">
         <div className="relative flex-1">
@@ -425,7 +526,7 @@ export default function AdminProductsPage() {
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search by name, slug, or SKU…"
+            placeholder={`Search in ${activeCategoryLabel}…`}
             className="w-full pl-8 pr-3 py-2.5 bg-white border border-[#E2DBD0] rounded-xl text-xs font-medium text-[#0B241C] focus:outline-none focus:border-[#C5A059]"
           />
         </div>
@@ -440,172 +541,168 @@ export default function AdminProductsPage() {
         </select>
       </div>
 
-      {/* Products Table */}
-      <div className="bg-white rounded-2xl border border-[#E2DBD0] overflow-hidden shadow-sm">
-        <div className="overflow-x-auto">
-          <table className="w-full text-xs">
-            <thead>
-              <tr className="bg-[#FAF8F5] text-[#5A7469] text-left border-b border-[#E2DBD0]">
-                <th className="p-3 font-bold">Product</th>
-                <th className="p-3 font-bold">Category</th>
-                <th className="p-3 font-bold">Price</th>
-                <th className="p-3 font-bold">Stock</th>
-                <th className="p-3 font-bold">Type</th>
-                <th className="p-3 font-bold">Status</th>
-                <th className="p-3 font-bold text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading && (
-                <tr>
-                  <td colSpan={7} className="p-10">
-                    <div className="flex items-center justify-center gap-2 text-[#5A7469]">
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      <span>Loading products…</span>
-                    </div>
-                  </td>
-                </tr>
-              )}
-
-              {!loading && !loadError && filteredProducts.length === 0 && products.length === 0 && (
-                <tr>
-                  <td colSpan={7} className="p-10">
-                    <div className="flex flex-col items-center gap-2 text-center">
-                      <div className="w-10 h-10 rounded-full bg-[#FAF8F5] border border-[#E2DBD0] flex items-center justify-center">
-                        <Package className="w-4 h-4 text-[#C5A059]" />
-                      </div>
-                      <p className="font-bold text-[#0B241C]">No products yet</p>
-                      <p className="text-[#5A7469]">Add your first piece to start building the catalog.</p>
-                      <button
-                        onClick={() => router.push('/admin/products/add')}
-                        className="mt-1 px-4 py-2 rounded-xl bg-[#0B241C] hover:bg-[#123528] text-white font-semibold flex items-center gap-1.5 cursor-pointer"
-                      >
-                        <Plus className="w-3.5 h-3.5" />
-                        Add Product
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              )}
-
-              {!loading && !loadError && filteredProducts.length === 0 && products.length > 0 && (
-                <tr>
-                  <td colSpan={7} className="p-10 text-center text-[#5A7469]">
-                    No products match "{searchQuery}"{activeFilter !== 'all' ? ` (${activeFilter})` : ''}.
-                  </td>
-                </tr>
-              )}
-
-              {!loading &&
-                filteredProducts.map((p) => (
-                  <tr key={p.id} className="border-b border-[#EFEBE3] hover:bg-[#FAF8F5]/60">
-                    <td className="p-3">
-                      <div className="flex items-center gap-2.5">
-                        {p.primary_image ? (
-                          <img
-                            src={p.primary_image}
-                            alt={p.name}
-                            className="w-10 h-10 rounded-lg object-cover border border-[#E2DBD0]"
-                            onError={(e) => {
-                              (e.target as HTMLImageElement).src = PLACEHOLDER_IMAGE;
-                            }}
-                          />
-                        ) : (
-                          <div className="w-10 h-10 rounded-lg bg-[#FAF8F5] border border-[#E2DBD0] flex items-center justify-center">
-                            <ImageOff className="w-4 h-4 text-[#C5A059]" />
-                          </div>
-                        )}
-                        <div>
-                          <p className="font-bold text-[#0B241C]">{p.name}</p>
-                          <div className="flex items-center gap-1.5 mt-0.5">
-                            <p className="text-[10px] text-[#5A7469]">{p.sku || p.slug}</p>
-                            {p.is_featured && (
-                              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
-                                ★ Featured
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="p-3 text-[#2C4A3E]">
-                      <p className="font-semibold">{categoryTitle(p.category_id)}</p>
-                      {subcategoryTitle(p.subcategory_id) && (
-                        <p className="text-[10px] text-[#5A7469]">{subcategoryTitle(p.subcategory_id)}</p>
-                      )}
-                    </td>
-                    <td className="p-3">
-                      {p.selling_price && p.price && p.selling_price < p.price ? (
-                        <>
-                          <span className="font-bold text-[#0B241C]">₹{p.selling_price}</span>{' '}
-                          <span className="line-through text-[#5A7469]">₹{p.price}</span>
-                        </>
-                      ) : (
-                        <span className="font-bold text-[#0B241C]">
-                          {p.selling_price ? `₹${p.selling_price}` : p.price ? `₹${p.price}` : '—'}
-                        </span>
-                      )}
-                    </td>
-                    <td className="p-3">
-                      <span className={p.stock <= 5 && p.stock > 0 ? 'text-amber-700 font-bold' : 'text-[#2C4A3E]'}>
-                        {p.has_variants ? '—' : p.stock}
-                      </span>
-                    </td>
-                    <td className="p-3 text-[#2C4A3E]">
-                      {p.has_variants ? (
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
-                          Variants
-                        </span>
-                      ) : (
-                        <span className="text-[10px] font-semibold text-[#5A7469]">Simple</span>
-                      )}
-                    </td>
-                    <td className="p-3">
-                      <button
-                        onClick={() => toggleActive(p)}
-                        className={`px-2 py-0.5 rounded-full text-[10px] font-bold border cursor-pointer transition-colors ${
-                          p.is_active
-                            ? 'bg-emerald-100 text-emerald-800 border-emerald-300 hover:bg-emerald-200'
-                            : 'bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200'
-                        }`}
-                      >
-                        {p.is_active ? 'Active' : 'Inactive'}
-                      </button>
-                    </td>
-                    <td className="p-3 text-right">
-                      <div className="flex justify-end gap-1.5">
-                        <button
-                          onClick={() => openView(p)}
-                          className="p-1.5 rounded-lg bg-[#FAF8F5] hover:bg-white border border-[#E2DBD0] text-[#0B241C] cursor-pointer"
-                          title="View"
-                        >
-                          <Eye className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={() => router.push(`/admin/products/add?id=${p.id}`)}
-                          className="p-1.5 rounded-lg bg-[#FAF8F5] hover:bg-white border border-[#E2DBD0] text-[#0B241C] cursor-pointer"
-                          title="Edit"
-                        >
-                          <Edit2 className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteProduct(p)}
-                          className="p-1.5 rounded-lg bg-[#FAF8F5] hover:bg-rose-50 border border-[#E2DBD0] text-rose-700 cursor-pointer"
-                          title="Delete"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-            </tbody>
-          </table>
+      {/* Section header — mirrors "Subcategories in {category}" from the Categories page */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-2">
+        <div>
+          <h2 className="font-serif-title text-xl font-bold text-[#0B241C] flex items-center gap-2">
+            <span>Products in {activeCategoryLabel}</span>
+            <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300">
+              {filteredProducts.length} {filteredProducts.length === 1 ? 'Product' : 'Products'}
+            </span>
+          </h2>
+          <p className="text-xs text-[#5A7469]">
+            Each card is a row in the <code>products</code> table. Click a card's actions to view, edit, or remove it.
+          </p>
         </div>
       </div>
 
+      {/* Loading state */}
+      {loading && (
+        <div className="flex items-center justify-center gap-2 text-[#5A7469] py-16">
+          <Loader2 className="w-5 h-5 animate-spin" />
+          <span className="text-sm">Loading products…</span>
+        </div>
+      )}
+
+      {/* Empty states */}
+      {!loading && !loadError && filteredProducts.length === 0 && (
+        <div className="flex flex-col items-center gap-2 text-center py-16 bg-white rounded-2xl border border-[#E2DBD0]">
+          <div className="w-10 h-10 rounded-full bg-[#FAF8F5] border border-[#E2DBD0] flex items-center justify-center">
+            <Package className="w-4 h-4 text-[#C5A059]" />
+          </div>
+          {products.length === 0 ? (
+            <>
+              <p className="font-bold text-[#0B241C] text-xs">No products yet</p>
+              <p className="text-[#5A7469] text-xs">Add your first piece to start building the catalog.</p>
+              <button
+                onClick={() => router.push('/admin/products/add')}
+                className="mt-1 px-4 py-2 rounded-xl bg-[#0B241C] hover:bg-[#123528] text-white font-semibold flex items-center gap-1.5 cursor-pointer text-xs"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                Add Product
+              </button>
+            </>
+          ) : (
+            <p className="text-[#5A7469] text-xs">
+              No products match "{searchQuery}" in {activeCategoryLabel}
+              {activeFilter !== 'all' ? ` (${activeFilter})` : ''}.
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Product Visual Grid — same card pattern as the Subcategories grid */}
+      {!loading && filteredProducts.length > 0 && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          {filteredProducts.map((p) => (
+            <div
+              key={p.id}
+              className="bg-white rounded-2xl border border-[#E2DBD0] overflow-hidden shadow-xs hover:shadow-md transition-all flex flex-col justify-between group"
+            >
+              <div>
+                <div className="relative aspect-square w-full bg-[#FAF8F5] overflow-hidden">
+                  {p.primary_image ? (
+                    <img
+                      src={p.primary_image}
+                      alt={p.name}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = PLACEHOLDER_IMAGE;
+                      }}
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <ImageOff className="w-6 h-6 text-[#C5A059]" />
+                    </div>
+                  )}
+
+                  {p.is_featured && (
+                    <span className="absolute top-2 left-2 px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
+                      ★ Featured
+                    </span>
+                  )}
+
+                  <div className="absolute top-2 right-2 flex gap-1 opacity-90 sm:opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button
+                      onClick={() => openView(p)}
+                      title="View"
+                      className="p-1.5 rounded-lg bg-white/90 hover:bg-white text-[#0B241C] shadow-sm cursor-pointer"
+                    >
+                      <Eye className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={() => router.push(`/admin/products/add?id=${p.id}`)}
+                      title="Edit"
+                      className="p-1.5 rounded-lg bg-white/90 hover:bg-white text-[#0B241C] shadow-sm cursor-pointer"
+                    >
+                      <Edit2 className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteProduct(p)}
+                      title="Delete"
+                      className="p-1.5 rounded-lg bg-white/90 hover:bg-rose-50 text-rose-700 shadow-sm cursor-pointer"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="p-3.5 space-y-1">
+                  <h3 className="font-bold text-xs text-[#0B241C] truncate">{p.name}</h3>
+                  <p className="text-[11px] text-[#5A7469]">
+                    {subcategoryTitle(p.subcategory_id) || categoryTitle(p.category_id)}
+                  </p>
+                  <div className="flex items-center justify-between pt-1">
+                    <span className="font-bold text-[#0B241C] text-xs">
+                      {p.selling_price
+                        ? `₹${p.selling_price}`
+                        : p.price
+                          ? `₹${p.price}`
+                          : '—'}
+                    </span>
+                    {p.selling_price && p.price && p.selling_price < p.price && (
+                      <span className="text-[10px] line-through text-[#5A7469]">₹{p.price}</span>
+                    )}
+                  </div>
+                  <p className="text-[10px] text-[#5A7469]">
+                    {p.has_variants ? (
+                      <span className="px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
+                        Variants
+                      </span>
+                    ) : (
+                      <span className={p.stock <= 5 && p.stock > 0 ? 'text-amber-700 font-bold' : ''}>
+                        {p.stock} in stock
+                      </span>
+                    )}
+                  </p>
+                </div>
+              </div>
+
+              <div className="p-3 pt-0 border-t border-[#EFEBE3] mt-2 flex justify-between items-center text-[11px]">
+                <button
+                  onClick={() => router.push(`/admin/products/add?id=${p.id}`)}
+                  className="text-[#C5A059] font-bold hover:underline cursor-pointer"
+                >
+                  Edit Details
+                </button>
+                <button
+                  onClick={() => toggleActive(p)}
+                  className={`px-2 py-0.5 rounded-full text-[10px] font-bold border cursor-pointer transition-colors ${p.is_active
+                      ? 'bg-emerald-100 text-emerald-800 border-emerald-300 hover:bg-emerald-200'
+                      : 'bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200'
+                    }`}
+                >
+                  {p.is_active ? 'Active' : 'Inactive'}
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* -----------------------------------------------------------
           "View" modal — everything that was added for this product
+          (unchanged from the original table version)
       ----------------------------------------------------------- */}
       {viewProduct && (
         <div
@@ -629,11 +726,10 @@ export default function AdminProductsPage() {
                     </span>
                   )}
                   <span
-                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
-                      viewProduct.is_active
+                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${viewProduct.is_active
                         ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
                         : 'bg-gray-100 text-gray-700 border-gray-300'
-                    }`}
+                      }`}
                   >
                     {viewProduct.is_active ? 'Active' : 'Inactive'}
                   </span>
@@ -779,11 +875,10 @@ export default function AdminProductsPage() {
                                   </div>
                                 </div>
                                 <span
-                                  className={`px-2 py-0.5 rounded-full text-[10px] font-bold border shrink-0 ${
-                                    v.is_active
+                                  className={`px-2 py-0.5 rounded-full text-[10px] font-bold border shrink-0 ${v.is_active
                                       ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
                                       : 'bg-gray-100 text-gray-700 border-gray-300'
-                                  }`}
+                                    }`}
                                 >
                                   {v.is_active ? 'Active' : 'Inactive'}
                                 </span>

@@ -28,6 +28,7 @@ type Category = {
   subtitle: string | null;
   banner_image: string | null;
   hero_image: string | null;
+  priority: number;          // ← add this
 };
 
 type Subcategory = {
@@ -87,7 +88,8 @@ export default function AdminCategoriesPage() {
     const { data: catData, error: catError } = await supabase
       .from('categories')
       .select('*')
-      .order('title', { ascending: true });
+      .order('priority', { ascending: true })   // ← changed from .order('title', ...)
+      .order('title', { ascending: true });     // tie-breaker for equal priorities
 
     const { data: subData, error: subError } = await supabase
       .from('subcategories')
@@ -257,6 +259,7 @@ export default function AdminCategoriesPage() {
           title: editingCategory.title,
           subtitle: editingCategory.subtitle,
           banner_image: bannerUrl || editingCategory.banner_image,
+          priority: editingCategory.priority,   // ← add this
         })
         .eq('id', editingCategory.id);
 
@@ -323,15 +326,14 @@ export default function AdminCategoriesPage() {
               key={cat.slug}
               onClick={() => setActiveCatSlug(cat.slug)}
               className={`px-4 py-3 border-b-2 transition-all flex items-center gap-2 cursor-pointer shrink-0 ${isActive
-                  ? 'border-[#C5A059] text-[#0B241C] bg-white rounded-t-xl'
-                  : 'border-transparent text-[#5A7469] hover:text-[#0B241C]'
+                ? 'border-[#C5A059] text-[#0B241C] bg-white rounded-t-xl'
+                : 'border-transparent text-[#5A7469] hover:text-[#0B241C]'
                 }`}
             >
               <span>{cat.title}</span>
               <span
-                className={`px-1.5 py-0.5 rounded-full text-[10px] font-semibold ${
-                  isActive ? 'bg-[#0B241C] text-white' : 'bg-gray-100 text-[#5A7469]'
-                }`}
+                className={`px-1.5 py-0.5 rounded-full text-[10px] font-semibold ${isActive ? 'bg-[#0B241C] text-white' : 'bg-gray-100 text-[#5A7469]'
+                  }`}
               >
                 {count}
               </span>
@@ -636,7 +638,25 @@ export default function AdminCategoriesPage() {
                   className="w-full px-3.5 py-2 bg-[#FAF8F5] border border-[#E2DBD0] rounded-xl font-medium text-[#0B241C] focus:outline-none focus:border-[#C5A059]"
                 />
               </div>
-
+              <div>
+                <label className="block font-bold text-[#0B241C] mb-1">
+                  Display Priority
+                </label>
+                <input
+                  type="number"
+                  value={editingCategory.priority}
+                  onChange={(e) =>
+                    setEditingCategory({
+                      ...editingCategory,
+                      priority: Number(e.target.value) || 0,
+                    })
+                  }
+                  className="w-full px-3.5 py-2.5 bg-[#FAF8F5] border border-[#E2DBD0] rounded-xl font-semibold text-[#0B241C] focus:outline-none focus:border-[#C5A059]"
+                />
+                <p className="text-[10px] text-[#5A7469] mt-1">
+                  Lower numbers appear first in navigation & storefront listings.
+                </p>
+              </div>
               <div className="space-y-2">
                 <label className="block font-bold text-[#0B241C]">Boutique Banner Image</label>
                 {catBannerPreview && (

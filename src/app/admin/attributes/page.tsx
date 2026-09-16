@@ -1829,6 +1829,7 @@ CREATE POLICY "Allow all on lifestyle_sale_tags" ON public.lifestyle_sale_tags F
                     className="px-3.5 py-2.5 text-xs font-semibold text-[#0B241C] bg-[#FAF8F5] focus:outline-none cursor-pointer border-none"
                   >
                     <option value="inches">inches</option>
+                     <option value="inches">mm</option>
                     <option value="cm">cm</option>
                   </select>
                 </div>

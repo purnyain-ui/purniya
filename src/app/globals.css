@@ -145,3 +145,22 @@
   box-shadow: 0 6px 20px rgba(197, 160, 89, 0.42);
   transform: translateY(-1px);
 }
+
+@keyframes marquee-left {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.announcement-track {
+  animation: marquee-left 25s linear infinite;
+  will-change: transform;
+}
+
+/* Optional: pause on hover */
+.announcement-track:hover {
+  animation-play-state: paused;
+}

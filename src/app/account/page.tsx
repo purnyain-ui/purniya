@@ -202,7 +202,7 @@ function AccountContent() {
               { id: 'orders', label: 'Order History & Tracking', icon: <Package className="w-4 h-4" /> },
               { id: 'profile', label: 'Personal Information', icon: <User className="w-4 h-4" /> },
               { id: 'addresses', label: 'Saved Addresses', icon: <MapPin className="w-4 h-4" /> },
-              { id: 'returns', label: 'Returns & Replacements', icon: <RotateCcw className="w-4 h-4" /> },
+              { id: 'returns', label: ' Replacements', icon: <RotateCcw className="w-4 h-4" /> },
             ].map((tab) => (
               <button
                 key={tab.id}
@@ -232,16 +232,7 @@ function AccountContent() {
               <ChevronRight className="w-3.5 h-3.5 opacity-60" />
             </Link>
 
-            <Link
-              href="/admin"
-              className="w-full flex items-center justify-between p-3 rounded-xl text-[#0C3B2E] bg-[#FAF8F5] hover:bg-[#EBF3EF] transition-all mt-4 border border-[#E2DBD0]"
-            >
-              <div className="flex items-center gap-3">
-                <Edit3 className="w-4 h-4 text-[#C5A059]" />
-                <span>Merchant Admin</span>
-              </div>
-              <ChevronRight className="w-3.5 h-3.5 opacity-60" />
-            </Link>
+           
 
             <button
               type="button"

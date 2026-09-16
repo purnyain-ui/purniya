@@ -278,7 +278,7 @@ function AuthContent() {
           <div className="relative z-10 space-y-6">
             <Link href="/" className="inline-flex items-center gap-3">
               <div className="w-11 h-11 rounded-full bg-[#FAF8F5] border-2 border-[#C5A059] flex items-center justify-center p-0.5 shadow-md">
-                <img src="/purnya-logo.png" alt="Purnya" className="w-full h-full object-contain" />
+                <img src="/logoicon.png" alt="Purnya" className="w-full h-full object-contain" />
               </div>
               <div>
                 <span className="font-serif-title font-bold text-xl tracking-widest text-[#FAF8F5] block leading-tight">
@@ -391,7 +391,7 @@ function AuthContent() {
           {/* Brand Logo on Top of Form */}
           <div className="flex items-center gap-3 mb-6">
             <div className="w-12 h-12 rounded-full bg-[#FAF8F5] border-2 border-[#C5A059] flex items-center justify-center p-1 shadow-sm shrink-0">
-              <img src="/purnya-logo.png" alt="Purnya" className="w-full h-full object-contain" />
+              <img src="/logoicon.png" alt="Purnya" className="w-full h-full object-contain" />
             </div>
             <div>
               <span className="font-serif-title font-bold text-xl tracking-[0.16em] text-[#0C3B2E] block leading-none">
@@ -825,7 +825,7 @@ function AuthContent() {
             {/* Modal Brand Logo */}
             <div className="flex items-center gap-2.5 mb-4">
               <div className="w-10 h-10 rounded-full bg-[#FAF8F5] border-2 border-[#C5A059] flex items-center justify-center p-0.5 shadow-xs shrink-0">
-                <img src="/purnya-logo.png" alt="Purnya" className="w-full h-full object-contain" />
+                <img src="/logoicon.png" alt="Purnya" className="w-full h-full object-contain" />
               </div>
               <div>
                 <span className="font-serif-title font-bold text-base tracking-[0.14em] text-[#0C3B2E] block leading-none">

@@ -94,7 +94,7 @@ export default function ResetPasswordModal() {
         {/* Brand Header */}
         <div className="flex flex-col items-center text-center space-y-1.5">
           <div className="w-14 h-14 rounded-full overflow-hidden flex items-center justify-center p-1 bg-[#FAF8F5] border-2 border-[#C5A059] shadow-md">
-            <img src="/purnya-logo.png" alt="Purnya Logo" className="w-full h-full object-contain" />
+            <img src="/logoicon.png" alt="Purnya Logo" className="w-full h-full object-contain" />
           </div>
           <div>
             <span className="font-serif-title text-xl font-bold tracking-[0.16em] text-[#0C3B2E] block leading-tight">

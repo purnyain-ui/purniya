@@ -280,7 +280,7 @@ export async function getCategoriesFromSupabase(): Promise<CategoryMeta[] | null
     const { data: cats, error: catsError } = await supabase
       .from('categories')
       .select('*')
-      .order('created_at', { ascending: true });
+      .order('priority', { ascending: true });
 
     if (catsError) {
       console.warn('Supabase getCategories error:', catsError);
@@ -324,6 +324,7 @@ export async function getCategoriesFromSupabase(): Promise<CategoryMeta[] | null
         subtitle: cleanDecor((c.subtitle || '').trim()),
         heroImage: hero,
         bannerImage: banner,
+        priority: c.priority ?? 1,
         subcategories: subcatNames,
         subcatImages: subcatImgs,
       };

@@ -11,6 +11,12 @@ import {
   Headphones,
   CheckCircle2,
   ArrowUpRight,
+  Gem,
+  Flame,
+  Home,
+  Leaf,
+  Gift,
+  Sparkles,
 } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import { initialHeroSlides } from '../data/mockData';
@@ -71,6 +77,16 @@ const defaultBottomFallback: HomeBottomSection = {
   isActive: true,
 };
 
+function getCategoryIcon(cat: { slug?: string; title?: string }) {
+  const s = `${cat.slug || ''} ${cat.title || ''}`.toLowerCase();
+  if (s.includes('jewel') || s.includes('apparel') || s.includes('accessor')) return Gem;
+  if (s.includes('candle') || s.includes('fragrance')) return Flame;
+  if (s.includes('decor') || s.includes('décor') || s.includes('lifestyle') || s.includes('home')) return Home;
+  if (s.includes('wellness') || s.includes('organic')) return Leaf;
+  if (s.includes('gift') || s.includes('stationery')) return Gift;
+  return Sparkles;
+}
+
 export default function HomePage() {
   const { categories, products, banners } = useStore();
   const [activeSlide, setActiveSlide] = useState(0);
@@ -124,7 +140,7 @@ export default function HomePage() {
   };
 
   return (
-    <div className="space-y-16 sm:space-y-24 pb-20">
+    <div className="space-y-6 sm:space-y-10 pb-12">
       {/* 1. HERO BANNER SECTION (SOW 5.A) */}
       <section className="relative w-full h-[520px] sm:h-[620px] lg:h-[680px] overflow-hidden bg-[#08281F]">
         {displayedBanners.map((slide, idx) => (
@@ -143,7 +159,7 @@ export default function HomePage() {
             <div className="absolute inset-0 bg-gradient-to-t from-[#08281F]/80 via-transparent to-transparent" />
 
             <div className="absolute inset-0 flex items-center">
-              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
+              <div className="w-full px-3 sm:px-4">
                 <div className="max-w-2xl text-[#FAF8F5] space-y-4 sm:space-y-6">
                   {slide.pretitle && (
                     <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/10 backdrop-blur-md text-[#D4AF37] text-xs font-semibold uppercase tracking-[0.25em] border border-[#D4AF37]/30">
@@ -214,7 +230,7 @@ export default function HomePage() {
       </section>
 
       {/* 2. FIVE CATEGORY DISCOVERY ROWS (SOW SECTION 5.1 & 5.B, 5.C, 5.D, 5.E, 5.F, 5.G) */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-16">
+      <section className="w-full px-2 sm:px-3 space-y-8">
         <div className="text-center max-w-2xl mx-auto space-y-2">
           <p className="text-xs font-bold uppercase tracking-[0.25em] text-[#C5A059] flex items-center justify-center gap-1.5">
 
@@ -229,7 +245,7 @@ export default function HomePage() {
         </div>
 
         {/* Dynamic Category Blocks */}
-        <div className="space-y-16">
+        <div className="space-y-8">
           {categories.map((cat, idx) => {
             const catProducts = products
               .filter((p) => {
@@ -255,118 +271,111 @@ export default function HomePage() {
                 : (cat.subcategories || []).filter((s) => s !== 'All').map((s) => ({ name: s, image: cat.bannerImage || cat.heroImage }))
             );
 
+            const Icon = getCategoryIcon(cat);
+
             return (
               <div
                 key={cat.id}
-                className="bg-white rounded-3xl border border-[#E2DBD0] p-6 sm:p-8 lg:p-10 shadow-sm hover:shadow-md transition-shadow"
+                className="group/card relative bg-white rounded-[1.75rem] border border-[#E2DBD0] shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden"
               >
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-                  {/* Left: Category Visual & Intro */}
-                  <div className="lg:col-span-4 space-y-5">
-                    <div className="flex items-center gap-3">
-                      <span className="font-serif-title text-2xl font-bold text-[#C5A059]">
-                        0{idx + 1}.
-                      </span>
-                      <h3 className="font-serif-title text-2xl sm:text-3xl font-bold text-[#0B241C]">
-                        {cat.title}
-                      </h3>
+                {/* Header Band: Icon + Title + Description + CTA */}
+                <div className="relative bg-gradient-to-r from-[#0C3B2E] via-[#0C3B2E] to-[#08281F] px-6 sm:px-8 lg:px-10 py-6 sm:py-7 overflow-hidden">
+                  {/* Decorative glow */}
+                  <div className="pointer-events-none absolute -right-10 -top-16 w-56 h-56 rounded-full bg-[#D4AF37]/10 blur-3xl" />
+                  <div className="pointer-events-none absolute -left-10 -bottom-16 w-48 h-48 rounded-full bg-[#D4AF37]/5 blur-3xl" />
+
+                  <div className="relative flex flex-col lg:flex-row lg:items-center gap-4 sm:gap-5 lg:gap-8">
+                    <div className="flex items-center gap-3.5 sm:gap-4 shrink-0">
+                      <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-white/10 backdrop-blur-md border border-white/15 flex items-center justify-center text-[#D4AF37] shrink-0 group-hover/card:bg-[#D4AF37] group-hover/card:text-[#08281F] transition-colors">
+                        <Icon className="w-6 h-6 sm:w-7 sm:h-7" />
+                      </div>
+                      <div>
+                        <span className="text-[10px] font-bold uppercase tracking-[0.22em] text-[#D4AF37]">
+                          World 0{idx + 1}
+                        </span>
+                        <h3 className="font-serif-title text-xl sm:text-2xl lg:text-3xl font-bold text-white leading-tight whitespace-nowrap">
+                          {cat.title}
+                        </h3>
+                      </div>
                     </div>
 
-                    <Link
-                      href={`/category/${cat.slug}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="block relative aspect-[16/10] sm:aspect-[16/9] lg:aspect-[4/3] rounded-2xl overflow-hidden bg-[#EBF3EF] group"
-                    >
-                      <img
-                        src={cat.bannerImage || cat.heroImage}
-                        alt={cat.title}
-                        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-[#08281F]/80 via-transparent to-transparent" />
-                      <div className="absolute bottom-4 left-4 right-4 text-white">
-                        <p className="text-xs text-[#FAF8F5]/90 line-clamp-2">{cat.subtitle}</p>
-                        <span className="text-[11px] text-[#D4AF37] font-bold uppercase tracking-wider mt-1 inline-flex items-center gap-1 group-hover:underline">
-                          <span>Open {cat.title.split('&')[0].trim()} Flagship Site ↗</span>
-                          <ArrowRight className="w-3 h-3" />
-                        </span>
-                      </div>
-                    </Link>
+                    <p className="text-xs sm:text-sm text-[#B4C9BF] leading-relaxed flex-1 line-clamp-2">
+                      {cat.subtitle}
+                    </p>
 
                     <Link
                       href={`/category/${cat.slug}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-[#0C3B2E] hover:bg-[#164E3D] text-white text-xs font-semibold uppercase tracking-wider transition-all shadow-md hover:scale-105"
+                      className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-full bg-gradient-to-r from-[#D4AF37] to-[#C5A059] hover:from-[#E6C25B] hover:to-[#D4AF37] text-[#08281F] text-xs font-bold uppercase tracking-wider transition-all shadow-md hover:scale-105 shrink-0 self-start lg:self-auto"
                     >
-                      <span>Explore Complete {cat.title.split('&')[0].trim()} ↗</span>
-                      <ArrowRight className="w-3.5 h-3.5 text-[#D4AF37]" />
+                      <span>Explore {cat.title.split('&')[0].trim()}</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
                     </Link>
                   </div>
+                </div>
 
-                  {/* Right: Quick-Shop Subcategories + Featured Products */}
-                  <div className="lg:col-span-8 space-y-6">
-                    {/* Quick-Shop Subcategories directly from Supabase */}
-                    {validSubcats.length > 0 && (
-                      <div>
-                        <div className="flex items-center justify-between mb-3">
-                          <p className="text-xs font-bold uppercase tracking-wider text-[#5A7469]">
-                            Quick Shop Subcategories
-                          </p>
+                {/* Body: Subcategories + Products */}
+                <div className="p-6 sm:p-8 lg:p-10 space-y-8">
+                  {/* All Subcategories */}
+                  {validSubcats.length > 0 && (
+                    <div>
+                      <div className="flex items-center gap-2 mb-4">
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#C5A059]" />
+                        <p className="text-xs font-bold uppercase tracking-wider text-[#0B241C]">
+                          Shop Subcategories
+                        </p>
+                        <span className="text-[11px] text-[#5A7469]">({validSubcats.length})</span>
+                      </div>
+
+                      <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-2.5 sm:gap-3">
+                        {validSubcats.map((sub) => (
                           <Link
-                            href={`/category/${cat.slug}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-xs font-semibold text-[#0C3B2E] hover:text-[#C5A059] flex items-center gap-1"
+                            key={sub.name}
+                            href={`/category/${cat.slug}/${encodeURIComponent(sub.name)}`}
+                            className="group relative aspect-square rounded-xl overflow-hidden border border-[#E2DBD0] bg-[#EBF3EF] shadow-sm hover:shadow-lg hover:-translate-y-0.5 hover:border-[#C5A059] transition-all duration-300"
+                            title={`Shop ${sub.name}`}
                           >
-                            <span>Explore All ({validSubcats.length}) ↗</span>
-                            <ArrowRight className="w-3 h-3" />
-                          </Link>
-                        </div>
-
-                        {/* Circular Subcategory Cards with Direct Subcategory Links */}
-                        <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-none">
-                          {validSubcats.slice(0, 6).map((sub) => (
-                            <Link
-                              key={sub.name}
-                              href={`/category/${cat.slug}/${encodeURIComponent(sub.name)}`}
-                              className="flex flex-col items-center gap-2 shrink-0 group"
-                              title={`Shop ${sub.name}`}
-                            >
-                              <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full overflow-hidden border-2 border-[#E2DBD0] p-0.5 group-hover:border-[#0C3B2E] group-hover:shadow-md transition-all bg-[#EBF3EF] shadow-xs">
-                                <img
-                                  src={sub.image}
-                                  alt={sub.name}
-                                  className="w-full h-full object-cover rounded-full group-hover:scale-110 transition-transform duration-300"
-                                />
-                              </div>
-                              <span className="text-[11px] font-semibold text-[#2C4A3E] group-hover:text-[#0C3B2E] text-center max-w-[84px] truncate">
+                            <img
+                              src={sub.image}
+                              alt={sub.name}
+                              className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                            />
+                            <div className="absolute inset-0 bg-gradient-to-t from-[#08281F]/90 via-[#08281F]/15 to-transparent" />
+                            <div className="absolute inset-x-0 bottom-0 p-2 sm:p-2.5 flex items-end justify-between gap-1">
+                              <span className="text-white text-[10px] sm:text-xs font-bold leading-snug line-clamp-2">
                                 {sub.name}
                               </span>
-                            </Link>
-                          ))}
-                        </div>
+                              <span className="shrink-0 w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-white/15 backdrop-blur-md border border-white/30 flex items-center justify-center group-hover:bg-[#D4AF37] group-hover:border-[#D4AF37] transition-colors">
+                                <ArrowRight className="w-3 h-3 text-white group-hover:text-[#08281F]" />
+                              </span>
+                            </div>
+                          </Link>
+                        ))}
                       </div>
-                    )}
+                    </div>
+                  )}
 
-                    {/* Featured Mini Product Grid */}
-                    <div>
-                      <p className="text-xs font-bold uppercase tracking-wider text-[#5A7469] mb-3">
+                  {/* Featured Mini Product Grid */}
+                  <div className="rounded-2xl bg-[#FAF8F5] border border-[#E2DBD0]/70 p-4 sm:p-5">
+                    <div className="flex items-center gap-2 mb-4">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#0C3B2E]" />
+                      <p className="text-xs font-bold uppercase tracking-wider text-[#0B241C]">
                         Featured in {cat.title}
                       </p>
-                      {catProducts.length > 0 ? (
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-                          {catProducts.map((prod) => (
-                            <ProductCard key={prod.id} product={prod} compact hidePrice showVariants={false} />
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="py-6 px-4 rounded-2xl bg-[#FAF8F5] border border-dashed border-[#E2DBD0] text-center text-xs text-[#5A7469]">
-                          <p className="font-semibold text-[#0B241C]">Artisanal pieces arriving soon</p>
-                          <p className="text-[11px] mt-0.5 text-[#5A7469]">Explore all subcategories above.</p>
-                        </div>
-                      )}
                     </div>
+                    {catProducts.length > 0 ? (
+                      <div className="grid grid-cols-3 sm:grid-cols-5 lg:grid-cols-6 gap-2 sm:gap-3">
+                        {catProducts.map((prod) => (
+                          <ProductCard key={prod.id} product={prod} compact hidePrice showVariants={false} />
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="py-6 px-4 rounded-xl bg-white border border-dashed border-[#E2DBD0] text-center text-xs text-[#5A7469]">
+                        <p className="font-semibold text-[#0B241C]">Artisanal pieces arriving soon</p>
+                        <p className="text-[11px] mt-0.5 text-[#5A7469]">Explore all subcategories above.</p>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -375,9 +384,56 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* 1.5 FIVE WORLDS, ONE PURNYA — BRAND OBJECTIVE / QUICK CATEGORY ACCESS */}
+      <section className="w-full px-2 sm:px-3">
+        <div className="relative rounded-3xl overflow-hidden bg-[#FAF8F5] border border-[#E2DBD0] px-5 py-10 sm:px-10 sm:py-14">
+          <div className="text-center max-w-2xl mx-auto space-y-2 mb-10">
+            <p className="text-xs font-bold uppercase tracking-[0.25em] text-[#C5A059]">
+              One Unified Lifestyle Brand
+            </p>
+            <h2 className="font-serif-title text-3xl sm:text-4xl lg:text-5xl font-bold text-[#0B241C]">
+              Five Worlds. One Purnya.
+            </h2>
+            <p className="text-sm text-[#2C4A3E]">
+              From artisanal jewellery to organic wellness, every Purnya world is crafted with the
+              same premium, mindful standard — so however you shop, it always feels like Purnya.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 sm:gap-5">
+            {categories.map((cat) => {
+              const Icon = getCategoryIcon(cat);
+              return (
+                <Link
+                  key={cat.id}
+                  href={`/category/${cat.slug}`}
+                  className="group relative flex flex-col items-center text-center gap-3 p-5 rounded-2xl bg-white border border-[#E2DBD0] hover:border-[#C5A059] hover:shadow-lg transition-all"
+                >
+                  <div className="w-14 h-14 rounded-2xl bg-[#EBF3EF] flex items-center justify-center text-[#0C3B2E] group-hover:bg-[#0C3B2E] group-hover:text-[#D4AF37] transition-colors shadow-inner">
+                    <Icon className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h3 className="font-serif-title text-sm sm:text-base font-bold text-[#0B241C] leading-snug">
+                      {cat.title}
+                    </h3>
+                    {cat.subtitle && (
+                      <p className="text-[11px] text-[#5A7469] mt-1 line-clamp-2">{cat.subtitle}</p>
+                    )}
+                  </div>
+                  <span className="text-[11px] font-semibold text-[#0C3B2E] group-hover:text-[#C5A059] inline-flex items-center gap-1 mt-1">
+                    <span>Shop Now</span>
+                    <ArrowRight className="w-3 h-3" />
+                  </span>
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
       {/* 3. TRUST REASSURANCE BAR */}
-      <section className="bg-white border-y border-[#E2DBD0] py-10 shadow-xs">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <section className="bg-white border-y border-[#E2DBD0] py-6 shadow-xs">
+        <div className="w-full px-2 sm:px-3">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center sm:text-left">
             <div className="flex flex-col sm:flex-row items-center gap-3">
               <div className="w-12 h-12 rounded-2xl bg-[#EBF3EF] flex items-center justify-center text-[#0C3B2E] shrink-0 shadow-inner">
@@ -431,7 +487,7 @@ export default function HomePage() {
       </section>
 
       {/* 4. EDITORIAL BRAND STORY / MIDDLE SECTION */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <section className="w-full px-2 sm:px-3">
         <div className="relative rounded-3xl overflow-hidden bg-[#0C3B2E] text-[#FAF8F5] p-8 sm:p-14 lg:p-20 shadow-2xl">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
             <div className="space-y-6">
@@ -491,9 +547,9 @@ export default function HomePage() {
       </section>
 
       {/* 7. AUTHENTIC PURNYA CRAFTSMANSHIP STANDARDS / BOTTOM SECTION */}
-      <section className="bg-[#EBF3EF]/60 border-y border-[#E2DBD0] py-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center max-w-xl mx-auto mb-12 space-y-2">
+      <section className="bg-[#EBF3EF]/60 border-y border-[#E2DBD0] py-10">
+        <div className="w-full px-2 sm:px-3">
+          <div className="text-center max-w-xl mx-auto mb-10 space-y-2">
             <span className="text-xs font-bold uppercase tracking-[0.25em] text-[#C5A059]">
               {activeBottom.tag || 'The Purnya Standard'}
             </span>
