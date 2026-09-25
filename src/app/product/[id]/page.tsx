@@ -25,6 +25,9 @@ import {
   Copy,
   Check,
   Maximize2,
+  CreditCard,
+  Gem,
+  Droplet,
 } from 'lucide-react';
 import { useStore } from '../../../context/StoreContext';
 import { supabase } from '../../../lib/supabaseClient';
@@ -930,33 +933,43 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
             </div>
 
             {/* Guarantees / Trust Badges */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 py-6 border-t border-[#E2DBD0]">
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 py-6 border-t border-[#E2DBD0]">
               <div className="flex flex-col items-center text-center space-y-3">
-                <Truck className="w-10 h-10 text-[#C5A059] stroke-[1.5]" />
+                <div className="flex gap-1">
+                  <CreditCard className="w-10 h-10 text-[#0B241C] stroke-[1.5]" />
+                  <ShieldCheck className="w-6 h-6 text-[#25D366] self-end -ml-2 bg-white rounded-full" />
+                </div>
                 <div>
-                  <p className="text-[11px] font-bold uppercase tracking-wide text-[#0B241C] mb-1">Express Courier</p>
-                  <p className="text-[10px] text-[#5A7469] leading-tight px-1">Delivery within 5 to 6 business days</p>
+                  <p className="text-[11px] font-bold uppercase tracking-wide text-[#0B241C] mb-1">Secure</p>
+                  <p className="text-[10px] text-[#5A7469] leading-tight px-1">Payment UPI &amp; Razorpay</p>
+                </div>
+              </div>
+              <div className="flex flex-col items-center text-center space-y-3">
+                <Gem className="w-10 h-10 text-[#C5A059] stroke-[1.5]" />
+                <div>
+                  <p className="text-[11px] font-bold uppercase tracking-wide text-[#0B241C] mb-1">Premium</p>
+                  <p className="text-[10px] text-[#5A7469] leading-tight px-1">Quality 18K Gold Plated</p>
                 </div>
               </div>
               <div className="flex flex-col items-center text-center space-y-3">
                 <ShieldCheck className="w-10 h-10 text-[#C5A059] stroke-[1.5]" />
                 <div>
-                  <p className="text-[11px] font-bold uppercase tracking-wide text-[#0B241C] mb-1">Free Replacement</p>
-                  <p className="text-[10px] text-[#5A7469] leading-tight px-1">If the product arrives damaged</p>
+                  <p className="text-[11px] font-bold uppercase tracking-wide text-[#0B241C] mb-1">Anti-Tarnish</p>
+                  <p className="text-[10px] text-[#5A7469] leading-tight px-1">Long-Lasting Shine</p>
                 </div>
               </div>
               <div className="flex flex-col items-center text-center space-y-3">
-                <Video className="w-10 h-10 text-[#C5A059] stroke-[1.5]" />
+                <Droplet className="w-10 h-10 text-[#0984E3] stroke-[1.5]" />
                 <div>
-                  <p className="text-[11px] font-bold uppercase tracking-wide text-[#0B241C] mb-1">360° Unboxing</p>
-                  <p className="text-[10px] text-[#5A7469] leading-tight px-1">Video required to claim a replacement</p>
+                  <p className="text-[11px] font-bold uppercase tracking-wide text-[#0B241C] mb-1">Water Resistant</p>
+                  <p className="text-[10px] text-[#5A7469] leading-tight px-1">Everyday Wear</p>
                 </div>
               </div>
               <div className="flex flex-col items-center text-center space-y-3">
-                <CheckCircle2 className="w-10 h-10 text-[#C5A059] stroke-[1.5]" />
+                <Heart className="w-10 h-10 text-[#C5A059] stroke-[1.5]" />
                 <div>
-                  <p className="text-[11px] font-bold uppercase tracking-wide text-[#0B241C] mb-1">100% Authentic</p>
-                  <p className="text-[10px] text-[#5A7469] leading-tight px-1">Artisanal craftsmanship guarantee</p>
+                  <p className="text-[11px] font-bold uppercase tracking-wide text-[#0B241C] mb-1">Skin-Friendly</p>
+                  <p className="text-[10px] text-[#5A7469] leading-tight px-1">Hypoallergenic</p>
                 </div>
               </div>
             </div>

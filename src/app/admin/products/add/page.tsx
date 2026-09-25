@@ -124,6 +124,103 @@ function SectionHeader({
   )
 }
 
+function ExistingImagePreviewWithDetails({ url, isPrimary = false, onRemove }: { url: string, isPrimary?: boolean, onRemove: () => void }) {
+  const [dimensions, setDimensions] = useState<string>('');
+
+  return (
+    <div className="flex flex-col gap-1.5 group">
+      <div className="relative rounded-xl overflow-hidden border border-[#E2DBD0]">
+        <img
+          src={url}
+          alt=""
+          className="w-full aspect-square object-cover"
+          onLoad={(e) => {
+            const img = e.target as HTMLImageElement;
+            setDimensions(`${img.naturalWidth} × ${img.naturalHeight}`);
+          }}
+        />
+        {isPrimary && (
+          <span className="absolute bottom-1.5 left-1.5 px-1.5 py-0.5 rounded text-[#C5A059] bg-[#0B241C] text-[9px] font-bold">
+            Primary
+          </span>
+        )}
+        <button
+          onClick={(e) => { e.preventDefault(); onRemove(); }}
+          type="button"
+          className="absolute top-1.5 right-1.5 p-1.5 rounded-full bg-white/90 hover:bg-white shadow-sm cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity"
+        >
+          <X className="w-3.5 h-3.5 text-[#0B241C]" />
+        </button>
+      </div>
+      <div className="flex flex-col px-1">
+        <span className="text-[#0B241C] text-[11px] font-bold">Uploaded</span>
+        {dimensions ? (
+          <span className="text-[#5A7469] text-[10px] font-medium">{dimensions}</span>
+        ) : (
+          <span className="text-[#5A7469] text-[10px] font-medium opacity-0">Loading...</span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function NewImagePreviewWithDetails({ file, isPrimary = false, onRemove }: { file: File, isPrimary?: boolean, onRemove: () => void }) {
+  const [dimensions, setDimensions] = useState<string>('');
+  const [objectUrl, setObjectUrl] = useState('');
+  
+  useEffect(() => {
+    const url = URL.createObjectURL(file);
+    setObjectUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [file]);
+
+  const sizeKb = (file.size / 1024).toFixed(1);
+
+  return (
+    <div className="flex flex-col gap-1.5 group">
+      <div className="relative rounded-xl overflow-hidden border-2 border-[#C5A059]">
+        {objectUrl && (
+          <img
+            src={objectUrl}
+            alt=""
+            className="w-full aspect-square object-cover"
+            onLoad={(e) => {
+              const img = e.target as HTMLImageElement;
+              setDimensions(`${img.naturalWidth} × ${img.naturalHeight}`);
+            }}
+          />
+        )}
+        {isPrimary && (
+          <span className="absolute bottom-1.5 left-1.5 px-1.5 py-0.5 rounded text-white bg-[#C5A059] text-[9px] font-bold">
+            Primary
+          </span>
+        )}
+        <button
+          onClick={(e) => { e.preventDefault(); onRemove(); }}
+          type="button"
+          className="absolute top-1.5 right-1.5 p-1.5 rounded-full bg-white/90 hover:bg-white shadow-sm cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity"
+        >
+          <X className="w-3.5 h-3.5 text-[#0B241C]" />
+        </button>
+      </div>
+      <div className="flex flex-col px-1">
+        <span className="text-[#C5A059] text-[11px] font-bold truncate" title={file.name}>
+          {file.name}
+        </span>
+        <div className="text-[#5A7469] text-[10px] font-medium flex items-center gap-1.5">
+          <span>{sizeKb} KB</span>
+          {dimensions && (
+            <>
+              <span className="w-1 h-1 rounded-full bg-[#E2DBD0]" />
+              <span>{dimensions}</span>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // Wrap the main component in Suspense for useSearchParams
 export default function AdminAddProductWrapper() {
   return (
@@ -1117,49 +1214,21 @@ function AdminAddProductPage() {
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-5">
                   {/* Existing images from database */}
                   {existingProductImages.map((img, index) => (
-                    <div
+                    <ExistingImagePreviewWithDetails
                       key={img.id}
-                      className="relative rounded-2xl overflow-hidden border border-[#E2DBD0]"
-                    >
-                      <img
-                        src={img.image_url}
-                        alt=""
-                        className="w-full aspect-square object-cover"
-                      />
-                      {index === 0 && productImages.length === 0 && (
-                        <span className="absolute bottom-2 left-2 px-2 py-0.5 rounded-full bg-[#0B241C] text-[#C5A059] text-[10px] font-bold">
-                          Primary
-                        </span>
-                      )}
-                      <button
-                        onClick={() => removeExistingProductImage(img.id)}
-                        className="absolute top-2 right-2 p-1.5 rounded-full bg-white/90 hover:bg-white shadow-sm cursor-pointer"
-                      >
-                        <X className="w-3.5 h-3.5 text-[#0B241C]" />
-                      </button>
-                    </div>
+                      url={img.image_url}
+                      isPrimary={index === 0 && productImages.length === 0}
+                      onRemove={() => removeExistingProductImage(img.id)}
+                    />
                   ))}
                   {/* New images picked by user */}
                   {productImages.map((file, index) => (
-                    <div
+                    <NewImagePreviewWithDetails
                       key={`${file.name}-${index}`}
-                      className="relative rounded-2xl overflow-hidden border-2 border-[#C5A059]"
-                    >
-                      <img
-                        src={URL.createObjectURL(file)}
-                        alt=""
-                        className="w-full aspect-square object-cover"
-                      />
-                      <span className="absolute bottom-2 left-2 px-2 py-0.5 rounded-full bg-[#C5A059] text-white text-[10px] font-bold">
-                        New
-                      </span>
-                      <button
-                        onClick={() => removeProductImage(index)}
-                        className="absolute top-2 right-2 p-1.5 rounded-full bg-white/90 hover:bg-white shadow-sm cursor-pointer"
-                      >
-                        <X className="w-3.5 h-3.5 text-[#0B241C]" />
-                      </button>
-                    </div>
+                      file={file}
+                      isPrimary={index === 0}
+                      onRemove={() => removeProductImage(index)}
+                    />
                   ))}
                 </div>
               )}
@@ -1371,48 +1440,19 @@ function AdminAddProductPage() {
                         <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mt-4">
                           {/* Existing variant images */}
                           {variant.existingImages.map((url, imageIndex) => (
-                            <div
+                            <ExistingImagePreviewWithDetails
                               key={`existing-${imageIndex}`}
-                              className="relative rounded-xl overflow-hidden border border-[#E2DBD0]"
-                            >
-                              <img
-                                src={url}
-                                alt=""
-                                className="w-full aspect-square object-cover"
-                              />
-                              <button
-                                onClick={() =>
-                                  removeVariantExistingImage(variant.tempId, url)
-                                }
-                                className="absolute top-1.5 right-1.5 p-1 rounded-full bg-white/90 hover:bg-white shadow-sm cursor-pointer"
-                              >
-                                <X className="w-3 h-3 text-[#0B241C]" />
-                              </button>
-                            </div>
+                              url={url}
+                              onRemove={() => removeVariantExistingImage(variant.tempId, url)}
+                            />
                           ))}
                           {/* New variant images */}
                           {variant.images.map((file, imageIndex) => (
-                            <div
+                            <NewImagePreviewWithDetails
                               key={`${file.name}-${imageIndex}`}
-                              className="relative rounded-xl overflow-hidden border-2 border-[#C5A059]"
-                            >
-                              <img
-                                src={URL.createObjectURL(file)}
-                                alt=""
-                                className="w-full aspect-square object-cover"
-                              />
-                              <span className="absolute bottom-1 left-1 px-1.5 py-0.5 rounded-full bg-[#C5A059] text-white text-[9px] font-bold">
-                                New
-                              </span>
-                              <button
-                                onClick={() =>
-                                  removeVariantImage(variant.tempId, imageIndex)
-                                }
-                                className="absolute top-1.5 right-1.5 p-1 rounded-full bg-white/90 hover:bg-white shadow-sm cursor-pointer"
-                              >
-                                <X className="w-3 h-3 text-[#0B241C]" />
-                              </button>
-                            </div>
+                              file={file}
+                              onRemove={() => removeVariantImage(variant.tempId, imageIndex)}
+                            />
                           ))}
                         </div>
                       )}
