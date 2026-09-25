@@ -14,8 +14,8 @@ export default function Footer() {
 
   return (
     <footer className="bg-[#08281F] text-[#FAF8F5] pt-16 pb-8 border-t border-[#144234]">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-10 mb-14">
+      <div className="max-w-[1480px] mx-auto px-4 sm:px-6 lg:px-6 xl:px-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-8 lg:gap-6 xl:gap-10 mb-14">
           {/* Brand */}
           <div className="lg:col-span-2 space-y-4">
             <Link href="/" className="flex items-center gap-3 group">
@@ -75,6 +75,48 @@ export default function Footer() {
             </div>
           </div>
 
+          {/* Menu */}
+          <div className="space-y-3">
+            <h4 className="font-serif-title text-base font-semibold text-[#D4AF37] tracking-wider uppercase">
+              Menu
+            </h4>
+
+            <ul className="space-y-2 text-xs sm:text-sm text-[#B4C9BF]">
+              <li>
+                <Link
+                  href="/"
+                  className="hover:text-[#D4AF37] transition-colors"
+                >
+                  Home
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/about"
+                  className="hover:text-[#D4AF37] transition-colors"
+                >
+                  About Purnya
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/contact"
+                  className="hover:text-[#D4AF37] transition-colors"
+                >
+                  Contact Us
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/faq"
+                  className="hover:text-[#D4AF37] transition-colors"
+                >
+                  FAQs
+                </Link>
+              </li>
+            </ul>
+          </div>
+
           {/* Shop */}
           <div className="space-y-3">
             <h4 className="font-serif-title text-base font-semibold text-[#D4AF37] tracking-wider uppercase">
@@ -130,30 +172,6 @@ export default function Footer() {
                   My Wishlist
                 </Link>
               </li>
-              <li>
-                <Link
-                  href="/about"
-                  className="hover:text-[#D4AF37] transition-colors"
-                >
-                  About Purnya
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/contact"
-                  className="hover:text-[#D4AF37] transition-colors"
-                >
-                  Contact Us
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/faq"
-                  className="hover:text-[#D4AF37] transition-colors"
-                >
-                  FAQs
-                </Link>
-              </li>
             </ul>
           </div>
 
@@ -169,7 +187,7 @@ export default function Footer() {
                   href="/terms"
                   className="hover:text-[#D4AF37] transition-colors"
                 >
-                  Terms
+                  Terms and Conditions
                 </Link>
               </li>
               <li>
@@ -177,7 +195,7 @@ export default function Footer() {
                   href="/privacy-policy"
                   className="hover:text-[#D4AF37] transition-colors"
                 >
-                  Privacy
+                  Privacy Policy
                 </Link>
               </li>
               <li>
@@ -185,7 +203,7 @@ export default function Footer() {
                   href="/return-policy#shipping"
                   className="hover:text-[#D4AF37] transition-colors"
                 >
-                  Shipping
+                  Shipping & Delivery Policy
                 </Link>
               </li>
               <li>
@@ -193,7 +211,7 @@ export default function Footer() {
                   href="/return-policy#returns"
                   className="hover:text-[#D4AF37] transition-colors"
                 >
-                  Returns
+                  Returns and Refund Policy
                 </Link>
               </li>
             </ul>

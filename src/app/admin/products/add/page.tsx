@@ -421,14 +421,11 @@ function AdminAddProductPage() {
   }
 
   const generateProductSKU = async () => {
-    const { count, error } = await supabase
-      .from('products')
-      .select('*', { count: 'exact', head: true })
-
-    if (error) throw error
-
-    const nextNumber = (count || 0) + 1
-    return `PROD-${String(nextNumber).padStart(6, '0')}`
+    // Generate a unique SKU using timestamp and a random string
+    // to avoid collisions when products are deleted or added concurrently.
+    const timestampPart = Date.now().toString().slice(-6)
+    const randomPart = Math.random().toString(36).substring(2, 6).toUpperCase()
+    return `PROD-${timestampPart}-${randomPart}`
   }
 
   const generateVariantSKU = (productSKU: string, index: number) => {

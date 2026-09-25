@@ -97,6 +97,20 @@ function CategoryContent({ slug }: { slug: string }) {
     return Array.from(map.values()).filter((g) => g.items.length > 0);
   }, [categoryProducts]);
 
+  const newArrivals = useMemo(() => {
+    return categoryProducts.filter((p: any) => {
+      const tag = (p.lifestyleTag || p.lifestyleTagName || '').trim().toLowerCase();
+      return tag === 'new arrivals' || tag === 'new arrival';
+    });
+  }, [categoryProducts]);
+
+  const otherLifestyleGroups = useMemo(() => {
+    return lifestyleGroups.filter((g) => {
+      const t = g.tag.toLowerCase();
+      return t !== 'new arrivals' && t !== 'new arrival';
+    });
+  }, [lifestyleGroups]);
+
   const avgRating = useMemo(() => {
     const rated = categoryProducts.filter((p: any) => typeof p.rating === 'number' && p.rating > 0);
     if (rated.length === 0) return null;
@@ -109,9 +123,9 @@ function CategoryContent({ slug }: { slug: string }) {
       (currentCategory?.subcatImages && currentCategory.subcatImages.length > 0)
         ? currentCategory.subcatImages
         : (currentCategory?.subcategories || []).filter((s) => s !== 'All').map((s) => ({
-            name: s,
-            image: currentCategory?.bannerImage || currentCategory?.heroImage || '',
-          }))
+          name: s,
+          image: currentCategory?.bannerImage || currentCategory?.heroImage || '',
+        }))
     );
   }, [currentCategory]);
 
@@ -198,7 +212,7 @@ function CategoryContent({ slug }: { slug: string }) {
                   {subcatList.length}
                 </p>
                 <p className="text-[10px] sm:text-[11px] text-[#5A7469] uppercase tracking-wider mt-1.5">
-                  Subcategories
+                  Collections
                 </p>
               </div>
             </div>
@@ -237,24 +251,24 @@ function CategoryContent({ slug }: { slug: string }) {
       {/* 2. SUB-CATEGORY QUICK-SHOP — BIG SQUARE CARDS */}
       <section className="w-full px-2 sm:px-3">
         <div className="relative bg-white rounded-[1.75rem] border border-[#E2DBD0] p-6 sm:p-8 lg:p-10 shadow-sm space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-5 border-b border-[#EFEBE3]">
-            <div className="flex items-center gap-3">
+          <div className="flex flex-col items-center justify-center gap-4 pb-5 border-b border-[#EFEBE3] text-center">
+            <div className="flex flex-col items-center gap-3">
               <div className="w-11 h-11 rounded-2xl bg-[#EBF3EF] flex items-center justify-center text-[#0C3B2E] shrink-0 shadow-inner">
                 <LayoutGrid className="w-5 h-5" />
               </div>
               <div>
                 <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#C5A059]">
-                  Browse by Subcategory
+                  Explore Collections
                 </p>
-                <h2 className="font-serif-title text-xl sm:text-2xl font-bold text-[#0B241C]">
-                  Explore {currentCategory.title}
+                <h2 className="font-serif-title text-xl sm:text-2xl font-bold text-[#0B241C] mt-1">
+                  Discover {currentCategory.title}
                 </h2>
               </div>
             </div>
             {selectedSubcategory !== 'All' && (
               <button
                 onClick={() => setSelectedSubcategory('All')}
-                className="text-xs font-semibold text-[#0C3B2E] hover:text-[#C5A059] self-start sm:self-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#FAF8F5] border border-[#E2DBD0] hover:border-[#C5A059] transition-colors"
+                className="text-xs font-semibold text-[#0C3B2E] hover:text-[#C5A059] inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-[#FAF8F5] border border-[#E2DBD0] hover:border-[#C5A059] transition-colors"
               >
                 <span>Clear: {selectedSubcategory}</span>
                 <span aria-hidden>✕</span>
@@ -267,11 +281,10 @@ function CategoryContent({ slug }: { slug: string }) {
             {/* "All" Square Card */}
             <button
               onClick={() => setSelectedSubcategory('All')}
-              className={`group relative aspect-square rounded-2xl overflow-hidden border shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 cursor-pointer ${
-                selectedSubcategory === 'All'
+              className={`group relative aspect-square rounded-2xl overflow-hidden border shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 cursor-pointer ${selectedSubcategory === 'All'
                   ? 'border-[#D4AF37] ring-2 ring-[#D4AF37] shadow-lg'
                   : 'border-[#E2DBD0] hover:border-[#C5A059]'
-              }`}
+                }`}
             >
               <img
                 src={currentCategory.bannerImage || currentCategory.heroImage}
@@ -301,11 +314,10 @@ function CategoryContent({ slug }: { slug: string }) {
                 <Link
                   key={sub.name}
                   href={`/category/${(currentCategory?.slug || '').trim()}/${encodeURIComponent(sub.name.trim())}`}
-                  className={`group relative aspect-square rounded-2xl overflow-hidden border shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 ${
-                    isSelected
+                  className={`group relative aspect-square rounded-2xl overflow-hidden border shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 ${isSelected
                       ? 'border-[#D4AF37] ring-2 ring-[#D4AF37] shadow-lg'
                       : 'border-[#E2DBD0] hover:border-[#C5A059]'
-                  }`}
+                    }`}
                 >
                   <img
                     src={sub.image}
@@ -333,8 +345,44 @@ function CategoryContent({ slug }: { slug: string }) {
         </div>
       </section>
 
+      {/* 2.2 NEW ARRIVALS SPOTLIGHT */}
+      {newArrivals.length > 0 && (
+        <section className="w-full px-2 sm:px-3">
+          <div className="bg-[#08281F] rounded-[1.75rem] border border-[#144234] p-6 sm:p-8 lg:p-10 shadow-lg relative overflow-hidden">
+            {/* Elegant Background Decoration */}
+            <div className="absolute top-0 right-0 w-96 h-96 bg-[#C5A059]/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3" />
+            <div className="absolute bottom-0 left-0 w-64 h-64 bg-[#0C3B2E]/50 rounded-full blur-3xl translate-y-1/3 -translate-x-1/4" />
+            
+            <div className="relative flex flex-col md:flex-row items-center justify-between gap-4 mb-8 border-b border-[#144234] pb-6 text-center md:text-left">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#D4AF37]">
+                  Just Dropped
+                </p>
+                <h2 className="font-serif-title text-3xl sm:text-4xl font-bold text-white mt-1">
+                  New Arrivals
+                </h2>
+              </div>
+              <button 
+                onClick={() => setSelectedSubcategory('All')}
+                className="text-xs font-semibold text-[#FAF8F5] hover:text-[#D4AF37] inline-flex items-center gap-1.5 transition-colors bg-white/5 hover:bg-white/10 px-4 py-2 rounded-full border border-white/10 cursor-pointer"
+              >
+                Shop All {currentCategory.title} <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
+            <div className="relative flex gap-4 sm:gap-5 overflow-x-auto pb-4 scrollbar-none snap-x justify-start sm:justify-center md:justify-start">
+              {newArrivals.map((prod) => (
+                <div key={prod.id} className="w-48 sm:w-56 lg:w-64 shrink-0 snap-start">
+                  <ProductCard product={prod} />
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* 2.5 SHOP BY LIFESTYLE — ROWS GROUPED BY lifestyle_sale_tags, SKIPPED ENTIRELY WHEN EMPTY */}
-      {lifestyleGroups.length > 0 && (
+      {otherLifestyleGroups.length > 0 && (
         <section className="w-full px-2 sm:px-3 space-y-8">
           <div className="text-center max-w-2xl mx-auto space-y-2">
             <p className="text-xs font-bold uppercase tracking-[0.25em] text-[#C5A059]">
@@ -349,7 +397,7 @@ function CategoryContent({ slug }: { slug: string }) {
           </div>
 
           <div className="space-y-6">
-            {lifestyleGroups.map((group) => (
+            {otherLifestyleGroups.map((group) => (
               <div
                 key={group.tag}
                 className="bg-white rounded-[1.75rem] border border-[#E2DBD0] shadow-sm hover:shadow-md transition-shadow p-5 sm:p-7 lg:p-8"
@@ -385,22 +433,22 @@ function CategoryContent({ slug }: { slug: string }) {
       {/* 3. MAIN PRODUCT CATALOG WITH FILTERS & SORT */}
       <section className="w-full px-2 sm:px-3 space-y-8">
         {/* Catalog Header Toolbar */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#E2DBD0]">
+        <div className="flex flex-col items-center justify-center gap-5 pb-5 border-b border-[#E2DBD0] text-center">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#C5A059]">
-              {selectedSubcategory === 'All' ? 'Curated Collection' : 'Subcategory Selection'}
+              {selectedSubcategory === 'All' ? 'Curated Collection' : 'Selected Collection'}
             </p>
-            <h2 className="font-serif-title text-2xl sm:text-3xl font-bold text-[#0B241C] mt-0.5">
+            <h2 className="font-serif-title text-2xl sm:text-3xl font-bold text-[#0B241C] mt-1">
               {selectedSubcategory === 'All'
                 ? `Complete ${currentCategory.title} Collection`
                 : `${selectedSubcategory} Collection`}
             </h2>
-            <p className="text-xs text-[#5A7469] mt-1">
+            <p className="text-xs text-[#5A7469] mt-1.5">
               Showing <strong className="text-[#0B241C]">{filteredProducts.length}</strong> handcrafted pieces
             </p>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center justify-center gap-3">
             {/* Filter Toggle */}
             <button
               onClick={() => setShowFilterDrawer(!showFilterDrawer)}
@@ -465,11 +513,10 @@ function CategoryContent({ slug }: { slug: string }) {
                     <button
                       key={pr.val}
                       onClick={() => setSelectedPriceRange(pr.val)}
-                      className={`px-3 py-1.5 rounded-lg text-xs transition-all cursor-pointer ${
-                        selectedPriceRange === pr.val
+                      className={`px-3 py-1.5 rounded-lg text-xs transition-all cursor-pointer ${selectedPriceRange === pr.val
                           ? 'bg-[#0C3B2E] text-white font-semibold shadow-xs'
                           : 'bg-[#FAF8F5] text-[#2C4A3E] hover:bg-[#EBF3EF]'
-                      }`}
+                        }`}
                     >
                       {pr.label}
                     </button>
@@ -485,11 +532,10 @@ function CategoryContent({ slug }: { slug: string }) {
                     <button
                       key={badge}
                       onClick={() => setSelectedBadge(badge)}
-                      className={`px-3 py-1.5 rounded-lg text-xs transition-all cursor-pointer ${
-                        selectedBadge === badge
+                      className={`px-3 py-1.5 rounded-lg text-xs transition-all cursor-pointer ${selectedBadge === badge
                           ? 'bg-[#0C3B2E] text-white font-semibold shadow-xs'
                           : 'bg-[#FAF8F5] text-[#2C4A3E] hover:bg-[#EBF3EF]'
-                      }`}
+                        }`}
                     >
                       {badge === 'all' ? 'All Pieces' : badge}
                     </button>
@@ -513,7 +559,7 @@ function CategoryContent({ slug }: { slug: string }) {
               No products found in this filter selection
             </h3>
             <p className="text-xs text-[#2C4A3E] max-w-sm mx-auto">
-              Try adjusting your subcategory or price filters to explore more of our {currentCategory.title} catalog.
+              Try adjusting your collection or price filters to explore more of our {currentCategory.title} catalog.
             </p>
             <button
               onClick={() => {

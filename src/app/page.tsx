@@ -263,7 +263,7 @@ export default function HomePage() {
                   (cSlug === 'wellness' && (pSlug === 'wellness' || pCat.includes('wellness') || pCat.includes('organic')))
                 );
               })
-              .slice(0, 4);
+              .slice(0, 5);
 
             const validSubcats = (
               (cat.subcatImages && cat.subcatImages.length > 0)
@@ -320,12 +320,13 @@ export default function HomePage() {
                   {/* All Subcategories */}
                   {validSubcats.length > 0 && (
                     <div>
-                      <div className="flex items-center gap-2 mb-4">
+                      <div className="flex items-center justify-center gap-2 mb-4">
                         <span className="w-1.5 h-1.5 rounded-full bg-[#C5A059]" />
                         <p className="text-xs font-bold uppercase tracking-wider text-[#0B241C]">
-                          Shop Subcategories
+                          Explore Collections
                         </p>
                         <span className="text-[11px] text-[#5A7469]">({validSubcats.length})</span>
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#C5A059]" />
                       </div>
 
                       <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-2.5 sm:gap-3">
@@ -358,14 +359,15 @@ export default function HomePage() {
 
                   {/* Featured Mini Product Grid */}
                   <div className="rounded-2xl bg-[#FAF8F5] border border-[#E2DBD0]/70 p-4 sm:p-5">
-                    <div className="flex items-center gap-2 mb-4">
+                    <div className="flex items-center justify-center gap-2 mb-4">
                       <span className="w-1.5 h-1.5 rounded-full bg-[#0C3B2E]" />
                       <p className="text-xs font-bold uppercase tracking-wider text-[#0B241C]">
                         Featured in {cat.title}
                       </p>
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#0C3B2E]" />
                     </div>
                     {catProducts.length > 0 ? (
-                      <div className="grid grid-cols-3 sm:grid-cols-5 lg:grid-cols-6 gap-2 sm:gap-3">
+                      <div className="grid grid-cols-3 sm:grid-cols-5 lg:grid-cols-5 gap-2 sm:gap-3">
                         {catProducts.map((prod) => (
                           <ProductCard key={prod.id} product={prod} compact hidePrice showVariants={false} />
                         ))}
@@ -488,51 +490,51 @@ export default function HomePage() {
 
       {/* 4. EDITORIAL BRAND STORY / MIDDLE SECTION */}
       <section className="w-full px-2 sm:px-3">
-        <div className="relative rounded-3xl overflow-hidden bg-[#0C3B2E] text-[#FAF8F5] p-8 sm:p-14 lg:p-20 shadow-2xl">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
-            <div className="space-y-6">
-              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/10 text-[#D4AF37] text-xs font-semibold tracking-widest uppercase border border-[#D4AF37]/30">
+        <div className="relative rounded-3xl overflow-hidden bg-[#0C3B2E] text-[#FAF8F5] p-6 sm:p-10 lg:p-12 shadow-2xl">
+          <div className="grid grid-cols-1 lg:grid-cols-[1.3fr_1fr] gap-8 lg:gap-12 items-center">
+            <div className="space-y-5">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 text-[#D4AF37] text-[10px] font-bold tracking-widest uppercase border border-[#D4AF37]/30">
                 {activeMiddle.tag || 'The Purnya Philosophy'}
               </div>
-              <h2 className="font-serif-title text-3xl sm:text-5xl font-bold leading-tight">
+              <h2 className="font-serif-title text-3xl sm:text-4xl font-bold leading-tight">
                 {activeMiddle.title}
               </h2>
-              <p className="text-sm sm:text-base text-[#B4C9BF] leading-relaxed">
+              <p className="text-sm text-[#B4C9BF] leading-relaxed">
                 {activeMiddle.description}
               </p>
 
               {activeMiddle.features && activeMiddle.features.length > 0 && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
                   {activeMiddle.features.map((feat, idx) => (
-                    <div key={idx} className="p-3.5 rounded-xl bg-white/5 border border-white/10 flex items-center gap-2.5">
-                      <CheckCircle2 className="w-4 h-4 text-[#D4AF37] shrink-0" />
-                      <span className="text-xs text-[#FAF8F5]">{feat}</span>
+                    <div key={idx} className="p-3 rounded-xl bg-white/5 border border-white/10 flex items-center gap-2">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-[#D4AF37] shrink-0" />
+                      <span className="text-[11px] sm:text-xs text-[#FAF8F5]">{feat}</span>
                     </div>
                   ))}
                 </div>
               )}
 
-              <div className="flex flex-wrap items-center gap-4 pt-2">
+              <div className="flex flex-wrap items-center gap-3 pt-2">
                 <Link
                   href={activeMiddle.primaryButtonLink || '/catalog'}
-                  className="inline-flex items-center gap-2 px-8 py-3.5 rounded-full bg-gradient-to-r from-[#D4AF37] to-[#C5A059] text-[#08281F] font-bold text-xs uppercase tracking-widest transition-all shadow-lg hover:scale-105"
+                  className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-gradient-to-r from-[#D4AF37] to-[#C5A059] text-[#08281F] font-bold text-[11px] uppercase tracking-widest transition-all shadow-lg hover:scale-105"
                 >
                   <span>{activeMiddle.primaryButtonText || 'Shop Complete Catalog'}</span>
-                  <ArrowRight className="w-4 h-4" />
+                  <ArrowRight className="w-3.5 h-3.5" />
                 </Link>
                 {activeMiddle.secondaryButtonText && (
                   <Link
                     href={activeMiddle.secondaryButtonLink || '/worlds'}
-                    className="inline-flex items-center gap-2 px-6 py-3.5 rounded-full border border-white/30 text-white font-semibold text-xs uppercase tracking-widest hover:bg-white/10 transition-all flex items-center gap-2"
+                    className="inline-flex items-center gap-2 px-5 py-3 rounded-full border border-white/30 text-white font-semibold text-[11px] uppercase tracking-widest hover:bg-white/10 transition-all"
                   >
                     <span>{activeMiddle.secondaryButtonText}</span>
-                    <ArrowUpRight className="w-4 h-4 text-[#D4AF37]" />
+                    <ArrowUpRight className="w-3.5 h-3.5 text-[#D4AF37]" />
                   </Link>
                 )}
               </div>
             </div>
 
-            <div className="relative aspect-square rounded-2xl overflow-hidden shadow-2xl border border-white/15 bg-[#071a13]">
+            <div className="relative aspect-[4/3] rounded-2xl overflow-hidden shadow-2xl border border-white/15 bg-[#071a13]">
               <img
                 src={activeMiddle.imageUrl || 'https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?w=1000&fit=crop&auto=format'}
                 alt={activeMiddle.title}

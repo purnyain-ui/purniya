@@ -241,9 +241,10 @@ function HeaderContent() {
 
   return (
     <>
-      {/* Emerald & Gold Announcement Bar */}
-    <div className="sticky top-0 z-50 overflow-hidden border-b border-[#144234] bg-[#08281F] py-2.5 text-[11px] font-medium uppercase text-[#FAF8F5] sm:text-xs">
-  <span className="sr-only">{announcement}</span>
+      <div className="sticky top-0 z-50 w-full flex flex-col">
+        {/* Emerald & Gold Announcement Bar */}
+        <div className="relative z-50 overflow-hidden border-b border-[#144234] bg-[#08281F] py-2.5 text-[11px] font-medium uppercase text-[#FAF8F5] sm:text-xs">
+          <span className="sr-only">{announcement}</span>
 
   <div className="announcement-track flex w-max" aria-hidden="true">
     {[0, 1].map((group) => (
@@ -263,9 +264,9 @@ function HeaderContent() {
 </div>     
 
 
-      {/* Main Header */}
-      <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-[#E2DBD0] transition-all shadow-xs">
-        <div className="relative w-full max-w-[1480px] mx-auto px-4 sm:px-6 lg:px-6 xl:px-8 h-20 sm:h-22 flex items-center justify-between">
+        {/* Main Header */}
+        <header className="relative z-40 bg-white/95 backdrop-blur-md border-b border-[#E2DBD0] transition-all shadow-xs">
+          <div className="relative w-full max-w-[1480px] mx-auto px-4 sm:px-6 lg:px-6 xl:px-8 h-20 sm:h-22 flex items-center justify-between">
           {/* 1. LEFT ZONE: Logo with Emblem & Brand Name (kept neatly to the left) */}
           <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             {/* Mobile Menu Button */}
@@ -623,7 +624,8 @@ function HeaderContent() {
           </div>
         </div>
 
-      </header>
+        </header>
+      </div>
 
       {/* Mobile Navigation Drawer (Rendered outside header to avoid backdrop-filter containment issues) */}
       {mobileMenuOpen && (

@@ -163,41 +163,40 @@ function SubcategoryContent({ slug, sub }: { slug: string; sub: string }) {
 
       {/* 2. QUICK NAVIGATE OTHER SUBCATEGORIES */}
       {otherSubcategories.length > 0 && (
-        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="bg-white rounded-3xl border border-[#E2DBD0] p-6 sm:p-8 shadow-xs space-y-5">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#EFEBE3] pb-4">
-              <div>
-                <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#C5A059]">
-                  Also in {currentCategory.title}
-                </p>
-                <h2 className="font-serif-title text-xl sm:text-2xl font-bold text-[#0B241C]">
-                  Browse Other Subcategories
-                </h2>
-              </div>
+        <section className="w-full px-2 sm:px-3">
+          <div className="space-y-6">
+            <div className="flex flex-col items-center justify-center gap-2 text-center">
+              <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#C5A059]">
+                Also in {currentCategory.title}
+              </p>
+              <h2 className="font-serif-title text-xl sm:text-2xl font-bold text-[#0B241C]">
+                Explore Other Collections
+              </h2>
               <Link
                 href={`/category/${(currentCategory.slug || '').trim()}`}
-                className="text-xs font-semibold text-[#0C3B2E] hover:underline"
+                className="text-xs font-semibold text-[#0C3B2E] hover:text-[#C5A059] transition-colors mt-2"
               >
                 ← View All {currentCategory.title}
               </Link>
             </div>
 
-            <div className="flex gap-4 sm:gap-6 overflow-x-auto pb-2 scrollbar-none">
+            <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-2.5 sm:gap-3">
               {/* "All" goes back to category page */}
               <Link
                 href={`/category/${(currentCategory.slug || '').trim()}`}
-                className="flex flex-col items-center gap-2 shrink-0 group"
+                className="group relative aspect-square rounded-2xl overflow-hidden border shadow-sm hover:shadow-lg transition-all duration-300 border-[#E2DBD0] hover:border-[#C5A059]"
               >
-                <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full overflow-hidden border-2 p-0.5 transition-all bg-[#EBF3EF] shadow-xs border-[#E2DBD0] group-hover:border-[#0C3B2E]">
-                  <img
-                    src={currentCategory.bannerImage || currentCategory.heroImage}
-                    alt="All Pieces"
-                    className="w-full h-full object-cover rounded-full group-hover:scale-110 transition-transform duration-300"
-                  />
+                <img
+                  src={currentCategory.bannerImage || currentCategory.heroImage}
+                  alt="All Pieces"
+                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-[#08281F]/90 via-[#08281F]/20 to-transparent" />
+                <div className="absolute inset-x-0 bottom-0 p-2.5 sm:p-3 flex items-end justify-between gap-2">
+                  <span className="text-white text-[10px] sm:text-xs font-bold leading-snug line-clamp-2">
+                    All Pieces
+                  </span>
                 </div>
-                <span className="text-[11px] font-semibold text-center max-w-[88px] truncate transition-colors text-[#2C4A3E] group-hover:text-[#0C3B2E]">
-                  All Pieces
-                </span>
               </Link>
 
               {otherSubcategories.map((otherSub) => {
@@ -208,18 +207,19 @@ function SubcategoryContent({ slug, sub }: { slug: string; sub: string }) {
                   <Link
                     key={otherSub}
                     href={`/category/${(currentCategory.slug || '').trim()}/${encodeURIComponent(otherSub.trim())}`}
-                    className="flex flex-col items-center gap-2 shrink-0 group"
+                    className="group relative aspect-square rounded-2xl overflow-hidden border shadow-sm hover:shadow-lg transition-all duration-300 border-[#E2DBD0] hover:border-[#C5A059]"
                   >
-                    <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full overflow-hidden border-2 p-0.5 transition-all bg-[#EBF3EF] shadow-xs border-[#E2DBD0] group-hover:border-[#0C3B2E]">
-                      <img
-                        src={otherImage?.image || currentCategory.bannerImage || currentCategory.heroImage}
-                        alt={otherSub.trim()}
-                        className="w-full h-full object-cover rounded-full group-hover:scale-110 transition-transform duration-300"
-                      />
+                    <img
+                      src={otherImage?.image || currentCategory.bannerImage || currentCategory.heroImage}
+                      alt={otherSub.trim()}
+                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-[#08281F]/90 via-[#08281F]/20 to-transparent" />
+                    <div className="absolute inset-x-0 bottom-0 p-2.5 sm:p-3 flex items-end justify-between gap-2">
+                      <span className="text-white text-[10px] sm:text-xs font-bold leading-snug line-clamp-2">
+                        {otherSub.trim()}
+                      </span>
                     </div>
-                    <span className="text-[11px] font-semibold text-center max-w-[88px] truncate transition-colors text-[#2C4A3E] group-hover:text-[#0C3B2E]">
-                      {otherSub.trim()}
-                    </span>
                   </Link>
                 );
               })}
@@ -229,21 +229,21 @@ function SubcategoryContent({ slug, sub }: { slug: string; sub: string }) {
       )}
 
       {/* 3. PRODUCT CATALOG WITH FILTERS */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#E2DBD0]">
+      <section className="w-full px-2 sm:px-3 space-y-8">
+        <div className="flex flex-col items-center justify-center gap-5 pb-5 border-b border-[#E2DBD0] text-center">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#C5A059]">
               {subcategoryName} Collection
             </p>
-            <h2 className="font-serif-title text-2xl sm:text-3xl font-bold text-[#0B241C] mt-0.5">
+            <h2 className="font-serif-title text-2xl sm:text-3xl font-bold text-[#0B241C] mt-1">
               {subcategoryName}
             </h2>
-            <p className="text-xs text-[#5A7469] mt-1">
+            <p className="text-xs text-[#5A7469] mt-1.5">
               Showing <strong className="text-[#0B241C]">{filteredProducts.length}</strong> handcrafted pieces
             </p>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center justify-center gap-3">
             <button
               onClick={() => setShowFilterDrawer(!showFilterDrawer)}
               className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white border border-[#E2DBD0] text-xs font-semibold text-[#2C4A3E] hover:border-[#0C3B2E] shadow-xs transition-all cursor-pointer"

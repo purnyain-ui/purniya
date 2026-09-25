@@ -772,7 +772,6 @@ export async function upsertLifestyleSaleTagToSupabase(t: any): Promise<{ succes
       {
         id: t.id,
         name: tagName,
-        title: tagName,
         is_active: Boolean(t.isActive ?? true),
       },
       { onConflict: 'id' }
@@ -832,7 +831,6 @@ export async function syncAttributesToSupabase(
         return {
           id: t.id,
           name: tagName,
-          title: tagName,
           is_active: Boolean(t.isActive ?? true),
         };
       }),
