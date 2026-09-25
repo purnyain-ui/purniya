@@ -36,6 +36,17 @@ export default function ProductCard({
     activeVariant?.options?.[0] || ''
   );
 
+  const [hoveredIdx, setHoveredIdx] = React.useState<number | null>(null);
+
+  const allImages = React.useMemo(() => {
+    if (product.images && product.images.length > 0) return product.images;
+    return [product.image];
+  }, [product.images, product.image]);
+
+  const defaultImg = allImages[0];
+  const secondImg = allImages.length > 1 ? allImages[1] : null;
+  const displayImg = hoveredIdx !== null ? allImages[hoveredIdx] : defaultImg;
+
   React.useEffect(() => {
     if (activeVariant?.options?.[0]) {
       setSelectedVariantOption(activeVariant.options[0]);
@@ -52,15 +63,24 @@ export default function ProductCard({
       <div className="relative aspect-square w-full overflow-hidden bg-[#EBF3EF]/40">
         <Link href={`/product/${product.id}`} className="block w-full h-full">
           <img
-            src={product.image}
+            src={displayImg}
             alt={product.name}
-            className="w-full h-full object-cover object-center transition-transform duration-700 ease-out group-hover:scale-105"
+            className={`w-full h-full object-cover object-center transition-all duration-700 ease-out group-hover:scale-105 ${
+              hoveredIdx === null && secondImg ? 'group-hover:opacity-0' : 'opacity-100'
+            }`}
             loading="lazy"
             onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
               const target = e.currentTarget;
               target.src = 'https://images.unsplash.com/photo-1515562141589-67f0d0953a8e?w=600&fit=crop&auto=format';
             }}
           />
+          {hoveredIdx === null && secondImg && (
+            <img
+              src={secondImg}
+              alt={product.name + ' alternate view'}
+              className="absolute inset-0 w-full h-full object-cover object-center transition-all duration-700 ease-out opacity-0 group-hover:opacity-100 group-hover:scale-105 pointer-events-none"
+            />
+          )}
         </Link>
 
         {/* Badges */}
@@ -77,25 +97,26 @@ export default function ProductCard({
           )}
         </div>
 
-        {/* Wishlist Button */}
-        <button
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            toggleWishlist(product);
-          }}
-          aria-label="Wishlist"
-          className={`absolute top-3 right-3 w-8 h-8 rounded-full flex items-center justify-center backdrop-blur-md transition-all z-10 cursor-pointer ${
-            isWished
-              ? 'bg-rose-50 text-rose-600 shadow-md scale-105'
-              : 'bg-white/85 text-[#2C4A3E] hover:bg-white hover:text-rose-600 hover:scale-105 shadow-xs'
-          }`}
-        >
-          <Heart className={`w-4 h-4 transition-transform ${isWished ? 'fill-current' : ''}`} />
-        </button>
+        {/* Top Right Action Icons */}
+        <div className="absolute top-3 right-3 flex flex-col gap-2 z-10">
+          {/* Wishlist Button */}
+          <button
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              toggleWishlist(product);
+            }}
+            aria-label="Wishlist"
+            className={`w-8 h-8 rounded-full flex items-center justify-center backdrop-blur-md transition-all cursor-pointer ${
+              isWished
+                ? 'bg-rose-50 text-rose-600 shadow-md scale-105'
+                : 'bg-white/85 text-[#2C4A3E] hover:bg-white hover:text-rose-600 hover:scale-105 shadow-xs'
+            }`}
+          >
+            <Heart className={`w-4 h-4 transition-transform ${isWished ? 'fill-current' : ''}`} />
+          </button>
 
-        {/* Quick Add overlay button */}
-        <div className="absolute inset-x-3 bottom-3 z-10 opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300">
+          {/* Add to Cart Icon Button */}
           <button
             onClick={(e) => {
               e.preventDefault();
@@ -108,12 +129,35 @@ export default function ProductCard({
                   : undefined
               );
             }}
-            className="w-full py-2.5 px-4 rounded-xl bg-white/95 hover:bg-[#0C3B2E] hover:text-white text-[#0B241C] font-semibold text-xs tracking-wider uppercase shadow-lg backdrop-blur-md flex items-center justify-center gap-2 transition-all border border-[#E2DBD0] cursor-pointer"
+            aria-label="Add to Cart"
+            className="w-8 h-8 rounded-full flex items-center justify-center backdrop-blur-md transition-all cursor-pointer bg-white/85 text-[#2C4A3E] hover:bg-[#0C3B2E] hover:text-white hover:scale-105 shadow-xs"
           >
-            <ShoppingBag className="w-3.5 h-3.5 text-[#C5A059] group-hover:text-[#D4AF37]" />
-            <span>Quick Add</span>
+            <ShoppingBag className="w-4 h-4" />
           </button>
         </div>
+
+        {/* Thumbnails overlay on hover */}
+        {allImages.length > 1 && (
+          <div className="absolute inset-x-0 bottom-3 z-20 flex justify-center gap-1.5 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-y-2 group-hover:translate-y-0">
+            {allImages.slice(0, 5).map((img, idx) => (
+              <button
+                key={idx}
+                onMouseEnter={() => setHoveredIdx(idx)}
+                onMouseLeave={() => setHoveredIdx(null)}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                }}
+                className={`w-7 h-7 rounded-full overflow-hidden border-2 transition-all transform hover:scale-110 shadow-lg cursor-pointer ${
+                  hoveredIdx === idx ? 'border-[#C5A059] scale-110' : 'border-white/70 hover:border-white'
+                }`}
+                aria-label={`View image ${idx + 1}`}
+              >
+                <img src={img} alt={`Preview ${idx + 1}`} className="w-full h-full object-cover" />
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Info Content */}
