@@ -1062,7 +1062,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
                 <span className="text-xs font-semibold text-[#5A7469] hover:text-[#0C3B2E] hover:underline">
                   {reviewStats.review_count > 0
                     ? `${reviewStats.average_rating.toFixed(1)} · ${reviewStats.review_count} review${reviewStats.review_count === 1 ? '' : 's'}`
-                    : 'Purnya quality assured'}
+                    : 'No reviews yet'}
                 </span>
               </button>
             </div>
@@ -1111,15 +1111,15 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
                         onClick={() => handleColorSelect(color.id)}
                         title={color.name}
                         className={`w-9 h-9 rounded-full border-2 transition-all ${isSelected
-                          ? 'border-[#0C3B2E] ring-2 ring-[#C5A059] ring-offset-2 scale-105'
-                          : 'border-[#E2DBD0] hover:border-[#0C3B2E]/50'
-                          }`}
-                        style={{ backgroundColor: color.hex }}
+                    ? 'border-[#0C3B2E] ring-2 ring-[#C5A059] ring-offset-2 scale-105'
+                    : 'border-[#E2DBD0] hover:border-[#0C3B2E]/50'
+                  }`}
+                  style={{ backgroundColor: color.hex }}
                       />
-                    );
+                  );
                   })}
                 </div>
-              </div>
+            </div>
             )}
 
             {/* Size Selector */}

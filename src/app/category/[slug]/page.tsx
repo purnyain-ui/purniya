@@ -151,7 +151,7 @@ function CategoryContent({ slug }: { slug: string }) {
           .select('*')
           .eq('is_active', true)
           .order('created_at', { ascending: false });
-        
+
         if (!error && data) {
           setInstagramVideos(data);
         }
@@ -243,69 +243,18 @@ function CategoryContent({ slug }: { slug: string }) {
         </div>
       </section>
 
-      {/* 1.5 LIVE CATEGORY STATS — moved out of the hero, sits on the page background */}
-      <section className="w-full px-2 sm:px-3 -mt-6 sm:-mt-10">
-        <div className="bg-white rounded-[1.75rem] border border-[#E2DBD0] shadow-sm overflow-hidden">
-          <div className="grid grid-cols-3 divide-x divide-[#EFEBE3]">
-            <div className="flex flex-col items-center sm:items-start gap-2 px-3 sm:px-8 py-5 sm:py-7">
-              <span className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-[#EBF3EF] flex items-center justify-center text-[#0C3B2E]">
-                <LayoutGrid className="w-4 h-4 sm:w-5 sm:h-5" />
-              </span>
-              <div className="text-center sm:text-left">
-                <p className="font-serif-title text-xl sm:text-3xl font-bold text-[#0B241C] leading-none">
-                  {subcatList.length}
-                </p>
-                <p className="text-[10px] sm:text-[11px] text-[#5A7469] uppercase tracking-wider mt-1.5">
-                  Collections
-                </p>
-              </div>
-            </div>
-
-            <div className="flex flex-col items-center sm:items-start gap-2 px-3 sm:px-8 py-5 sm:py-7">
-              <span className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-[#EBF3EF] flex items-center justify-center text-[#0C3B2E]">
-                <Package className="w-4 h-4 sm:w-5 sm:h-5" />
-              </span>
-              <div className="text-center sm:text-left">
-                <p className="font-serif-title text-xl sm:text-3xl font-bold text-[#0B241C] leading-none">
-                  {categoryProducts.length}+
-                </p>
-                <p className="text-[10px] sm:text-[11px] text-[#5A7469] uppercase tracking-wider mt-1.5">
-                  Handcrafted Pieces
-                </p>
-              </div>
-            </div>
-
-            <div className="flex flex-col items-center sm:items-start gap-2 px-3 sm:px-8 py-5 sm:py-7">
-              <span className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-[#EBF3EF] flex items-center justify-center text-[#C5A059]">
-                <Star className="w-4 h-4 sm:w-5 sm:h-5" />
-              </span>
-              <div className="text-center sm:text-left">
-                <p className="font-serif-title text-xl sm:text-3xl font-bold text-[#0B241C] leading-none">
-                  {avgRating ?? '4.8'}
-                </p>
-                <p className="text-[10px] sm:text-[11px] text-[#5A7469] uppercase tracking-wider mt-1.5">
-                  Customer Rating
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
 
       {/* 2. SUB-CATEGORY QUICK-SHOP — BIG SQUARE CARDS */}
       <section className="w-full px-2 sm:px-3">
         <div className="relative bg-white rounded-[1.75rem] border border-[#E2DBD0] p-6 sm:p-8 lg:p-10 shadow-sm space-y-6">
           <div className="flex flex-col items-center justify-center gap-4 pb-5 border-b border-[#EFEBE3] text-center">
             <div className="flex flex-col items-center gap-3">
-              <div className="w-11 h-11 rounded-2xl bg-[#EBF3EF] flex items-center justify-center text-[#0C3B2E] shrink-0 shadow-inner">
-                <LayoutGrid className="w-5 h-5" />
-              </div>
               <div>
                 <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#C5A059]">
                   Explore Collections
                 </p>
                 <h2 className="font-serif-title text-xl sm:text-2xl font-bold text-[#0B241C] mt-1">
-                  Discover {currentCategory.title}
+                  {currentCategory.title}
                 </h2>
               </div>
             </div>
@@ -326,8 +275,8 @@ function CategoryContent({ slug }: { slug: string }) {
             <button
               onClick={() => setSelectedSubcategory('All')}
               className={`group relative aspect-square rounded-2xl overflow-hidden border shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 cursor-pointer ${selectedSubcategory === 'All'
-                  ? 'border-[#D4AF37] ring-2 ring-[#D4AF37] shadow-lg'
-                  : 'border-[#E2DBD0] hover:border-[#C5A059]'
+                ? 'border-[#D4AF37] ring-2 ring-[#D4AF37] shadow-lg'
+                : 'border-[#E2DBD0] hover:border-[#C5A059]'
                 }`}
             >
               <img
@@ -359,8 +308,8 @@ function CategoryContent({ slug }: { slug: string }) {
                   key={sub.name}
                   href={`/category/${(currentCategory?.slug || '').trim()}/${encodeURIComponent(sub.name.trim())}`}
                   className={`group relative aspect-square rounded-2xl overflow-hidden border shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 ${isSelected
-                      ? 'border-[#D4AF37] ring-2 ring-[#D4AF37] shadow-lg'
-                      : 'border-[#E2DBD0] hover:border-[#C5A059]'
+                    ? 'border-[#D4AF37] ring-2 ring-[#D4AF37] shadow-lg'
+                    : 'border-[#E2DBD0] hover:border-[#C5A059]'
                     }`}
                 >
                   <img
@@ -434,7 +383,7 @@ function CategoryContent({ slug }: { slug: string }) {
                 },
               ];
               const theme = themes[idx % themes.length];
-              
+
               return (
                 <div
                   key={group.tag}
@@ -443,7 +392,7 @@ function CategoryContent({ slug }: { slug: string }) {
                   {/* Elegant Background Decoration */}
                   <div className={`absolute top-0 right-0 w-96 h-96 ${theme.blob1} rounded-full blur-3xl -translate-y-1/2 translate-x-1/3`} />
                   <div className={`absolute bottom-0 left-0 w-64 h-64 ${theme.blob2} rounded-full blur-3xl translate-y-1/3 -translate-x-1/4`} />
-                  
+
                   <div className={`relative flex flex-col md:flex-row items-center justify-between gap-4 mb-8 border-b ${theme.borderSub} pb-6 text-center md:text-left`}>
                     <div>
                       <p className={`text-xs font-bold uppercase tracking-[0.2em] ${theme.tag}`}>
@@ -457,7 +406,7 @@ function CategoryContent({ slug }: { slug: string }) {
                       <span className={`text-xs ${theme.textMain} opacity-60 font-semibold hidden md:inline-block`}>
                         {group.items.length} {group.items.length === 1 ? 'Piece' : 'Pieces'}
                       </span>
-                      <Link 
+                      <Link
                         href={`/category/${(currentCategory.slug || '').trim()}/${encodeURIComponent(group.tag)}`}
                         className={`text-xs font-semibold inline-flex items-center gap-1.5 transition-colors px-4 py-2 rounded-full border shadow-sm cursor-pointer ${theme.btnStyle}`}
                       >
@@ -487,7 +436,7 @@ function CategoryContent({ slug }: { slug: string }) {
             {/* Soft Gray Background Decoration */}
             <div className="absolute top-0 right-0 w-96 h-96 bg-white/60 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3" />
             <div className="absolute bottom-0 left-0 w-64 h-64 bg-[#E2E5EA]/40 rounded-full blur-3xl translate-y-1/3 -translate-x-1/4" />
-            
+
             <div className="relative flex flex-col md:flex-row items-center justify-between gap-4 mb-8 border-b border-[#E2E5EA] pb-6 text-center md:text-left">
               <div>
                 <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#5A7469]">
@@ -501,7 +450,7 @@ function CategoryContent({ slug }: { slug: string }) {
                 <span className="text-xs text-[#5A7469] font-semibold hidden md:inline-block">
                   {featuredProducts.length} {featuredProducts.length === 1 ? 'Piece' : 'Pieces'}
                 </span>
-                <button 
+                <button
                   onClick={() => {
                     document.getElementById('catalog-section')?.scrollIntoView({ behavior: 'smooth' });
                   }}
@@ -575,7 +524,7 @@ function CategoryContent({ slug }: { slug: string }) {
         {/* Catalog Header Toolbar */}
         <div className="flex flex-col items-center justify-center gap-5 pb-5 border-b border-[#E2DBD0] text-center relative">
           {selectedLifestyleTag !== 'all' && (
-            <button 
+            <button
               onClick={() => setSelectedLifestyleTag('all')}
               className="absolute top-0 right-0 sm:right-4 text-xs font-bold text-[#C5A059] hover:text-[#0C3B2E] transition-colors bg-[#FAF8F5] px-3 py-1.5 rounded-full border border-[#E2DBD0]"
             >
@@ -665,8 +614,8 @@ function CategoryContent({ slug }: { slug: string }) {
                       key={pr.val}
                       onClick={() => setSelectedPriceRange(pr.val)}
                       className={`px-3 py-1.5 rounded-lg text-xs transition-all cursor-pointer ${selectedPriceRange === pr.val
-                          ? 'bg-[#0C3B2E] text-white font-semibold shadow-xs'
-                          : 'bg-[#FAF8F5] text-[#2C4A3E] hover:bg-[#EBF3EF]'
+                        ? 'bg-[#0C3B2E] text-white font-semibold shadow-xs'
+                        : 'bg-[#FAF8F5] text-[#2C4A3E] hover:bg-[#EBF3EF]'
                         }`}
                     >
                       {pr.label}
@@ -684,8 +633,8 @@ function CategoryContent({ slug }: { slug: string }) {
                       key={badge}
                       onClick={() => setSelectedBadge(badge)}
                       className={`px-3 py-1.5 rounded-lg text-xs transition-all cursor-pointer ${selectedBadge === badge
-                          ? 'bg-[#0C3B2E] text-white font-semibold shadow-xs'
-                          : 'bg-[#FAF8F5] text-[#2C4A3E] hover:bg-[#EBF3EF]'
+                        ? 'bg-[#0C3B2E] text-white font-semibold shadow-xs'
+                        : 'bg-[#FAF8F5] text-[#2C4A3E] hover:bg-[#EBF3EF]'
                         }`}
                     >
                       {badge === 'all' ? 'All Pieces' : badge}
@@ -733,7 +682,7 @@ function CategoryContent({ slug }: { slug: string }) {
             {/* Elegant dark background blobs */}
             <div className="absolute top-0 right-0 w-96 h-96 bg-[#C5A059]/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3" />
             <div className="absolute bottom-0 left-0 w-64 h-64 bg-[#D4AF37]/5 rounded-full blur-3xl translate-y-1/3 -translate-x-1/4" />
-            
+
             <div className="relative flex flex-col items-center justify-center gap-4 mb-8 border-b border-[#144234] pb-6 text-center">
               <div>
                 <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#D4AF37]">
@@ -754,8 +703,8 @@ function CategoryContent({ slug }: { slug: string }) {
                 const embedUrl = `${cleanUrl}/embed`;
 
                 return (
-                  <button 
-                    key={video.id} 
+                  <button
+                    key={video.id}
                     onClick={() => setSelectedVideoUrl(embedUrl)}
                     className="aspect-square w-full bg-[#EBF3EF] overflow-hidden relative group cursor-pointer rounded-lg sm:rounded-2xl"
                   >
@@ -764,18 +713,18 @@ function CategoryContent({ slug }: { slug: string }) {
                       <iframe
                         src={embedUrl}
                         className="absolute border-none max-w-none"
-                        style={{ 
-                          width: '360px', 
-                          height: '700px', 
-                          top: '-100px', 
-                          left: '-30px', 
-                          transform: 'scale(1.25)', 
-                          transformOrigin: 'top left' 
+                        style={{
+                          width: '360px',
+                          height: '700px',
+                          top: '-100px',
+                          left: '-30px',
+                          transform: 'scale(1.25)',
+                          transformOrigin: 'top left'
                         }}
                         scrolling="no"
                       />
                     </div>
-                    
+
                     {/* Invisible overlay to intercept clicks and trigger the modal */}
                     <div className="absolute inset-0 z-20 bg-transparent group-hover:bg-black/10 transition-colors duration-300" />
                   </button>
@@ -791,7 +740,7 @@ function CategoryContent({ slug }: { slug: string }) {
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
           <div className="absolute inset-0 bg-black/90 backdrop-blur-sm transition-opacity" onClick={() => setSelectedVideoUrl(null)} />
           <div className="relative w-full max-w-md bg-black rounded-3xl overflow-hidden shadow-2xl flex flex-col items-center animate-in fade-in zoom-in-95 duration-300">
-            <button 
+            <button
               onClick={() => setSelectedVideoUrl(null)}
               className="absolute top-3 right-3 z-50 w-10 h-10 bg-black/60 text-white rounded-full flex items-center justify-center hover:bg-black transition-colors border border-white/20 shadow-md"
             >

@@ -53,6 +53,8 @@ function AccountContent() {
   // Return Request modal state
   const [selectedOrderForReturn, setSelectedOrderForReturn] = useState<string | null>(null);
   const [returnReason, setReturnReason] = useState('Size / fit did not meet expectations');
+  const [returnVideo, setReturnVideo] = useState<File | null>(null);
+  const [returnInvoice, setReturnInvoice] = useState<File | null>(null);
 
   // Cancel Order modal state
   const [selectedOrderForCancel, setSelectedOrderForCancel] = useState<string | null>(null);
@@ -113,8 +115,14 @@ function AccountContent() {
 
   const handleInitiateReturn = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!returnVideo || !returnInvoice) {
+      showToast('Missing Documents', 'Please upload both an unboxing video and your invoice photo to process the replacement.', 'error');
+      return;
+    }
     showToast('Return Request Initiated', `Our logistics partner will schedule inspection for order ${selectedOrderForReturn}.`);
     setSelectedOrderForReturn(null);
+    setReturnVideo(null);
+    setReturnInvoice(null);
   };
 
   const handleCancelOrder = (e: React.FormEvent) => {
@@ -221,8 +229,8 @@ function AccountContent() {
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as any)}
                 className={`w-full flex items-center justify-between p-3 rounded-xl transition-all ${activeTab === tab.id
-                    ? 'bg-[#0C3B2E] text-white font-bold shadow-sm'
-                    : 'text-[#2C4A3E] hover:bg-[#EBF3EF] hover:text-[#0C3B2E]'
+                  ? 'bg-[#0C3B2E] text-white font-bold shadow-sm'
+                  : 'text-[#2C4A3E] hover:bg-[#EBF3EF] hover:text-[#0C3B2E]'
                   }`}
               >
                 <div className="flex items-center gap-3">
@@ -647,7 +655,27 @@ function AccountContent() {
                       <option>Other / Not satisfied with finish</option>
                     </select>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="space-y-1">
+                    <label className="font-semibold text-[#2C4A3E]">Unboxing Video (Required)</label>
+                    <input
+                      type="file"
+                      accept="video/*"
+                      onChange={(e) => setReturnVideo(e.target.files?.[0] || null)}
+                      className="w-full p-2 rounded-xl border border-[#E2DBD0] bg-white text-xs file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-[#0C3B2E] file:text-white hover:file:bg-[#164E3D] cursor-pointer"
+                    />
+                    <p className="text-[10px] text-[#5A7469]">Please provide a video showing the unboxing of the package.</p>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="font-semibold text-[#2C4A3E]">Invoice Photo (Required)</label>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => setReturnInvoice(e.target.files?.[0] || null)}
+                      className="w-full p-2 rounded-xl border border-[#E2DBD0] bg-white text-xs file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-[#0C3B2E] file:text-white hover:file:bg-[#164E3D] cursor-pointer"
+                    />
+                    <p className="text-[10px] text-[#5A7469]">Please upload a clear picture of your purchase invoice.</p>
+                  </div>
+                  <div className="flex gap-2 pt-2">
                     <button type="submit" className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-[#D4AF37] to-[#C5A059] text-[#08281F] font-bold">
                       Submit Return Request
                     </button>
