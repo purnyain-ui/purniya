@@ -58,7 +58,7 @@ function SubcategoryContent({ slug, sub }: { slug: string; sub: string }) {
       })
       .filter((p) => {
         const pSub = (p.subcategory || '').trim().toLowerCase().replace(/é/g, 'e');
-        const pTag = (p.lifestyleTag || p.lifestyleTagName || '').trim().toLowerCase().replace(/é/g, 'e');
+        const pTag = (p.lifestyleTag || (p as any).lifestyleTagName || '').trim().toLowerCase().replace(/é/g, 'e');
         const searchVal = subcategoryName.toLowerCase();
         
         if (pSub !== searchVal && pTag !== searchVal) {

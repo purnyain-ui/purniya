@@ -58,7 +58,7 @@ function CategoryContent({ slug }: { slug: string }) {
           return false;
         }
         if (selectedLifestyleTag !== 'all') {
-          const t = (p.lifestyleTag || p.lifestyleTagName || '').trim();
+          const t = (p.lifestyleTag || (p as any).lifestyleTagName || '').trim();
           if (t !== selectedLifestyleTag) return false;
         }
         if (selectedPriceRange === 'under1000' && p.price >= 1000) return false;

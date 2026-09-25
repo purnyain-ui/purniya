@@ -24,6 +24,7 @@ import {
   ChevronRight,
   UserCheck,
   ShieldAlert,
+  Video,
 } from 'lucide-react';
 import { useStore } from '../../context/StoreContext';
 import { verifyAdminSession, signOutFromSupabase } from '../../lib/supabase';
@@ -275,6 +276,7 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
     //{ name: 'Returns & Exchanges', href: '/admin/returns', icon: <RotateCcw className="w-4 h-4" />, key: 'returns' },
     { name: 'Offers & Coupons', href: '/admin/coupons', icon: <Ticket className="w-4 h-4" />, key: 'coupons' },
     { name: 'Banners & Content', href: '/admin/banners', icon: <ImageIcon className="w-4 h-4" />, key: 'banners' },
+    { name: 'Instagram Videos Feed', href: '/admin/videos', icon: <Video className="w-4 h-4" />, key: 'banners' },
     { name: 'Reports & Analytics', href: '/admin/reports', icon: <BarChart3 className="w-4 h-4" />, key: 'reports' },
     { name: 'Admin Management', href: '/admin/management', icon: <UserCheck className="w-4 h-4" />, key: 'management' },
   ];
