@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, use, Suspense } from 'react';
+import React, { useState, useEffect, useMemo, use, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import {
@@ -12,9 +12,26 @@ import {
   LayoutGrid,
   Package,
   Star,
+  Gem,
+  Flame,
+  Home,
+  Leaf,
+  Gift,
+  Sparkles,
 } from 'lucide-react';
 import { useStore } from '../../../context/StoreContext';
 import ProductCard from '../../../components/ProductCard';
+import { supabase } from '../../../lib/supabaseClient';
+
+function getCategoryIcon(cat: { slug?: string; title?: string }) {
+  const s = `${cat.slug || ''} ${cat.title || ''}`.toLowerCase();
+  if (s.includes('jewel') || s.includes('apparel') || s.includes('accessor')) return Gem;
+  if (s.includes('candle') || s.includes('fragrance')) return Flame;
+  if (s.includes('decor') || s.includes('décor') || s.includes('lifestyle') || s.includes('home')) return Home;
+  if (s.includes('wellness') || s.includes('organic')) return Leaf;
+  if (s.includes('gift') || s.includes('stationery')) return Gift;
+  return Sparkles;
+}
 
 function CategoryContent({ slug }: { slug: string }) {
   const searchParams = useSearchParams();
@@ -120,6 +137,27 @@ function CategoryContent({ slug }: { slug: string }) {
     const sum = rated.reduce((acc: number, p: any) => acc + p.rating, 0);
     return (sum / rated.length).toFixed(1);
   }, [categoryProducts]);
+
+  const [instagramVideos, setInstagramVideos] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchVideos = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('instagram_videos')
+          .select('*')
+          .eq('is_active', true)
+          .order('created_at', { ascending: false });
+        
+        if (!error && data) {
+          setInstagramVideos(data);
+        }
+      } catch (err) {
+        console.error('Error fetching Instagram videos:', err);
+      }
+    };
+    fetchVideos();
+  }, []);
 
   const subcatList = useMemo(() => {
     return (
@@ -482,6 +520,53 @@ function CategoryContent({ slug }: { slug: string }) {
         </section>
       )}
 
+      {/* 2.5.5 FIVE WORLDS, ONE PURNYA */}
+      <section className="w-full px-2 sm:px-3">
+        <div className="relative rounded-3xl overflow-hidden bg-[#FAF8F5] border border-[#E2DBD0] px-5 py-10 sm:px-10 sm:py-14">
+          <div className="text-center max-w-2xl mx-auto space-y-2 mb-10">
+            <p className="text-xs font-bold uppercase tracking-[0.25em] text-[#C5A059]">
+              One Unified Lifestyle Brand
+            </p>
+            <h2 className="font-serif-title text-3xl sm:text-4xl lg:text-5xl font-bold text-[#0B241C]">
+              Five Worlds. One Purnya.
+            </h2>
+            <p className="text-sm text-[#2C4A3E]">
+              From artisanal jewellery to organic wellness, every Purnya world is crafted with the
+              same premium, mindful standard — so however you shop, it always feels like Purnya.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 sm:gap-5">
+            {categories.map((cat) => {
+              const Icon = getCategoryIcon(cat);
+              return (
+                <Link
+                  key={cat.id}
+                  href={`/category/${cat.slug}`}
+                  className="group relative flex flex-col items-center text-center gap-3 p-5 rounded-2xl bg-white border border-[#E2DBD0] hover:border-[#C5A059] hover:shadow-lg transition-all"
+                >
+                  <div className="w-14 h-14 rounded-2xl bg-[#EBF3EF] flex items-center justify-center text-[#0C3B2E] group-hover:bg-[#0C3B2E] group-hover:text-[#D4AF37] transition-colors shadow-inner">
+                    <Icon className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h3 className="font-serif-title text-sm sm:text-base font-bold text-[#0B241C] leading-snug">
+                      {cat.title}
+                    </h3>
+                    {cat.subtitle && (
+                      <p className="text-[11px] text-[#5A7469] mt-1 line-clamp-2">{cat.subtitle}</p>
+                    )}
+                  </div>
+                  <span className="text-[11px] font-semibold text-[#0C3B2E] group-hover:text-[#C5A059] inline-flex items-center gap-1 mt-1">
+                    <span>Shop Now</span>
+                    <ArrowRight className="w-3 h-3" />
+                  </span>
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
       {/* 3. MAIN PRODUCT CATALOG WITH FILTERS & SORT */}
       <section id="catalog-section" className="w-full px-2 sm:px-3 space-y-8 pt-8">
         {/* Catalog Header Toolbar */}
@@ -637,6 +722,52 @@ function CategoryContent({ slug }: { slug: string }) {
           </div>
         )}
       </section>
+
+      {/* INSTAGRAM VIDEOS FEED (MOVED TO BOTTOM) */}
+      {instagramVideos.length > 0 && (
+        <section className="w-full px-2 sm:px-3 mb-10">
+          <div className="bg-[#08281F] rounded-[1.75rem] border border-[#144234] p-6 sm:p-8 lg:p-10 shadow-sm relative overflow-hidden">
+            {/* Elegant dark background blobs */}
+            <div className="absolute top-0 right-0 w-96 h-96 bg-[#C5A059]/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3" />
+            <div className="absolute bottom-0 left-0 w-64 h-64 bg-[#D4AF37]/5 rounded-full blur-3xl translate-y-1/3 -translate-x-1/4" />
+            
+            <div className="relative flex flex-col items-center justify-center gap-4 mb-8 border-b border-[#144234] pb-6 text-center">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#D4AF37]">
+                  Style Inspiration
+                </p>
+                <h2 className="font-serif-title text-3xl sm:text-4xl font-bold text-white mt-1">
+                  Purnya on Instagram
+                </h2>
+              </div>
+            </div>
+
+            <div className="relative flex flex-wrap justify-center gap-5 sm:gap-8 max-w-7xl mx-auto">
+              {instagramVideos.map((video) => {
+                // Force standard post embed (NO hidecaption) to enable inline playback!
+                let cleanUrl = video.url.replace('/reel/', '/p/').split('?')[0].replace(/\/$/, '');
+                if (cleanUrl.endsWith('/embed')) {
+                  cleanUrl = cleanUrl.replace(/\/embed$/, '');
+                }
+                // Do not use hidecaption=true, otherwise Instagram blocks inline playback
+                const embedUrl = `${cleanUrl}/embed`;
+
+                return (
+                  <div key={video.id} className="w-[280px] h-[480px] shrink-0 bg-black rounded-2xl overflow-hidden shadow-2xl border border-[#144234] relative group">
+                    <div className="absolute inset-0 bg-black/5 group-hover:bg-transparent transition-colors duration-300 pointer-events-none z-10" />
+                    <iframe
+                      src={embedUrl}
+                      className="absolute w-[320px] h-[800px] top-[-80px] left-[-20px] border-none max-w-none"
+                      scrolling="no"
+                      allow="encrypted-media"
+                    />
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+      )}
     </div>
   );
 }

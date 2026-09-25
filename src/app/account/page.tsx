@@ -22,7 +22,7 @@ import { useStore } from '../../context/StoreContext';
 import { Address } from '../../types';
 
 function AccountContent() {
-  const { user, isAuthLoading, updateUser, orders, addresses, addAddress, deleteAddress, showToast, logoutUser } = useStore();
+  const { user, isAuthLoading, updateUser, orders, addresses, addAddress, deleteAddress, showToast, logoutUser, updateOrderStatus } = useStore();
   const searchParams = useSearchParams();
   const tabParam = searchParams.get('tab');
   const [activeTab, setActiveTab] = useState<'profile' | 'orders' | 'addresses' | 'returns'>('orders');
@@ -53,6 +53,10 @@ function AccountContent() {
   // Return Request modal state
   const [selectedOrderForReturn, setSelectedOrderForReturn] = useState<string | null>(null);
   const [returnReason, setReturnReason] = useState('Size / fit did not meet expectations');
+
+  // Cancel Order modal state
+  const [selectedOrderForCancel, setSelectedOrderForCancel] = useState<string | null>(null);
+  const [cancelReason, setCancelReason] = useState('Changed my mind');
 
   // Keep state in sync with user profile
   useEffect(() => {
@@ -111,6 +115,15 @@ function AccountContent() {
     e.preventDefault();
     showToast('Return Request Initiated', `Our logistics partner will schedule inspection for order ${selectedOrderForReturn}.`);
     setSelectedOrderForReturn(null);
+  };
+
+  const handleCancelOrder = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (selectedOrderForCancel) {
+      updateOrderStatus(selectedOrderForCancel, 'Cancelled');
+      showToast('Order Cancelled', `Order ${selectedOrderForCancel} has been cancelled successfully.`, 'info');
+      setSelectedOrderForCancel(null);
+    }
   };
 
   const statusColors: Record<string, string> = {
@@ -207,11 +220,10 @@ function AccountContent() {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as any)}
-                className={`w-full flex items-center justify-between p-3 rounded-xl transition-all ${
-                  activeTab === tab.id
+                className={`w-full flex items-center justify-between p-3 rounded-xl transition-all ${activeTab === tab.id
                     ? 'bg-[#0C3B2E] text-white font-bold shadow-sm'
                     : 'text-[#2C4A3E] hover:bg-[#EBF3EF] hover:text-[#0C3B2E]'
-                }`}
+                  }`}
               >
                 <div className="flex items-center gap-3">
                   {tab.icon}
@@ -232,7 +244,7 @@ function AccountContent() {
               <ChevronRight className="w-3.5 h-3.5 opacity-60" />
             </Link>
 
-           
+
 
             <button
               type="button"
@@ -284,6 +296,14 @@ function AccountContent() {
                           <span className={`px-3 py-1 rounded-full text-[11px] font-bold border uppercase tracking-wider ${statusColors[ord.status] || 'bg-gray-100 text-gray-800'}`}>
                             {ord.status}
                           </span>
+                          {(ord.status === 'New' || ord.status === 'Processing') && (
+                            <button
+                              onClick={() => setSelectedOrderForCancel(ord.id)}
+                              className="px-3 py-1.5 rounded-full border border-rose-300 text-rose-600 hover:bg-rose-50 text-xs font-semibold transition-colors shadow-xs cursor-pointer"
+                            >
+                              Cancel Order
+                            </button>
+                          )}
                           <Link
                             href={`/order-tracking?id=${ord.id}`}
                             className="px-4 py-1.5 rounded-full bg-[#0C3B2E] hover:bg-[#164E3D] text-white text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-xs"
@@ -317,6 +337,40 @@ function AccountContent() {
                       </div>
                     </div>
                   ))}
+                </div>
+              )}
+
+              {selectedOrderForCancel && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+                  <form onSubmit={handleCancelOrder} className="w-full max-w-sm p-6 space-y-4 bg-white rounded-3xl shadow-xl">
+                    <p className="font-serif-title text-lg font-bold text-[#0B241C]">Cancel Order {selectedOrderForCancel}</p>
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold text-[#2C4A3E]">Reason for Cancellation</label>
+                      <select
+                        value={cancelReason}
+                        onChange={(e) => setCancelReason(e.target.value)}
+                        className="w-full p-3 text-xs rounded-xl border border-[#E2DBD0] bg-white focus:outline-none focus:border-[#0C3B2E]"
+                      >
+                        <option>Changed my mind</option>
+                        <option>Found a better price elsewhere</option>
+                        <option>Ordered by mistake</option>
+                        <option>Delivery time is too long</option>
+                        <option>Other</option>
+                      </select>
+                    </div>
+                    <div className="flex gap-3 pt-2">
+                      <button type="submit" className="flex-1 px-4 py-2.5 text-xs font-bold text-white bg-rose-600 rounded-xl hover:bg-rose-700 shadow-sm transition-colors cursor-pointer">
+                        Confirm Cancel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedOrderForCancel(null)}
+                        className="flex-1 px-4 py-2.5 text-xs font-bold text-[#2C4A3E] border border-[#E2DBD0] rounded-xl hover:bg-[#FAF8F5] transition-colors cursor-pointer"
+                      >
+                        Keep Order
+                      </button>
+                    </div>
+                  </form>
                 </div>
               )}
             </div>
@@ -510,33 +564,33 @@ function AccountContent() {
                       key={addr.id}
                       className="p-5 rounded-2xl border border-[#E2DBD0] bg-[#FAF8F5]/60 relative flex flex-col justify-between space-y-3"
                     >
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-[#0C3B2E] text-white">
-                          {addr.label}
-                        </span>
-                        {addr.isDefault && (
-                          <span className="text-[10px] font-bold text-[#0C3B2E] bg-[#EBF3EF] px-2 py-0.5 rounded">
-                            Default
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-[#0C3B2E] text-white">
+                            {addr.label}
                           </span>
-                        )}
+                          {addr.isDefault && (
+                            <span className="text-[10px] font-bold text-[#0C3B2E] bg-[#EBF3EF] px-2 py-0.5 rounded">
+                              Default
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs font-bold text-[#0B241C] pt-1">{addr.fullName}</p>
+                        <p className="text-xs text-[#2C4A3E] leading-relaxed">
+                          {addr.addressLine}, {addr.city}, {addr.state} - {addr.pincode}
+                        </p>
+                        <p className="text-xs text-[#5A7469]">Phone: {addr.phone}</p>
                       </div>
-                      <p className="text-xs font-bold text-[#0B241C] pt-1">{addr.fullName}</p>
-                      <p className="text-xs text-[#2C4A3E] leading-relaxed">
-                        {addr.addressLine}, {addr.city}, {addr.state} - {addr.pincode}
-                      </p>
-                      <p className="text-xs text-[#5A7469]">Phone: {addr.phone}</p>
-                    </div>
 
-                    <div className="flex justify-end gap-2 pt-2 border-t border-[#EFEBE3]">
-                      <button
-                        onClick={() => deleteAddress(addr.id)}
-                        className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg text-xs flex items-center gap-1"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                        <span>Remove</span>
-                      </button>
-                    </div>
+                      <div className="flex justify-end gap-2 pt-2 border-t border-[#EFEBE3]">
+                        <button
+                          onClick={() => deleteAddress(addr.id)}
+                          className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg text-xs flex items-center gap-1"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          <span>Remove</span>
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>

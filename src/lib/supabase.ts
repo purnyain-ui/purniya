@@ -374,6 +374,28 @@ export async function saveOrderToSupabase(order: Order): Promise<boolean> {
 }
 
 /**
+ * Update order in Supabase
+ */
+export async function updateOrderInSupabase(orderId: string, updates: any): Promise<boolean> {
+  if (!isSupabaseConfigured || !supabase) return false;
+  try {
+    const { error } = await supabase
+      .from('orders')
+      .update(updates)
+      .eq('id', orderId);
+
+    if (error) {
+      console.warn('Supabase order update error:', error.message);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.warn('Supabase update order exception:', err);
+    return false;
+  }
+}
+
+/**
  * Upsert single product to Supabase
  */
 export async function upsertProductToSupabase(product: Product): Promise<boolean> {
@@ -864,8 +886,8 @@ export async function getBannersFromSupabase(): Promise<HeroSlide[] | null> {
     }
     if (!data) return [];
     return data
-      .filter((b: any) => 
-        b.id !== 'announcement-bar-main' && 
+      .filter((b: any) =>
+        b.id !== 'announcement-bar-main' &&
         b.category !== 'announcement' &&
         b.category !== 'home-middle-section' &&
         b.category !== 'home-bottom-section'
@@ -1706,7 +1728,7 @@ export async function getHomeMiddleSectionsFromSupabase(): Promise<HomeMiddleSec
         if (b.subtitle && b.subtitle.startsWith('{')) {
           parsed = JSON.parse(b.subtitle);
         }
-      } catch {}
+      } catch { }
 
       return {
         id: b.id,
@@ -1811,7 +1833,7 @@ export async function getHomeBottomSectionsFromSupabase(): Promise<HomeBottomSec
         if (b.subtitle && b.subtitle.startsWith('{')) {
           parsed = JSON.parse(b.subtitle);
         }
-      } catch {}
+      } catch { }
 
       return {
         id: b.id,
@@ -1901,7 +1923,7 @@ export async function saveUserCartToSupabase(email: string, cartItems: CartItem[
       { onConflict: 'user_email' }
     );
     if (!error) return true;
-  } catch {}
+  } catch { }
 
   // 2. Also save to Supabase Auth user_metadata
   try {
@@ -1910,7 +1932,7 @@ export async function saveUserCartToSupabase(email: string, cartItems: CartItem[
       await supabase.auth.updateUser({ data: { cart: cartItems || [] } });
       return true;
     }
-  } catch {}
+  } catch { }
 
   return false;
 }
@@ -1933,7 +1955,7 @@ export async function getUserCartFromSupabase(email: string): Promise<CartItem[]
     if (!error && data && data.items) {
       return Array.isArray(data.items) ? data.items : [];
     }
-  } catch {}
+  } catch { }
 
   // 2. Fallback: Supabase Auth user_metadata
   try {
@@ -1942,7 +1964,7 @@ export async function getUserCartFromSupabase(email: string): Promise<CartItem[]
       const metaCart = session.user.user_metadata?.cart;
       if (Array.isArray(metaCart)) return metaCart;
     }
-  } catch {}
+  } catch { }
 
   return null;
 }
@@ -1965,7 +1987,7 @@ export async function saveUserWishlistToSupabase(email: string, wishlistItems: P
       { onConflict: 'user_email' }
     );
     if (!error) return true;
-  } catch {}
+  } catch { }
 
   // 2. Also save to Supabase Auth user_metadata
   try {
@@ -1974,7 +1996,7 @@ export async function saveUserWishlistToSupabase(email: string, wishlistItems: P
       await supabase.auth.updateUser({ data: { wishlist: wishlistItems || [] } });
       return true;
     }
-  } catch {}
+  } catch { }
 
   return false;
 }
@@ -1997,7 +2019,7 @@ export async function getUserWishlistFromSupabase(email: string): Promise<Produc
     if (!error && data && data.items) {
       return Array.isArray(data.items) ? data.items : [];
     }
-  } catch {}
+  } catch { }
 
   // 2. Fallback: Supabase Auth user_metadata
   try {
@@ -2006,7 +2028,7 @@ export async function getUserWishlistFromSupabase(email: string): Promise<Produc
       const metaWishlist = session.user.user_metadata?.wishlist;
       if (Array.isArray(metaWishlist)) return metaWishlist;
     }
-  } catch {}
+  } catch { }
 
   return null;
 }

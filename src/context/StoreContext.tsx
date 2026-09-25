@@ -26,6 +26,7 @@ import {
   getProductsFromSupabase,
   getCategoriesFromSupabase,
   saveOrderToSupabase,
+  updateOrderInSupabase,
   seedCatalogToSupabase,
   upsertProductToSupabase,
   deleteProductFromSupabase,
@@ -909,8 +910,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     trackingNumber?: string,
     courierPartner?: string
   ) => {
-    setOrders(prev =>
-      prev.map(ord => {
+    setOrders(prev => {
+      let updatedOrder: Order | null = null;
+      const newOrders = prev.map(ord => {
         if (ord.id === orderId) {
           const updatedHistory = ord.trackingHistory ? [...ord.trackingHistory] : [];
           // Update matching status in history if exists
@@ -927,17 +929,28 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             });
           }
 
-          return {
+          updatedOrder = {
             ...ord,
             status,
             trackingNumber: trackingNumber || ord.trackingNumber,
             courierPartner: courierPartner || ord.courierPartner,
             trackingHistory: updatedHistory,
           };
+          return updatedOrder;
         }
         return ord;
-      })
-    );
+      });
+
+      if (updatedOrder) {
+        updateOrderInSupabase(orderId, {
+          status: (updatedOrder as Order).status,
+          tracking_number: (updatedOrder as Order).trackingNumber,
+          courier: (updatedOrder as Order).courierPartner
+        }).catch(err => console.warn('Supabase update order sync:', err));
+      }
+
+      return newOrders;
+    });
     showToast('Order Updated', `Order ${orderId} is now ${status}.`);
   };
 
