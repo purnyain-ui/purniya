@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { supabase, CATEGORY_IMAGES_BUCKET } from '../../../lib/supabaseClient';
 import { useStore } from '../../../context/StoreContext'; // still used for products/counts
+import AdminImagePreview from '../../../components/AdminImagePreview';
 
 // Fallback used whenever a category/subcategory has no image set yet.
 // Never render <img src=""> — an empty string re-requests the current page.
@@ -504,33 +505,25 @@ export default function AdminCategoriesPage() {
 
               {/* Subcategory Visual Thumbnail (Local File Upload → Supabase Storage + URL fallback) */}
               <div className="space-y-2">
-                <label className="block font-bold text-[#0B241C]">
+                <label className="block font-bold text-[#0B241C] flex items-center gap-2">
                   Subcategory Image (Circular Thumbnail)
+                  <span className="text-[11px] font-medium text-[#5A7469] normal-case tracking-normal">
+                    (Recommended: 1080x1080px 1:1)
+                  </span>
                 </label>
 
                 {subcatImagePreview && (
-                  <div className="flex items-center gap-3 p-3 rounded-2xl bg-[#FAF8F5] border border-[#E2DBD0]">
-                    <img
-                      src={subcatImagePreview}
-                      alt="Preview"
-                      className="w-14 h-14 rounded-full object-cover border-2 border-[#C5A059]"
+                  <div className="flex justify-center my-4">
+                    <AdminImagePreview
+                      url={subcatImagePreview}
+                      file={subcatImageFile}
+                      circular={true}
+                      onRemove={() => {
+                        setSubcatImagePreview('');
+                        setSubcatImageFile(null);
+                        setSubcatImageUrl('');
+                      }}
                     />
-                    <div className="text-[11px] space-y-0.5">
-                      <p className="font-bold text-[#0B241C]">
-                        {subcatImageFile ? 'New image selected — will upload on save' : 'Current image'}
-                      </p>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSubcatImagePreview('');
-                          setSubcatImageFile(null);
-                          setSubcatImageUrl('');
-                        }}
-                        className="text-rose-700 hover:underline cursor-pointer"
-                      >
-                        Remove Image
-                      </button>
-                    </div>
                   </div>
                 )}
 
@@ -658,10 +651,22 @@ export default function AdminCategoriesPage() {
                 </p>
               </div>
               <div className="space-y-2">
-                <label className="block font-bold text-[#0B241C]">Boutique Banner Image</label>
+                <label className="block font-bold text-[#0B241C] flex items-center gap-2">
+                  Boutique Banner Image
+                  <span className="text-[11px] font-medium text-[#5A7469] normal-case tracking-normal">
+                    (Recommended: 2100x900px 21:9)
+                  </span>
+                </label>
                 {catBannerPreview && (
-                  <div className="relative aspect-[21/9] rounded-xl overflow-hidden border border-[#E2DBD0]">
-                    <img src={catBannerPreview} alt="Banner Preview" className="w-full h-full object-cover" />
+                  <div className="flex justify-center my-4 max-w-sm mx-auto">
+                    <AdminImagePreview
+                      url={catBannerPreview}
+                      file={catBannerFile}
+                      onRemove={() => {
+                        setCatBannerPreview('');
+                        setCatBannerFile(null);
+                      }}
+                    />
                   </div>
                 )}
                 <div className="p-3.5 rounded-2xl border-2 border-dashed border-[#E2DBD0] hover:border-[#C5A059] bg-[#FAF8F5] text-center relative cursor-pointer">

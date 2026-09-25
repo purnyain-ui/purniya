@@ -5,6 +5,7 @@ import { Image as ImageIcon, Save, Edit3, Trash2, Plus, Upload, CheckCircle, Spa
 import { useStore } from '../../../context/StoreContext';
 import { HeroSlide } from '../../../types';
 import { initialHeroSlides } from '../../../data/mockData';
+import AdminImagePreview from '../../../components/AdminImagePreview';
 
 const defaultNewSlide: HeroSlide = {
   id: '',
@@ -37,6 +38,7 @@ export default function AdminBannersPage() {
 
   const [announcementText, setAnnouncementText] = useState(announcement);
   const [editingSlide, setEditingSlide] = useState<HeroSlide | null>(null);
+  const [bannerFile, setBannerFile] = useState<File | null>(null);
   const [isAddingNew, setIsAddingNew] = useState(false);
 
   useEffect(() => {
@@ -417,21 +419,23 @@ export default function AdminBannersPage() {
 
             {/* Slide Image Preview & Inputs */}
             <div className="space-y-2 pt-2 border-t border-[#EFEBE3]">
-              <label className="font-semibold text-[#2C4A3E] block">
-                Slide Hero Image * (High-resolution 16:9 recommended)
+              <label className="font-semibold text-[#2C4A3E] block flex items-center gap-2">
+                Slide Hero Image *
+                <span className="text-[11px] font-medium text-[#5A7469] normal-case tracking-normal">
+                  (Recommended: 1920x1080px 16:9)
+                </span>
               </label>
 
               {editingSlide.image && (
-                <div className="relative aspect-[16/9] rounded-2xl overflow-hidden border border-[#E2DBD0] bg-[#0B241C]">
-                  <img
-                    src={editingSlide.image}
-                    alt="Slide Preview"
-                    className="w-full h-full object-cover"
+                <div className="flex justify-center my-4 max-w-lg mx-auto">
+                  <AdminImagePreview
+                    url={editingSlide.image}
+                    file={bannerFile}
+                    onRemove={() => {
+                      setEditingSlide({ ...editingSlide, image: '' });
+                      setBannerFile(null);
+                    }}
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent pointer-events-none" />
-                  <div className="absolute bottom-2 left-3 text-white text-[11px] font-medium drop-shadow">
-                    Preview: {editingSlide.title || 'Slide Title'}
-                  </div>
                 </div>
               )}
 
@@ -443,6 +447,7 @@ export default function AdminBannersPage() {
                   onChange={(e) => {
                     const file = e.target.files?.[0];
                     if (file) {
+                      setBannerFile(file);
                       const reader = new FileReader();
                       reader.onload = (loadEvt) => {
                         const result = loadEvt.target?.result as string;
@@ -469,8 +474,11 @@ export default function AdminBannersPage() {
                 </label>
                 <input
                   type="url"
-                  value={editingSlide.image}
-                  onChange={(e) => setEditingSlide({ ...editingSlide, image: e.target.value })}
+                  value={editingSlide.image && !bannerFile ? editingSlide.image : ''}
+                  onChange={(e) => {
+                    setEditingSlide({ ...editingSlide, image: e.target.value });
+                    setBannerFile(null);
+                  }}
                   placeholder="https://images.unsplash.com/..."
                   className="w-full p-2.5 rounded-xl border border-[#E2DBD0] text-xs focus:outline-none focus:border-[#C5A059]"
                 />

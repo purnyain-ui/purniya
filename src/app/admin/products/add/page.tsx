@@ -104,8 +104,8 @@ function SectionHeader({
   subtitle,
 }: {
   icon: React.ElementType
-  title: string
-  subtitle?: string
+  title: React.ReactNode
+  subtitle?: React.ReactNode
 }) {
   return (
     <div className="flex items-center gap-3 mb-6">
@@ -1189,7 +1189,14 @@ function AdminAddProductPage() {
             <div className="bg-white border border-[#E2DBD0] rounded-3xl p-6 shadow-sm">
               <SectionHeader
                 icon={ImageIcon}
-                title="Product Images"
+                title={
+                  <div className="flex items-center gap-2">
+                    Product Images
+                    <span className="text-[11px] font-medium text-[#5A7469] normal-case tracking-normal">
+                      (Recommended: 1080x1080px 1:1)
+                    </span>
+                  </div>
+                }
                 subtitle="The first image becomes the primary thumbnail"
               />
 
@@ -1206,7 +1213,7 @@ function AdminAddProductPage() {
                   Click or Drag to Upload Images
                 </p>
                 <p className="text-[10px] text-[#5A7469] mt-1">
-                  Uploads to Supabase Storage on save
+                  Uploads to Supabase on save.
                 </p>
               </label>
 
@@ -1416,8 +1423,11 @@ function AdminAddProductPage() {
 
                     {/* VARIANT IMAGES */}
                     <div className="mt-5">
-                      <label className="block font-bold text-[#0B241C] mb-1">
+                      <label className="block font-bold text-[#0B241C] mb-1 flex items-center gap-2">
                         Variant Images
+                        <span className="text-[11px] font-medium text-[#5A7469] normal-case tracking-normal">
+                          (Recommended: 1080x1080px 1:1)
+                        </span>
                       </label>
 
                       <label className="block p-5 rounded-2xl border-2 border-dashed border-[#E2DBD0] hover:border-[#C5A059] bg-white transition-colors text-center cursor-pointer relative">

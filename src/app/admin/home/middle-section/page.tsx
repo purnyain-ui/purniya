@@ -9,6 +9,7 @@ import {
   deleteHomeMiddleSectionFromSupabase,
   uploadHomeImageToSupabase,
 } from '../../../../lib/supabase';
+import AdminImagePreview from '../../../../components/AdminImagePreview';
 
 const DEFAULT_MIDDLE_ITEM: HomeMiddleSection = {
   id: 'homepage-middle-standard',
@@ -383,7 +384,12 @@ export default function AdminStandardsPage() {
 
               {/* File Upload to Supabase */}
               <div className="space-y-1">
-                <label className="font-semibold text-[#2C4A3E]">Upload Banner Photo (Supabase Storage)</label>
+                <label className="font-semibold text-[#2C4A3E] flex items-center gap-2">
+                  Upload Banner Photo (Supabase Storage)
+                  <span className="text-[11px] font-medium text-[#5A7469] normal-case tracking-normal">
+                    (Recommended: 1200x900px 4:3)
+                  </span>
+                </label>
                 <div className="flex items-center gap-2">
                   <label className="flex-1 flex items-center justify-center gap-2 p-2.5 rounded-xl border border-dashed border-[#C5A059] bg-[#EBF3EF]/50 hover:bg-[#EBF3EF] cursor-pointer text-[#0B241C] font-semibold transition">
                     {uploading ? (
@@ -415,14 +421,12 @@ export default function AdminStandardsPage() {
               />
             </div>
 
-            {/* Live Image Preview Thumbnail inside Modal */}
             {imageUrl && (
-              <div className="flex items-center gap-4 p-3 rounded-2xl bg-[#EFEBE3]/40 border border-[#E2DBD0]">
-                <img src={imageUrl} alt="Preview" className="w-16 h-16 rounded-xl object-cover border border-[#E2DBD0]" />
-                <div className="truncate flex-1">
-                  <p className="font-semibold text-[#0B241C]">Image Attached ✓</p>
-                  <p className="text-[10px] text-gray-500 truncate">{imageUrl}</p>
-                </div>
+              <div className="flex justify-center my-4 max-w-sm mx-auto">
+                <AdminImagePreview
+                  url={imageUrl}
+                  onRemove={() => setImageUrl('')}
+                />
               </div>
             )}
 

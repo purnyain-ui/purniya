@@ -9,6 +9,7 @@ import {
   deleteHomeBottomSectionFromSupabase,
   uploadHomeImageToSupabase,
 } from '../../../../lib/supabase';
+import AdminImagePreview from '../../../../components/AdminImagePreview';
 
 const DEFAULT_BOTTOM_SECTION: HomeBottomSection = {
   id: 'homepage-bottom-integrity',
@@ -355,6 +356,12 @@ export default function AdminIntegrityStandardsPage() {
                   </div>
                   
                   <div className="space-y-2">
+                    <label className="flex items-center gap-2 text-[10px] font-semibold text-[#2C4A3E]">
+                      Card Image
+                      <span className="text-[11px] font-medium text-[#5A7469] normal-case tracking-normal">
+                        (Recommended: 800x450px 16:9)
+                      </span>
+                    </label>
                     <div className="flex flex-wrap items-center gap-3">
                       <label className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-dashed border-[#C5A059] bg-white hover:bg-[#EBF3EF] cursor-pointer text-[#0B241C] font-semibold transition text-[11px]">
                         {uploadingCardIndex === idx ? (
@@ -371,20 +378,13 @@ export default function AdminIntegrityStandardsPage() {
                           className="hidden"
                         />
                       </label>
-                      {card.image && (
-                        <button
-                          type="button"
-                          onClick={() => handleCardChange(idx, 'image', '')}
-                          className="text-[10px] text-red-600 hover:underline cursor-pointer"
-                        >
-                          Remove Photo
-                        </button>
-                      )}
                     </div>
                     {card.image && (
-                      <div className="flex items-center gap-3 p-2 rounded-xl bg-white border border-[#E2DBD0]">
-                        <img src={card.image} alt="Thumbnail" className="w-12 h-12 object-cover rounded-lg border" />
-                        <span className="text-[10px] text-gray-500 font-mono truncate flex-1">{card.image}</span>
+                      <div className="flex my-2 max-w-xs">
+                        <AdminImagePreview
+                          url={card.image}
+                          onRemove={() => handleCardChange(idx, 'image', '')}
+                        />
                       </div>
                     )}
                   </div>

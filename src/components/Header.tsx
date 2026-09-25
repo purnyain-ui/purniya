@@ -295,11 +295,6 @@ function HeaderContent() {
                   <span className="font-serif-title text-2xl sm:text-3xl font-bold tracking-[0.16em] text-[#0C3B2E] group-hover:text-[#164E3D] transition-colors leading-none">
                     PURNYA
                   </span>
-                  {currentCategory && (
-                    <span className="hidden sm:inline-block px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-[#0C3B2E] text-white">
-                      Flagship
-                    </span>
-                  )}
                 </div>
                 <span className="text-[9px] sm:text-[10px] uppercase tracking-[0.22em] text-[#C5A059] font-bold mt-0.5">
                   {currentCategory ? (currentCategory.title || '').trim() : 'Life · Lifestyle · You'}
