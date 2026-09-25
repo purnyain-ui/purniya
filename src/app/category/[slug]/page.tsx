@@ -80,6 +80,9 @@ function CategoryContent({ slug }: { slug: string }) {
           const t = (p.lifestyleTag || (p as any).lifestyleTagName || '').trim();
           if (t !== selectedLifestyleTag) return false;
         }
+        if (selectedPriceRange === 'under99' && p.price >= 99) return false;
+        if (selectedPriceRange === 'under499' && p.price >= 499) return false;
+        if (selectedPriceRange === 'under999' && p.price >= 999) return false;
         if (selectedPriceRange === 'under1000' && p.price >= 1000) return false;
         if (selectedPriceRange === '1000to2500' && (p.price < 1000 || p.price > 2500)) return false;
         if (selectedPriceRange === 'above2500' && p.price <= 2500) return false;
@@ -93,7 +96,6 @@ function CategoryContent({ slug }: { slug: string }) {
         return 0; // featured default
       });
   }, [products, slug, currentCategory, selectedSubcategory, selectedLifestyleTag, selectedPriceRange, selectedBadge, sortBy]);
-
   // All products in this category (not narrowed by subcategory/price/badge filters)
   // used to build the "Shop by Lifestyle" rows below the subcategory carousel.
   const categoryProducts = useMemo(() => {
@@ -407,9 +409,9 @@ function CategoryContent({ slug }: { slug: string }) {
                       <ProductCard product={product} />
                     </div>
                   ))}
-                </div>
               </div>
             </div>
+          </div>
         </section>
       )}
 
@@ -711,6 +713,9 @@ function CategoryContent({ slug }: { slug: string }) {
                 <div className="flex flex-wrap gap-2">
                   {[
                     { label: 'All Prices', val: 'all' },
+                    { label: 'Under ₹99', val: 'under99' },
+                    { label: 'Under ₹499', val: 'under499' },
+                    { label: 'Under ₹999', val: 'under999' },
                     { label: 'Under ₹1,000', val: 'under1000' },
                     { label: '₹1,000 - ₹2,500', val: '1000to2500' },
                     { label: 'Above ₹2,500', val: 'above2500' },
