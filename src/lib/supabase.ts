@@ -2209,3 +2209,71 @@ export async function updateCustomerProfile(params: {
   }
 }
 
+/**
+ * Fetch festival banners from Supabase (using dedicated festival_banners table)
+ */
+export async function getFestivalBannersFromSupabase(): Promise<any[]> {
+  if (!isSupabaseConfigured || !supabase) return [];
+  try {
+    const { data, error } = await supabase
+      .from('festival_banners')
+      .select('*')
+      .order('created_at', { ascending: true });
+
+    if (error) {
+      console.warn('Supabase getFestivalBanners error:', error);
+      return [];
+    }
+    return (data || []).map((b: any) => ({
+      id: b.id,
+      categoryId: b.category_id,
+      categorySlug: b.category_slug,
+      imageUrl: b.image_url,
+      lifestyleTag: b.lifestyle_tag,
+      isActive: Boolean(b.is_active ?? true),
+    }));
+  } catch (err) {
+    console.warn('Supabase getFestivalBanners exception:', err);
+    return [];
+  }
+}
+
+export async function upsertFestivalBannerToSupabase(banner: any): Promise<boolean> {
+  if (!isSupabaseConfigured || !supabase) return false;
+  try {
+    const { error } = await supabase.from('festival_banners').upsert(
+      {
+        id: banner.id,
+        category_id: banner.categoryId,
+        category_slug: banner.categorySlug,
+        image_url: banner.imageUrl,
+        lifestyle_tag: banner.lifestyleTag,
+        is_active: banner.isActive,
+      },
+      { onConflict: 'id' }
+    );
+    if (error) {
+      console.warn('Supabase upsertFestivalBanner error:', error);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.warn('Supabase upsertFestivalBanner exception:', err);
+    return false;
+  }
+}
+
+export async function deleteFestivalBannerFromSupabase(id: string): Promise<boolean> {
+  if (!isSupabaseConfigured || !supabase) return false;
+  try {
+    const { error } = await supabase.from('festival_banners').delete().eq('id', id);
+    if (error) {
+      console.warn('Supabase deleteFestivalBanner error:', error);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.warn('Supabase deleteFestivalBanner exception:', err);
+    return false;
+  }
+}

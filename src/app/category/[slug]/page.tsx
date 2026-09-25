@@ -143,6 +143,27 @@ function CategoryContent({ slug }: { slug: string }) {
   const [instagramVideos, setInstagramVideos] = useState<any[]>([]);
   const [selectedVideoUrl, setSelectedVideoUrl] = useState<string | null>(null);
 
+  const [festivalBanner, setFestivalBanner] = useState<any | null>(null);
+
+  useEffect(() => {
+    const fetchBanners = async () => {
+      if (!currentCategory) return;
+      try {
+        const { getFestivalBannersFromSupabase } = await import('../../../lib/supabase');
+        const banners = await getFestivalBannersFromSupabase();
+        const activeBanner = banners.find((b: any) =>
+          b.isActive && (b.categoryId === currentCategory.id || b.categorySlug === currentCategory.slug)
+        );
+        if (activeBanner) {
+          setFestivalBanner(activeBanner);
+        }
+      } catch (e) {
+        console.warn('Could not load festival banner', e);
+      }
+    };
+    fetchBanners();
+  }, [currentCategory]);
+
   useEffect(() => {
     const fetchVideos = async () => {
       try {
@@ -338,6 +359,60 @@ function CategoryContent({ slug }: { slug: string }) {
         </div>
       </section>
 
+      {/* 2.2 FESTIVAL BANNER & SALE PRODUCTS */}
+      {festivalBanner && (
+        <section className="w-full px-2 sm:px-3 mt-6 sm:mt-10">
+          <div className="relative bg-[#FFEFE8] rounded-[1.75rem] overflow-hidden border border-[#F5DFD6] shadow-sm flex flex-col">
+            {/* The Banner */}
+            <button
+              onClick={() => {
+                setSelectedLifestyleTag(festivalBanner.lifestyleTag);
+                document.getElementById('catalog-section')?.scrollIntoView({ behavior: 'smooth' });
+              }}
+              className="w-full block relative aspect-[3000/563] group cursor-pointer shrink-0"
+            >
+              <img
+                src={festivalBanner.imageUrl}
+                alt={festivalBanner.lifestyleTag}
+                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+              />
+              <div className="absolute inset-0 bg-black/10 group-hover:bg-black/0 transition-colors duration-300" />
+            </button>
+
+            {/* The Sale Products Row */}
+            <div className="p-6 sm:p-8 lg:p-10 space-y-4 sm:space-y-6">
+              <div className="flex items-center justify-between">
+                <h3 className="font-serif-title text-xl sm:text-2xl font-bold text-[#0B241C]">
+                  {festivalBanner.lifestyleTag}
+                </h3>
+                <button
+                  onClick={() => {
+                    setSelectedLifestyleTag(festivalBanner.lifestyleTag);
+                    document.getElementById('catalog-section')?.scrollIntoView({ behavior: 'smooth' });
+                  }}
+                  className="text-xs font-bold text-[#C5A059] hover:text-[#0C3B2E] transition-colors flex items-center gap-1 uppercase tracking-wider"
+                >
+                  View All Sale <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+              <div className="flex overflow-x-auto snap-x snap-mandatory gap-3 sm:gap-4 pb-4 -mx-2 px-2 sm:mx-0 sm:px-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+                {categoryProducts
+                  .filter((p: any) => {
+                    const tag = (p.lifestyleTag || p.lifestyleTagName || '').trim();
+                    return tag === festivalBanner.lifestyleTag.trim();
+                  })
+                  .slice(0, 6)
+                  .map((product: any) => (
+                    <div key={product.id} className="snap-start w-[220px] sm:w-[260px] shrink-0">
+                      <ProductCard product={product} />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+        </section>
+      )}
+
       {/* 2.5 SHOP BY LIFESTYLE — ROWS GROUPED BY lifestyle_sale_tags */}
       {lifestyleGroups.length > 0 && (
         <section className="w-full px-2 sm:px-3 space-y-8">
@@ -428,6 +503,36 @@ function CategoryContent({ slug }: { slug: string }) {
           </div>
         </section>
       )}
+      {/* 2.5.5 PRICE BUCKETS */}
+      <section className="w-full px-2 sm:px-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {[99, 499, 999].map((price) => (
+            <button
+              key={price}
+              onClick={() => {
+                setSelectedPriceRange(`under${price}`);
+                document.getElementById('catalog-section')?.scrollIntoView({ behavior: 'smooth' });
+              }}
+              className="relative w-full rounded-[1.5rem] sm:rounded-3xl overflow-hidden aspect-[3/1] sm:aspect-[2.5/1] shadow-md hover:shadow-xl transition-all hover:-translate-y-1 group border border-[#591420]/20"
+            >
+              <div
+                className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-105"
+                style={{ backgroundImage: "url('/greencover.jpg')" }}
+              />
+              <div className="absolute inset-0 bg-black/40 group-hover:bg-black/30 transition-colors duration-300" />
+
+              <div className="absolute inset-0 flex flex-col items-center justify-center p-4">
+                <span className="text-white/90 text-xs sm:text-sm font-semibold tracking-widest uppercase mb-0.5">
+                  Under
+                </span>
+                <span className="text-white font-bold text-3xl sm:text-4xl tracking-tight">
+                  ₹{price}
+                </span>
+              </div>
+            </button>
+          ))}
+        </div>
+      </section>
 
       {/* 2.6 FEATURED COLLECTIONS */}
       {featuredProducts.length > 0 && (

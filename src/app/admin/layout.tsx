@@ -282,6 +282,7 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
   ];
 
   const homeSubItems = [
+    { name: 'Festival Banner', href: '/admin/home/festival-banner' },
     { name: 'Middle Section', href: '/admin/home/middle-section' },
     { name: 'Bottom Section', href: '/admin/home/bottom-section' },
   ];
