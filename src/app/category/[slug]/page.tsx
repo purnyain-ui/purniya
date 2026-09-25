@@ -18,6 +18,8 @@ import {
   Leaf,
   Gift,
   Sparkles,
+  Play,
+  X,
 } from 'lucide-react';
 import { useStore } from '../../../context/StoreContext';
 import ProductCard from '../../../components/ProductCard';
@@ -139,6 +141,7 @@ function CategoryContent({ slug }: { slug: string }) {
   }, [categoryProducts]);
 
   const [instagramVideos, setInstagramVideos] = useState<any[]>([]);
+  const [selectedVideoUrl, setSelectedVideoUrl] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchVideos = async () => {
@@ -742,9 +745,8 @@ function CategoryContent({ slug }: { slug: string }) {
               </div>
             </div>
 
-            <div className="relative flex flex-wrap justify-center gap-5 sm:gap-8 max-w-7xl mx-auto">
+            <div className="relative grid grid-cols-2 md:grid-cols-3 gap-2 sm:gap-4 max-w-5xl mx-auto px-2 sm:px-0">
               {instagramVideos.map((video) => {
-                // Clean URL to standard post format
                 let cleanUrl = video.url.replace('/reel/', '/p/').split('?')[0].replace(/\/$/, '');
                 if (cleanUrl.endsWith('/embed')) {
                   cleanUrl = cleanUrl.replace(/\/embed$/, '');
@@ -752,35 +754,60 @@ function CategoryContent({ slug }: { slug: string }) {
                 const embedUrl = `${cleanUrl}/embed`;
 
                 return (
-                  <div key={video.id} className="w-[300px] h-[533px] shrink-0 bg-black rounded-3xl overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.5)] border border-[#144234] relative group">
-                    {/* Gentle dimming overlay that disappears on hover - pointer-events-none so we can click to play! */}
-                    <div className="absolute inset-0 bg-black/10 group-hover:bg-transparent transition-colors duration-500 pointer-events-none z-10" />
+                  <button 
+                    key={video.id} 
+                    onClick={() => setSelectedVideoUrl(embedUrl)}
+                    className="aspect-square w-full bg-[#EBF3EF] overflow-hidden relative group cursor-pointer rounded-lg sm:rounded-2xl"
+                  >
+                    {/* The cropped iframe to perfectly center the IG play button and hide everything else */}
+                    <div className="absolute inset-0 pointer-events-none overflow-hidden bg-black">
+                      <iframe
+                        src={embedUrl}
+                        className="absolute border-none max-w-none"
+                        style={{ 
+                          width: '360px', 
+                          height: '700px', 
+                          top: '-100px', 
+                          left: '-30px', 
+                          transform: 'scale(1.25)', 
+                          transformOrigin: 'top left' 
+                        }}
+                        scrolling="no"
+                      />
+                    </div>
                     
-                    {/* 
-                      ULTIMATE EMBED HACK 2.0:
-                      1. sandbox="allow-scripts allow-same-origin allow-presentation" BLOCKS all redirects and popups to Instagram!
-                      2. w-[340px] and left-[-20px] perfectly crops 20px off both left and right, eliminating the white gaps.
-                      3. top-[-95px] completely crops out the Instagram Header (Profile picture, name, view profile).
-                      4. h-[900px] gives the iframe huge height so the caption flows down, but the card's 533px height cuts it off completely!
-                      5. Result: A perfectly full-bleed inline video player!
-                    */}
-                    <iframe
-                      src={embedUrl}
-                      sandbox="allow-scripts allow-same-origin allow-presentation"
-                      className="absolute w-[340px] h-[900px] top-[-95px] left-[-20px] border-none max-w-none"
-                      scrolling="no"
-                      allow="encrypted-media"
-                    />
-
-                    {/* Invisible shields at the top and bottom to catch any rogue clicks near hidden UI elements */}
-                    <div className="absolute top-0 left-0 w-full h-20 bg-transparent z-20 cursor-pointer" />
-                    <div className="absolute bottom-0 left-0 w-full h-24 bg-transparent z-20 cursor-pointer" />
-                  </div>
+                    {/* Invisible overlay to intercept clicks and trigger the modal */}
+                    <div className="absolute inset-0 z-20 bg-transparent group-hover:bg-black/10 transition-colors duration-300" />
+                  </button>
                 );
               })}
             </div>
           </div>
         </section>
+      )}
+
+      {/* VIDEO POPUP MODAL */}
+      {selectedVideoUrl && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
+          <div className="absolute inset-0 bg-black/90 backdrop-blur-sm transition-opacity" onClick={() => setSelectedVideoUrl(null)} />
+          <div className="relative w-full max-w-md bg-black rounded-3xl overflow-hidden shadow-2xl flex flex-col items-center animate-in fade-in zoom-in-95 duration-300">
+            <button 
+              onClick={() => setSelectedVideoUrl(null)}
+              className="absolute top-3 right-3 z-50 w-10 h-10 bg-black/60 text-white rounded-full flex items-center justify-center hover:bg-black transition-colors border border-white/20 shadow-md"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <div className="w-full h-[80vh] sm:h-[85vh] max-h-[850px] relative bg-black flex items-center justify-center">
+              {/* Show the standard IG embed but sized nicely for mobile popup */}
+              <iframe
+                src={selectedVideoUrl}
+                className="w-full h-full border-none"
+                scrolling="no"
+                allow="encrypted-media"
+              />
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
