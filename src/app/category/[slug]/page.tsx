@@ -744,23 +744,37 @@ function CategoryContent({ slug }: { slug: string }) {
 
             <div className="relative flex flex-wrap justify-center gap-5 sm:gap-8 max-w-7xl mx-auto">
               {instagramVideos.map((video) => {
-                // Force standard post embed (NO hidecaption) to enable inline playback!
+                // Clean URL to standard post format
                 let cleanUrl = video.url.replace('/reel/', '/p/').split('?')[0].replace(/\/$/, '');
                 if (cleanUrl.endsWith('/embed')) {
                   cleanUrl = cleanUrl.replace(/\/embed$/, '');
                 }
-                // Do not use hidecaption=true, otherwise Instagram blocks inline playback
                 const embedUrl = `${cleanUrl}/embed`;
 
                 return (
-                  <div key={video.id} className="w-[280px] h-[480px] shrink-0 bg-black rounded-2xl overflow-hidden shadow-2xl border border-[#144234] relative group">
-                    <div className="absolute inset-0 bg-black/5 group-hover:bg-transparent transition-colors duration-300 pointer-events-none z-10" />
+                  <div key={video.id} className="w-[300px] h-[533px] shrink-0 bg-black rounded-3xl overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.5)] border border-[#144234] relative group">
+                    {/* Gentle dimming overlay that disappears on hover - pointer-events-none so we can click to play! */}
+                    <div className="absolute inset-0 bg-black/10 group-hover:bg-transparent transition-colors duration-500 pointer-events-none z-10" />
+                    
+                    {/* 
+                      ULTIMATE EMBED HACK 2.0:
+                      1. sandbox="allow-scripts allow-same-origin allow-presentation" BLOCKS all redirects and popups to Instagram!
+                      2. w-[340px] and left-[-20px] perfectly crops 20px off both left and right, eliminating the white gaps.
+                      3. top-[-95px] completely crops out the Instagram Header (Profile picture, name, view profile).
+                      4. h-[900px] gives the iframe huge height so the caption flows down, but the card's 533px height cuts it off completely!
+                      5. Result: A perfectly full-bleed inline video player!
+                    */}
                     <iframe
                       src={embedUrl}
-                      className="absolute w-[320px] h-[800px] top-[-80px] left-[-20px] border-none max-w-none"
+                      sandbox="allow-scripts allow-same-origin allow-presentation"
+                      className="absolute w-[340px] h-[900px] top-[-95px] left-[-20px] border-none max-w-none"
                       scrolling="no"
                       allow="encrypted-media"
                     />
+
+                    {/* Invisible shields at the top and bottom to catch any rogue clicks near hidden UI elements */}
+                    <div className="absolute top-0 left-0 w-full h-20 bg-transparent z-20 cursor-pointer" />
+                    <div className="absolute bottom-0 left-0 w-full h-24 bg-transparent z-20 cursor-pointer" />
                   </div>
                 );
               })}

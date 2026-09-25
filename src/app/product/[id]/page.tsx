@@ -12,7 +12,7 @@ import {
   RotateCcw,
   ShieldCheck,
   ChevronRight,
-  ChevronLeft,Video ,
+  ChevronLeft, Video,
   Star,
   CheckCircle2,
   ArrowUpRight,
@@ -854,77 +854,111 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
       {/* Main PDP Layout */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-14 items-start">
-          {/* Left Column: Gallery */}
-          <div className="lg:col-span-7 flex flex-col-reverse sm:flex-row gap-4">
-            {/* Thumbnails */}
-            {galleryImages.length > 0 && (
-              <div className="flex sm:flex-col gap-3 overflow-x-auto sm:overflow-visible shrink-0 pb-2 sm:pb-0">
-                {galleryImages.map((img, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => setActiveImgIndex(idx)}
-                    className={`w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden border-2 transition-all bg-[#EBF3EF] shrink-0 ${safeImgIndex === idx
+          {/* Left Column: Gallery & Guarantees */}
+          <div className="lg:col-span-7 flex flex-col gap-8">
+            <div className="flex flex-col-reverse sm:flex-row gap-4">
+              {/* Thumbnails */}
+              {galleryImages.length > 0 && (
+                <div className="flex sm:flex-col gap-3 overflow-x-auto sm:overflow-visible shrink-0 pb-2 sm:pb-0">
+                  {galleryImages.map((img, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => setActiveImgIndex(idx)}
+                      className={`w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden border-2 transition-all bg-[#EBF3EF] shrink-0 ${safeImgIndex === idx
                         ? 'border-[#0C3B2E] shadow-md scale-105 ring-1 ring-[#C5A059]'
                         : 'border-[#E2DBD0] hover:border-[#0C3B2E]/50'
-                      }`}
-                  >
-                    <img src={img} alt={`Angle ${idx + 1}`} className="w-full h-full object-cover" />
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {/* Main Preview */}
-            <div className="relative aspect-square w-full rounded-3xl overflow-hidden bg-[#EBF3EF] border border-[#E2DBD0] shadow-xs group">
-              {galleryImages[safeImgIndex] ? (
-                <img
-                  src={galleryImages[safeImgIndex]}
-                  alt={product.name}
-                  onClick={openZoom}
-                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 cursor-zoom-in"
-                />
-              ) : (
-                <div className="w-full h-full flex flex-col items-center justify-center gap-2 text-[#5A7469]">
-                  <ImageIcon className="w-8 h-8" />
-                  <span className="text-xs font-semibold">No image available</span>
+                        }`}
+                    >
+                      <img src={img} alt={`Angle ${idx + 1}`} className="w-full h-full object-cover" />
+                    </button>
+                  ))}
                 </div>
               )}
 
-              {product.is_featured && (
-                <span className="absolute top-4 left-4 px-3 py-1 text-xs uppercase font-bold tracking-wider rounded-md bg-[#0C3B2E] text-white shadow-xs">
-                  Featured
-                </span>
-              )}
-
-              {/* Zoom + Share floating controls */}
-              {galleryImages.length > 0 && (
-                <div className="absolute top-4 right-4 flex flex-col gap-2">
-                  <button
+              {/* Main Preview */}
+              <div className="relative aspect-square w-full rounded-3xl overflow-hidden bg-[#EBF3EF] border border-[#E2DBD0] shadow-xs group">
+                {galleryImages[safeImgIndex] ? (
+                  <img
+                    src={galleryImages[safeImgIndex]}
+                    alt={product.name}
                     onClick={openZoom}
-                    aria-label="Zoom image"
-                    title="Zoom image"
-                    className="w-10 h-10 rounded-full bg-white/90 backdrop-blur-md border border-[#E2DBD0] text-[#0C3B2E] flex items-center justify-center shadow-md hover:bg-white hover:text-[#C5A059] transition-colors cursor-pointer"
-                  >
-                    <ZoomIn className="w-4.5 h-4.5" />
-                  </button>
-                  <button
-                    onClick={handleShare}
-                    aria-label="Share this product"
-                    title="Share this product"
-                    className="w-10 h-10 rounded-full bg-white/90 backdrop-blur-md border border-[#E2DBD0] text-[#0C3B2E] flex items-center justify-center shadow-md hover:bg-white hover:text-[#C5A059] transition-colors cursor-pointer sm:hidden"
-                  >
-                    <Share2 className="w-4.5 h-4.5" />
-                  </button>
-                </div>
-              )}
+                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 cursor-zoom-in"
+                  />
+                ) : (
+                  <div className="w-full h-full flex flex-col items-center justify-center gap-2 text-[#5A7469]">
+                    <ImageIcon className="w-8 h-8" />
+                    <span className="text-xs font-semibold">No image available</span>
+                  </div>
+                )}
 
-              {/* Tap-to-zoom hint */}
-              {galleryImages.length > 0 && (
-                <span className="absolute bottom-4 left-4 hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/85 backdrop-blur-md border border-[#E2DBD0] text-[10px] font-semibold uppercase tracking-wider text-[#2C4A3E] shadow-xs">
-                  <Maximize2 className="w-3 h-3 text-[#C5A059]" />
-                  Click image to zoom
-                </span>
-              )}
+                {product.is_featured && (
+                  <span className="absolute top-4 left-4 px-3 py-1 text-xs uppercase font-bold tracking-wider rounded-md bg-[#0C3B2E] text-white shadow-xs">
+                    Featured
+                  </span>
+                )}
+
+                {/* Zoom + Share floating controls */}
+                {galleryImages.length > 0 && (
+                  <div className="absolute top-4 right-4 flex flex-col gap-2">
+                    <button
+                      onClick={openZoom}
+                      aria-label="Zoom image"
+                      title="Zoom image"
+                      className="w-10 h-10 rounded-full bg-white/90 backdrop-blur-md border border-[#E2DBD0] text-[#0C3B2E] flex items-center justify-center shadow-md hover:bg-white hover:text-[#C5A059] transition-colors cursor-pointer"
+                    >
+                      <ZoomIn className="w-4.5 h-4.5" />
+                    </button>
+                    <button
+                      onClick={handleShare}
+                      aria-label="Share this product"
+                      title="Share this product"
+                      className="w-10 h-10 rounded-full bg-white/90 backdrop-blur-md border border-[#E2DBD0] text-[#0C3B2E] flex items-center justify-center shadow-md hover:bg-white hover:text-[#C5A059] transition-colors cursor-pointer sm:hidden"
+                    >
+                      <Share2 className="w-4.5 h-4.5" />
+                    </button>
+                  </div>
+                )}
+
+                {/* Tap-to-zoom hint */}
+                {galleryImages.length > 0 && (
+                  <span className="absolute bottom-4 left-4 hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/85 backdrop-blur-md border border-[#E2DBD0] text-[10px] font-semibold uppercase tracking-wider text-[#2C4A3E] shadow-xs">
+                    <Maximize2 className="w-3 h-3 text-[#C5A059]" />
+                    Click image to zoom
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Guarantees / Trust Badges */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 py-6 border-t border-[#E2DBD0]">
+              <div className="flex flex-col items-center text-center space-y-3">
+                <Truck className="w-10 h-10 text-[#C5A059] stroke-[1.5]" />
+                <div>
+                  <p className="text-[11px] font-bold uppercase tracking-wide text-[#0B241C] mb-1">Express Courier</p>
+                  <p className="text-[10px] text-[#5A7469] leading-tight px-1">Delivery within 5 to 6 business days</p>
+                </div>
+              </div>
+              <div className="flex flex-col items-center text-center space-y-3">
+                <ShieldCheck className="w-10 h-10 text-[#C5A059] stroke-[1.5]" />
+                <div>
+                  <p className="text-[11px] font-bold uppercase tracking-wide text-[#0B241C] mb-1">Free Replacement</p>
+                  <p className="text-[10px] text-[#5A7469] leading-tight px-1">If the product arrives damaged</p>
+                </div>
+              </div>
+              <div className="flex flex-col items-center text-center space-y-3">
+                <Video className="w-10 h-10 text-[#C5A059] stroke-[1.5]" />
+                <div>
+                  <p className="text-[11px] font-bold uppercase tracking-wide text-[#0B241C] mb-1">360° Unboxing</p>
+                  <p className="text-[10px] text-[#5A7469] leading-tight px-1">Video required to claim a replacement</p>
+                </div>
+              </div>
+              <div className="flex flex-col items-center text-center space-y-3">
+                <CheckCircle2 className="w-10 h-10 text-[#C5A059] stroke-[1.5]" />
+                <div>
+                  <p className="text-[11px] font-bold uppercase tracking-wide text-[#0B241C] mb-1">100% Authentic</p>
+                  <p className="text-[10px] text-[#5A7469] leading-tight px-1">Artisanal craftsmanship guarantee</p>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -1064,8 +1098,8 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
                         onClick={() => handleColorSelect(color.id)}
                         title={color.name}
                         className={`w-9 h-9 rounded-full border-2 transition-all ${isSelected
-                            ? 'border-[#0C3B2E] ring-2 ring-[#C5A059] ring-offset-2 scale-105'
-                            : 'border-[#E2DBD0] hover:border-[#0C3B2E]/50'
+                          ? 'border-[#0C3B2E] ring-2 ring-[#C5A059] ring-offset-2 scale-105'
+                          : 'border-[#E2DBD0] hover:border-[#0C3B2E]/50'
                           }`}
                         style={{ backgroundColor: color.hex }}
                       />
@@ -1092,8 +1126,8 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
                         key={size.id}
                         onClick={() => setSelectedSizeId(size.id)}
                         className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all ${isSelected
-                            ? 'bg-[#0C3B2E] text-white shadow-sm ring-2 ring-[#C5A059]'
-                            : 'bg-[#FAF8F5] text-[#2C4A3E] hover:bg-[#EBF3EF] border border-[#E2DBD0]'
+                          ? 'bg-[#0C3B2E] text-white shadow-sm ring-2 ring-[#C5A059]'
+                          : 'bg-[#FAF8F5] text-[#2C4A3E] hover:bg-[#EBF3EF] border border-[#E2DBD0]'
                           }`}
                       >
                         {size.name}
@@ -1145,8 +1179,8 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
                   onClick={() => toggleWishlist(cartProduct)}
                   aria-label="Add to Wishlist"
                   className={`w-13 h-13 rounded-xl border flex items-center justify-center transition-all ${isWished
-                      ? 'bg-rose-50 border-rose-300 text-rose-600 shadow-xs'
-                      : 'bg-white border-[#E2DBD0] text-[#2C4A3E] hover:border-[#0C3B2E] hover:text-rose-600'
+                    ? 'bg-rose-50 border-rose-300 text-rose-600 shadow-xs'
+                    : 'bg-white border-[#E2DBD0] text-[#2C4A3E] hover:border-[#0C3B2E] hover:text-rose-600'
                     }`}
                 >
                   <Heart className={`w-5 h-5 ${isWished ? 'fill-current' : ''}`} />
@@ -1207,8 +1241,8 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as any)}
                 className={`font-serif-title text-base sm:text-lg font-bold pb-2 relative transition-colors whitespace-nowrap ${activeTab === tab.id
-                    ? 'text-[#0C3B2E]'
-                    : 'text-[#5A7469] hover:text-[#0C3B2E]'
+                  ? 'text-[#0C3B2E]'
+                  : 'text-[#5A7469] hover:text-[#0C3B2E]'
                   }`}
               >
                 {tab.label}
@@ -1553,8 +1587,8 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
                     onClick={() => setActiveImgIndex(idx)}
                     aria-label={`View image ${idx + 1}`}
                     className={`w-12 h-12 sm:w-14 sm:h-14 rounded-xl overflow-hidden border-2 shrink-0 transition-all cursor-pointer ${safeImgIndex === idx
-                        ? 'border-[#C5A059] scale-105'
-                        : 'border-white/20 opacity-60 hover:opacity-100'
+                      ? 'border-[#C5A059] scale-105'
+                      : 'border-white/20 opacity-60 hover:opacity-100'
                       }`}
                   >
                     <img src={img} alt="" className="w-full h-full object-cover" />
