@@ -11,6 +11,7 @@ import {
   Tag,
   Truck,
   CheckCircle2,
+  Heart,
 } from 'lucide-react';
 import { useStore } from '../../context/StoreContext';
 
@@ -28,6 +29,8 @@ export default function CartPage() {
     removeCoupon,
     user,
     openAuthModal,
+    toggleWishlist,
+    isInWishlist,
   } = useStore();
 
   const [couponInput, setCouponInput] = useState('');
@@ -80,9 +83,9 @@ export default function CartPage() {
         <p className="text-xs sm:text-sm text-[#2C4A3E] mt-1">
           {cart.length > 0
             ? `You have ${cart.reduce(
-                (sum, item) => sum + item.quantity,
-                0
-              )} handcrafted items waiting in your bag`
+              (sum, item) => sum + item.quantity,
+              0
+            )} handcrafted items waiting in your bag`
             : 'Your cart is currently empty'}
         </p>
       </div>
@@ -228,6 +231,21 @@ export default function CartPage() {
                         )}
                       </p>
                     </div>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!isInWishlist(item.product.id)) {
+                          toggleWishlist(item.product);
+                        }
+                        removeFromCart(item.product.id);
+                      }}
+                      className="p-2 text-[#5A7469] hover:text-[#C5A059] rounded-lg hover:bg-[#FAF8F5] transition-colors"
+                      title="Move to Wishlist"
+                      aria-label={`Move ${item.product.name} to Wishlist`}
+                    >
+                      <Heart className="w-4 h-4" />
+                    </button>
 
                     <button
                       type="button"

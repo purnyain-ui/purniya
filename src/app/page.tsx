@@ -322,14 +322,20 @@ export default function HomePage() {
                     <div>
                       <div className="flex items-center justify-center gap-2 mb-4">
                         <span className="w-1.5 h-1.5 rounded-full bg-[#C5A059]" />
-                        <p className="text-xs font-bold uppercase tracking-wider text-[#0B241C]">
+                        <p className="text-sm sm:text-base font-bold uppercase tracking-widest text-[#0B241C]">
                           Explore Collections
                         </p>
-                        <span className="text-[11px] text-[#5A7469]">({validSubcats.length})</span>
+                        <span className="text-xs sm:text-sm font-semibold text-[#5A7469]">({validSubcats.length})</span>
                         <span className="w-1.5 h-1.5 rounded-full bg-[#C5A059]" />
                       </div>
 
-                      <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-2.5 sm:gap-3">
+                      <div 
+                        className={`grid gap-2.5 sm:gap-3 ${
+                          validSubcats.length === 4 ? 'grid-cols-2 sm:grid-cols-4' :
+                          validSubcats.length === 5 ? 'grid-cols-3 sm:grid-cols-5' :
+                          'grid-cols-3 sm:grid-cols-4 lg:grid-cols-6'
+                        }`}
+                      >
                         {validSubcats.map((sub) => (
                           <Link
                             key={sub.name}
@@ -343,12 +349,12 @@ export default function HomePage() {
                               className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                             />
                             <div className="absolute inset-0 bg-gradient-to-t from-[#08281F]/90 via-[#08281F]/15 to-transparent" />
-                            <div className="absolute inset-x-0 bottom-0 p-2 sm:p-2.5 flex items-end justify-between gap-1">
-                              <span className="text-white text-[10px] sm:text-xs font-bold leading-snug line-clamp-2">
+                            <div className="absolute inset-x-0 bottom-0 p-3 sm:p-4 flex items-end justify-between gap-2">
+                              <span className="text-white text-xs sm:text-sm font-bold leading-snug line-clamp-2">
                                 {sub.name}
                               </span>
-                              <span className="shrink-0 w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-white/15 backdrop-blur-md border border-white/30 flex items-center justify-center group-hover:bg-[#D4AF37] group-hover:border-[#D4AF37] transition-colors">
-                                <ArrowRight className="w-3 h-3 text-white group-hover:text-[#08281F]" />
+                              <span className="shrink-0 w-6 h-6 rounded-full bg-white/15 backdrop-blur-md border border-white/30 flex items-center justify-center group-hover:bg-[#D4AF37] group-hover:border-[#D4AF37] transition-colors">
+                                <ArrowRight className="w-3.5 h-3.5 text-white group-hover:text-[#08281F]" />
                               </span>
                             </div>
                           </Link>
@@ -361,7 +367,7 @@ export default function HomePage() {
                   <div className="rounded-2xl bg-[#FAF8F5] border border-[#E2DBD0]/70 p-4 sm:p-5">
                     <div className="flex items-center justify-center gap-2 mb-4">
                       <span className="w-1.5 h-1.5 rounded-full bg-[#0C3B2E]" />
-                      <p className="text-xs font-bold uppercase tracking-wider text-[#0B241C]">
+                      <p className="text-sm sm:text-base font-bold uppercase tracking-widest text-[#0B241C]">
                         Featured in {cat.title}
                       </p>
                       <span className="w-1.5 h-1.5 rounded-full bg-[#0C3B2E]" />

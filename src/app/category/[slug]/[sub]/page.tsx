@@ -57,7 +57,11 @@ function SubcategoryContent({ slug, sub }: { slug: string; sub: string }) {
         return matchesSlug || matchesTitle;
       })
       .filter((p) => {
-        if ((p.subcategory || '').trim().toLowerCase().replace(/é/g, 'e') !== subcategoryName.toLowerCase()) {
+        const pSub = (p.subcategory || '').trim().toLowerCase().replace(/é/g, 'e');
+        const pTag = (p.lifestyleTag || p.lifestyleTagName || '').trim().toLowerCase().replace(/é/g, 'e');
+        const searchVal = subcategoryName.toLowerCase();
+        
+        if (pSub !== searchVal && pTag !== searchVal) {
           return false;
         }
         if (selectedPriceRange === 'under1000' && p.price >= 1000) return false;
@@ -180,7 +184,13 @@ function SubcategoryContent({ slug, sub }: { slug: string; sub: string }) {
               </Link>
             </div>
 
-            <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-2.5 sm:gap-3">
+            <div 
+              className={`grid gap-3 sm:gap-4 max-w-7xl mx-auto ${
+                (otherSubcategories.length + 1) === 4 ? 'grid-cols-2 sm:grid-cols-4' :
+                (otherSubcategories.length + 1) === 5 ? 'grid-cols-3 sm:grid-cols-5' :
+                'grid-cols-3 sm:grid-cols-4 lg:grid-cols-6'
+              }`}
+            >
               {/* "All" goes back to category page */}
               <Link
                 href={`/category/${(currentCategory.slug || '').trim()}`}
@@ -192,8 +202,8 @@ function SubcategoryContent({ slug, sub }: { slug: string; sub: string }) {
                   className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-[#08281F]/90 via-[#08281F]/20 to-transparent" />
-                <div className="absolute inset-x-0 bottom-0 p-2.5 sm:p-3 flex items-end justify-between gap-2">
-                  <span className="text-white text-[10px] sm:text-xs font-bold leading-snug line-clamp-2">
+                <div className="absolute inset-x-0 bottom-0 p-3 sm:p-4 flex items-end justify-between gap-2">
+                  <span className="text-white text-xs sm:text-sm font-bold leading-snug line-clamp-2">
                     All Pieces
                   </span>
                 </div>
@@ -215,8 +225,8 @@ function SubcategoryContent({ slug, sub }: { slug: string; sub: string }) {
                       className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-[#08281F]/90 via-[#08281F]/20 to-transparent" />
-                    <div className="absolute inset-x-0 bottom-0 p-2.5 sm:p-3 flex items-end justify-between gap-2">
-                      <span className="text-white text-[10px] sm:text-xs font-bold leading-snug line-clamp-2">
+                    <div className="absolute inset-x-0 bottom-0 p-3 sm:p-4 flex items-end justify-between gap-2">
+                      <span className="text-white text-xs sm:text-sm font-bold leading-snug line-clamp-2">
                         {otherSub.trim()}
                       </span>
                     </div>

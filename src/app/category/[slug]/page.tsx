@@ -39,6 +39,7 @@ function CategoryContent({ slug }: { slug: string }) {
   const [selectedBadge, setSelectedBadge] = useState<string>('all');
   const [sortBy, setSortBy] = useState<string>('featured');
   const [showFilterDrawer, setShowFilterDrawer] = useState(false);
+  const [selectedLifestyleTag, setSelectedLifestyleTag] = useState<string>('all');
 
   // Filter products
   const filteredProducts = useMemo(() => {
@@ -56,6 +57,10 @@ function CategoryContent({ slug }: { slug: string }) {
         if (selectedSubcategory !== 'All' && p.subcategory !== selectedSubcategory) {
           return false;
         }
+        if (selectedLifestyleTag !== 'all') {
+          const t = (p.lifestyleTag || p.lifestyleTagName || '').trim();
+          if (t !== selectedLifestyleTag) return false;
+        }
         if (selectedPriceRange === 'under1000' && p.price >= 1000) return false;
         if (selectedPriceRange === '1000to2500' && (p.price < 1000 || p.price > 2500)) return false;
         if (selectedPriceRange === 'above2500' && p.price <= 2500) return false;
@@ -68,7 +73,7 @@ function CategoryContent({ slug }: { slug: string }) {
         if (sortBy === 'rating') return (b.rating || 0) - (a.rating || 0);
         return 0; // featured default
       });
-  }, [products, slug, currentCategory, selectedSubcategory, selectedPriceRange, selectedBadge, sortBy]);
+  }, [products, slug, currentCategory, selectedSubcategory, selectedLifestyleTag, selectedPriceRange, selectedBadge, sortBy]);
 
   // All products in this category (not narrowed by subcategory/price/badge filters)
   // used to build the "Shop by Lifestyle" rows below the subcategory carousel.
@@ -84,8 +89,8 @@ function CategoryContent({ slug }: { slug: string }) {
     });
   }, [products, slug, currentCategory]);
 
-  // Group category products by their lifestyle_sale_tags entry (product.lifestyleTag / lifestyleTagName).
-  // Tags with zero matching products are dropped entirely — no heading, no row, no empty space.
+  // Group category products by their lifestyle_sale_tags entry.
+  // Tags with zero matching products are dropped entirely.
   const lifestyleGroups = useMemo(() => {
     const map = new Map<string, { tag: string; items: any[] }>();
     categoryProducts.forEach((p: any) => {
@@ -94,22 +99,20 @@ function CategoryContent({ slug }: { slug: string }) {
       if (!map.has(tag)) map.set(tag, { tag, items: [] });
       map.get(tag)!.items.push(p);
     });
-    return Array.from(map.values()).filter((g) => g.items.length > 0);
-  }, [categoryProducts]);
-
-  const newArrivals = useMemo(() => {
-    return categoryProducts.filter((p: any) => {
-      const tag = (p.lifestyleTag || p.lifestyleTagName || '').trim().toLowerCase();
-      return tag === 'new arrivals' || tag === 'new arrival';
+    const groups = Array.from(map.values()).filter((g) => g.items.length > 0);
+    // Sort so "New Arrivals" is always first
+    return groups.sort((a, b) => {
+      const isANew = a.tag.toLowerCase().includes('new arrival');
+      const isBNew = b.tag.toLowerCase().includes('new arrival');
+      if (isANew && !isBNew) return -1;
+      if (!isANew && isBNew) return 1;
+      return 0;
     });
   }, [categoryProducts]);
 
-  const otherLifestyleGroups = useMemo(() => {
-    return lifestyleGroups.filter((g) => {
-      const t = g.tag.toLowerCase();
-      return t !== 'new arrivals' && t !== 'new arrival';
-    });
-  }, [lifestyleGroups]);
+  const featuredProducts = useMemo(() => {
+    return categoryProducts.filter((p: any) => p.featured === true);
+  }, [categoryProducts]);
 
   const avgRating = useMemo(() => {
     const rated = categoryProducts.filter((p: any) => typeof p.rating === 'number' && p.rating > 0);
@@ -345,44 +348,8 @@ function CategoryContent({ slug }: { slug: string }) {
         </div>
       </section>
 
-      {/* 2.2 NEW ARRIVALS SPOTLIGHT */}
-      {newArrivals.length > 0 && (
-        <section className="w-full px-2 sm:px-3">
-          <div className="bg-[#08281F] rounded-[1.75rem] border border-[#144234] p-6 sm:p-8 lg:p-10 shadow-lg relative overflow-hidden">
-            {/* Elegant Background Decoration */}
-            <div className="absolute top-0 right-0 w-96 h-96 bg-[#C5A059]/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3" />
-            <div className="absolute bottom-0 left-0 w-64 h-64 bg-[#0C3B2E]/50 rounded-full blur-3xl translate-y-1/3 -translate-x-1/4" />
-            
-            <div className="relative flex flex-col md:flex-row items-center justify-between gap-4 mb-8 border-b border-[#144234] pb-6 text-center md:text-left">
-              <div>
-                <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#D4AF37]">
-                  Just Dropped
-                </p>
-                <h2 className="font-serif-title text-3xl sm:text-4xl font-bold text-white mt-1">
-                  New Arrivals
-                </h2>
-              </div>
-              <button 
-                onClick={() => setSelectedSubcategory('All')}
-                className="text-xs font-semibold text-[#FAF8F5] hover:text-[#D4AF37] inline-flex items-center gap-1.5 transition-colors bg-white/5 hover:bg-white/10 px-4 py-2 rounded-full border border-white/10 cursor-pointer"
-              >
-                Shop All {currentCategory.title} <ArrowRight className="w-3.5 h-3.5" />
-              </button>
-            </div>
-
-            <div className="relative flex gap-4 sm:gap-5 overflow-x-auto pb-4 scrollbar-none snap-x justify-start sm:justify-center md:justify-start">
-              {newArrivals.map((prod) => (
-                <div key={prod.id} className="w-48 sm:w-56 lg:w-64 shrink-0 snap-start">
-                  <ProductCard product={prod} />
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* 2.5 SHOP BY LIFESTYLE — ROWS GROUPED BY lifestyle_sale_tags, SKIPPED ENTIRELY WHEN EMPTY */}
-      {otherLifestyleGroups.length > 0 && (
+      {/* 2.5 SHOP BY LIFESTYLE — ROWS GROUPED BY lifestyle_sale_tags */}
+      {lifestyleGroups.length > 0 && (
         <section className="w-full px-2 sm:px-3 space-y-8">
           <div className="text-center max-w-2xl mx-auto space-y-2">
             <p className="text-xs font-bold uppercase tracking-[0.25em] text-[#C5A059]">
@@ -397,51 +364,146 @@ function CategoryContent({ slug }: { slug: string }) {
           </div>
 
           <div className="space-y-6">
-            {otherLifestyleGroups.map((group) => (
-              <div
-                key={group.tag}
-                className="bg-white rounded-[1.75rem] border border-[#E2DBD0] shadow-sm hover:shadow-md transition-shadow p-5 sm:p-7 lg:p-8"
-              >
-                <div className="flex items-center justify-between gap-3 mb-5">
-                  <div className="flex items-center gap-3">
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#EBF3EF] text-[#0C3B2E] text-[11px] font-bold uppercase tracking-wider border border-[#0C3B2E]/10">
-                      <span className="w-1.5 h-1.5 rounded-full bg-[#C5A059]" />
-                      <span>{group.tag}</span>
-                    </span>
-                    <span className="text-[11px] text-[#5A7469]">
-                      {group.items.length} {group.items.length === 1 ? 'piece' : 'pieces'}
-                    </span>
-                  </div>
-                  <span className="hidden sm:inline text-[11px] text-[#5A7469] uppercase tracking-wider">
-                    Scroll for more →
-                  </span>
-                </div>
-
-                <div className="flex gap-4 sm:gap-5 overflow-x-auto pb-1 scrollbar-none">
-                  {group.items.map((prod) => (
-                    <div key={prod.id} className="w-40 sm:w-48 lg:w-52 shrink-0">
-                      <ProductCard product={prod} />
+            {lifestyleGroups.map((group, idx) => {
+              // Alternating elegant themes mixing dark and light
+              const themes = [
+                // 1. Deep Signature Green (Dark)
+                {
+                  bg: 'bg-[#08281F]', border: 'border-[#144234]', blob1: 'bg-[#C5A059]/15', blob2: 'bg-[#0C3B2E]/60',
+                  textMain: 'text-white', tag: 'text-[#D4AF37]', borderSub: 'border-[#144234]',
+                  btnStyle: 'text-[#FAF8F5] hover:text-[#D4AF37] bg-white/5 hover:bg-white/10 border-white/10'
+                },
+                // 2. Cream/Gold (Light)
+                {
+                  bg: 'bg-[#FAF8F5]', border: 'border-[#E2DBD0]', blob1: 'bg-[#C5A059]/10', blob2: 'bg-[#0C3B2E]/5',
+                  textMain: 'text-[#0B241C]', tag: 'text-[#C5A059]', borderSub: 'border-[#E2DBD0]',
+                  btnStyle: 'text-[#0B241C] hover:text-[#C5A059] bg-white hover:bg-white/90 border-[#E2DBD0]'
+                },
+                // 3. Rich Bronze/Mocha (Dark)
+                {
+                  bg: 'bg-[#2A231C]', border: 'border-[#3D332A]', blob1: 'bg-[#D4AF37]/15', blob2: 'bg-[#4A3B32]/40',
+                  textMain: 'text-white', tag: 'text-[#E5C07B]', borderSub: 'border-[#3D332A]',
+                  btnStyle: 'text-[#FAF8F5] hover:text-[#E5C07B] bg-white/5 hover:bg-white/10 border-white/10'
+                },
+                // 4. Pale Mint (Light)
+                {
+                  bg: 'bg-[#F2F6F4]', border: 'border-[#DCE5E0]', blob1: 'bg-[#0C3B2E]/5', blob2: 'bg-[#C5A059]/10',
+                  textMain: 'text-[#08281F]', tag: 'text-[#5A7469]', borderSub: 'border-[#DCE5E0]',
+                  btnStyle: 'text-[#08281F] hover:text-[#5A7469] bg-white hover:bg-white/90 border-[#DCE5E0]'
+                },
+              ];
+              const theme = themes[idx % themes.length];
+              
+              return (
+                <div
+                  key={group.tag}
+                  className={`${theme.bg} rounded-[1.75rem] border ${theme.border} p-6 sm:p-8 lg:p-10 shadow-sm relative overflow-hidden transition-shadow hover:shadow-md`}
+                >
+                  {/* Elegant Background Decoration */}
+                  <div className={`absolute top-0 right-0 w-96 h-96 ${theme.blob1} rounded-full blur-3xl -translate-y-1/2 translate-x-1/3`} />
+                  <div className={`absolute bottom-0 left-0 w-64 h-64 ${theme.blob2} rounded-full blur-3xl translate-y-1/3 -translate-x-1/4`} />
+                  
+                  <div className={`relative flex flex-col md:flex-row items-center justify-between gap-4 mb-8 border-b ${theme.borderSub} pb-6 text-center md:text-left`}>
+                    <div>
+                      <p className={`text-xs font-bold uppercase tracking-[0.2em] ${theme.tag}`}>
+                        Curated Edit
+                      </p>
+                      <h2 className={`font-serif-title text-3xl sm:text-4xl font-bold ${theme.textMain} mt-1`}>
+                        {group.tag}
+                      </h2>
                     </div>
-                  ))}
+                    <div className="flex items-center gap-4">
+                      <span className={`text-xs ${theme.textMain} opacity-60 font-semibold hidden md:inline-block`}>
+                        {group.items.length} {group.items.length === 1 ? 'Piece' : 'Pieces'}
+                      </span>
+                      <Link 
+                        href={`/category/${(currentCategory.slug || '').trim()}/${encodeURIComponent(group.tag)}`}
+                        className={`text-xs font-semibold inline-flex items-center gap-1.5 transition-colors px-4 py-2 rounded-full border shadow-sm cursor-pointer ${theme.btnStyle}`}
+                      >
+                        Shop Collection <ArrowRight className="w-3.5 h-3.5" />
+                      </Link>
+                    </div>
+                  </div>
+
+                  <div className="relative flex gap-4 sm:gap-5 overflow-x-auto pb-4 scrollbar-none snap-x justify-start sm:justify-center md:justify-start">
+                    {group.items.map((prod) => (
+                      <div key={prod.id} className="w-48 sm:w-56 lg:w-64 shrink-0 snap-start">
+                        <ProductCard product={prod} />
+                      </div>
+                    ))}
+                  </div>
                 </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      {/* 2.6 FEATURED COLLECTIONS */}
+      {featuredProducts.length > 0 && (
+        <section className="w-full px-2 sm:px-3">
+          <div className="bg-[#F5F6F8] rounded-[1.75rem] border border-[#E2E5EA] p-6 sm:p-8 lg:p-10 shadow-sm relative overflow-hidden">
+            {/* Soft Gray Background Decoration */}
+            <div className="absolute top-0 right-0 w-96 h-96 bg-white/60 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3" />
+            <div className="absolute bottom-0 left-0 w-64 h-64 bg-[#E2E5EA]/40 rounded-full blur-3xl translate-y-1/3 -translate-x-1/4" />
+            
+            <div className="relative flex flex-col md:flex-row items-center justify-between gap-4 mb-8 border-b border-[#E2E5EA] pb-6 text-center md:text-left">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#5A7469]">
+                  Handpicked
+                </p>
+                <h2 className="font-serif-title text-3xl sm:text-4xl font-bold text-[#0B241C] mt-1">
+                  Featured Collections
+                </h2>
               </div>
-            ))}
+              <div className="flex items-center gap-4">
+                <span className="text-xs text-[#5A7469] font-semibold hidden md:inline-block">
+                  {featuredProducts.length} {featuredProducts.length === 1 ? 'Piece' : 'Pieces'}
+                </span>
+                <button 
+                  onClick={() => {
+                    document.getElementById('catalog-section')?.scrollIntoView({ behavior: 'smooth' });
+                  }}
+                  className="text-xs font-semibold text-[#0B241C] hover:text-[#0C3B2E] inline-flex items-center gap-1.5 transition-colors bg-white hover:bg-white/90 px-4 py-2 rounded-full border border-[#E2E5EA] shadow-sm cursor-pointer"
+                >
+                  Shop All <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+
+            <div className="relative flex gap-4 sm:gap-5 overflow-x-auto pb-4 scrollbar-none snap-x justify-start sm:justify-center md:justify-start">
+              {featuredProducts.map((prod) => (
+                <div key={prod.id} className="w-48 sm:w-56 lg:w-64 shrink-0 snap-start">
+                  <ProductCard product={prod} />
+                </div>
+              ))}
+            </div>
           </div>
         </section>
       )}
 
       {/* 3. MAIN PRODUCT CATALOG WITH FILTERS & SORT */}
-      <section className="w-full px-2 sm:px-3 space-y-8">
+      <section id="catalog-section" className="w-full px-2 sm:px-3 space-y-8 pt-8">
         {/* Catalog Header Toolbar */}
-        <div className="flex flex-col items-center justify-center gap-5 pb-5 border-b border-[#E2DBD0] text-center">
+        <div className="flex flex-col items-center justify-center gap-5 pb-5 border-b border-[#E2DBD0] text-center relative">
+          {selectedLifestyleTag !== 'all' && (
+            <button 
+              onClick={() => setSelectedLifestyleTag('all')}
+              className="absolute top-0 right-0 sm:right-4 text-xs font-bold text-[#C5A059] hover:text-[#0C3B2E] transition-colors bg-[#FAF8F5] px-3 py-1.5 rounded-full border border-[#E2DBD0]"
+            >
+              ✕ Clear Lifestyle Filter
+            </button>
+          )}
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#C5A059]">
-              {selectedSubcategory === 'All' ? 'Curated Collection' : 'Selected Collection'}
+              {selectedLifestyleTag !== 'all' ? 'Lifestyle Collection' : (selectedSubcategory === 'All' ? 'Curated Collection' : 'Selected Collection')}
             </p>
             <h2 className="font-serif-title text-2xl sm:text-3xl font-bold text-[#0B241C] mt-1">
-              {selectedSubcategory === 'All'
-                ? `Complete ${currentCategory.title} Collection`
-                : `${selectedSubcategory} Collection`}
+              {selectedLifestyleTag !== 'all'
+                ? `${selectedLifestyleTag} Edit`
+                : (selectedSubcategory === 'All'
+                  ? `Complete ${currentCategory.title} Collection`
+                  : `${selectedSubcategory} Collection`)}
             </h2>
             <p className="text-xs text-[#5A7469] mt-1.5">
               Showing <strong className="text-[#0B241C]">{filteredProducts.length}</strong> handcrafted pieces
@@ -492,6 +554,7 @@ function CategoryContent({ slug }: { slug: string }) {
                   setSelectedPriceRange('all');
                   setSelectedBadge('all');
                   setSelectedSubcategory('All');
+                  setSelectedLifestyleTag('all');
                 }}
                 className="text-xs text-[#0C3B2E] font-bold hover:underline"
               >
