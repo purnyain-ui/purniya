@@ -118,12 +118,15 @@ type ReviewStats = {
 };
 
 function formatTargetGender(value: string | null | undefined): string {
-  const v = (value || 'unisex').trim().toLowerCase();
+  if (!value) return 'Universal / All';
+  const v = value.trim().toLowerCase();
+  if (v === 'none') return 'Universal / All';
   const map: Record<string, string> = {
     men: 'Men', male: 'Men', man: 'Men',
     women: 'Women', female: 'Women', woman: 'Women',
     kids: 'Kids', kid: 'Kids', boys: 'Boys', girls: 'Girls',
     unisex: 'Unisex (Men & Women)',
+    none: 'Universal / All',
   };
   return map[v] || v.replace(/[-_]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 }
@@ -1411,10 +1414,12 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
                     <span className="font-semibold text-[#5A7469]">Origin</span>
                     <span className="col-span-2 font-medium text-[#0B241C]">India (Artisanal Made)</span>
                   </div>
-                  <div className="grid grid-cols-3 p-3.5 text-xs">
-                    <span className="font-semibold text-[#5A7469]">Belongs To</span>
-                    <span className="col-span-2 font-medium text-[#0B241C]">{formatTargetGender(product.target_gender)}</span>
-                  </div>
+                  {Boolean(product.target_gender && product.target_gender.toLowerCase() !== 'none') && (
+                    <div className="grid grid-cols-3 p-3.5 text-xs">
+                      <span className="font-semibold text-[#5A7469]">Belongs To</span>
+                      <span className="col-span-2 font-medium text-[#0B241C]">{formatTargetGender(product.target_gender)}</span>
+                    </div>
+                  )}
                 </div>
               </div>
             )}

@@ -31,7 +31,7 @@ export interface Product {
   reviewsCount?: number;
   variants?: ProductVariant[];
   featured?: boolean;
-  targetGender?: string;
+  targetGender?: string | null;
   createdAt?: string;
 }
 

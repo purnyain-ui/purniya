@@ -102,6 +102,19 @@ function AllProductsContent({ slug }: { slug: string }) {
     );
   }, [categories, slug]);
 
+  const isGenderApplicable = useMemo(() => {
+    const targetSlug = decodeURIComponent(slug).trim().toLowerCase();
+    if (targetSlug === 'apparel') return true;
+    if (currentCategory) {
+      const catSlug = (currentCategory.slug || '').trim().toLowerCase();
+      const catTitle = (currentCategory.title || '').trim().toLowerCase();
+      if (catSlug === 'apparel' || catTitle.includes('jewel') || catTitle.includes('accessories')) {
+        return true;
+      }
+    }
+    return false;
+  }, [slug, currentCategory]);
+
   // Get all active products for this category
   const categoryProducts = useMemo(() => {
     const targetSlug = decodeURIComponent(slug).trim().toLowerCase();
@@ -172,9 +185,11 @@ function AllProductsContent({ slug }: { slug: string }) {
       filtered = filtered.filter((p: any) => p.featured === true);
     }
 
-    if (selectedGender !== 'all') {
+    if (isGenderApplicable && selectedGender !== 'all') {
       filtered = filtered.filter((p: any) => {
-        const g = (p.targetGender || p.target_gender || p.gender || 'unisex').toLowerCase();
+        const rawG = p.targetGender ?? p.target_gender ?? p.gender;
+        if (!rawG || rawG === 'none') return false;
+        const g = String(rawG).toLowerCase();
         if (selectedGender === 'men') return g === 'men' || g === 'unisex';
         if (selectedGender === 'women') return g === 'women' || g === 'unisex';
         if (selectedGender === 'unisex') return g === 'unisex';
@@ -193,14 +208,14 @@ function AllProductsContent({ slug }: { slug: string }) {
       }
       return 0;
     });
-  }, [categoryProducts, selectedSubcategory, selectedPriceRange, selectedLifestyleTag, selectedFeatured, sortBy]);
+  }, [categoryProducts, selectedSubcategory, selectedPriceRange, selectedLifestyleTag, selectedFeatured, isGenderApplicable, selectedGender, sortBy]);
 
   const activeFilterCount = [
     selectedSubcategory !== 'All',
     selectedPriceRange !== 'all',
     selectedLifestyleTag !== 'all',
     selectedFeatured,
-    selectedGender !== 'all',
+    isGenderApplicable && selectedGender !== 'all',
   ].filter(Boolean).length;
 
   const clearAllFilters = () => {
@@ -342,27 +357,28 @@ function AllProductsContent({ slug }: { slug: string }) {
           isMobile
         )}
 
-      {/* Target Gender */}
-      {renderSection(
-        'gender',
-        'Target Gender',
-        <Sparkles className="w-3.5 h-3.5 text-[#D4AF37]" />,
-        [
-          { label: 'All Gender', value: 'all' },
-          { label: 'Men', value: 'men' },
-          { label: 'Women', value: 'women' },
-          { label: 'Unisex', value: 'unisex' },
-        ].map((g) => (
-          <button
-            key={g.value}
-            onClick={() => setSelectedGender(g.value)}
-            className={optionClass(selectedGender === g.value)}
-          >
-            {g.label}
-          </button>
-        )),
-        isMobile
-      )}
+      {/* Target Gender - Only shown for Jewellery & Accessories */}
+      {isGenderApplicable &&
+        renderSection(
+          'gender',
+          'Target Gender',
+          <Sparkles className="w-3.5 h-3.5 text-[#D4AF37]" />,
+          [
+            { label: 'All Gender', value: 'all' },
+            { label: 'Men', value: 'men' },
+            { label: 'Women', value: 'women' },
+            { label: 'Unisex', value: 'unisex' },
+          ].map((g) => (
+            <button
+              key={g.value}
+              onClick={() => setSelectedGender(g.value)}
+              className={optionClass(selectedGender === g.value)}
+            >
+              {g.label}
+            </button>
+          )),
+          isMobile
+        )}
     </div>
   );
 

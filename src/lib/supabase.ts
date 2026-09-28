@@ -261,7 +261,7 @@ export async function getProductsFromSupabase(): Promise<Product[] | null> {
         badge: (originalPrice && originalPrice > finalPrice) ? 'Sale' : (p.badge || undefined),
         lifestyleTag,
         featured: Boolean(p.is_featured ?? p.featured),
-        targetGender: p.target_gender || p.targetGender || p.gender || 'unisex',
+        targetGender: p.target_gender !== undefined ? (p.target_gender || null) : (p.targetGender || p.gender || null),
         variants: resolvedVariants,
         features: dbFeatures,
         createdAt: p.created_at || p.createdAt,

@@ -295,6 +295,13 @@ function AdminAddProductPage() {
     return categories.find((category) => category.id === categoryId)
   }, [categoryId, categories])
 
+  const isGenderApplicableCategory = useMemo(() => {
+    if (!selectedCategory) return true
+    const slug = (selectedCategory.slug || '').toLowerCase().trim()
+    const title = (selectedCategory.title || '').toLowerCase().trim()
+    return slug === 'apparel' || title.includes('jewel') || title.includes('accessories')
+  }, [selectedCategory])
+
   const filteredSubcategories = useMemo(() => {
     return subcategories.filter(
       (subcategory) => subcategory.category_id === categoryId
@@ -428,7 +435,8 @@ function AdminAddProductPage() {
       setCategoryId(product.category_id || '')
       setSubcategoryId(product.subcategory_id || '')
       setLifestyleTagId(product.lifestyle_tag_id || '')
-      setTargetGender(product.target_gender || product.gender || 'unisex')
+      const loadedGender = (product.target_gender || product.gender || '').trim().toLowerCase()
+      setTargetGender(loadedGender ? loadedGender : 'none')
       setFeatured(product.is_featured || false)
       setIsActive(product.is_active !== undefined ? Boolean(product.is_active) : true)
       setHasVariants(product.has_variants || false)
@@ -730,7 +738,7 @@ function AdminAddProductPage() {
             category_id: categoryId,
             subcategory_id: subcategoryId || null,
             lifestyle_tag_id: lifestyleTagId || null,
-            target_gender: targetGender,
+            target_gender: targetGender === 'none' ? null : (targetGender || 'unisex'),
             is_featured: featured,
             is_active: isActive,
             has_variants: hasVariants,
@@ -875,7 +883,7 @@ function AdminAddProductPage() {
             category_id: categoryId,
             subcategory_id: subcategoryId || null,
             lifestyle_tag_id: lifestyleTagId || null,
-            target_gender: targetGender,
+            target_gender: targetGender === 'none' ? null : (targetGender || 'unisex'),
             is_featured: featured,
             has_variants: hasVariants,
             price: hasVariants ? null : Number(price),
@@ -1523,7 +1531,22 @@ function AdminAddProductPage() {
                 </label>
                 <select
                   value={categoryId}
-                  onChange={(event) => setCategoryId(event.target.value)}
+                  onChange={(event) => {
+                    const newCatId = event.target.value
+                    setCategoryId(newCatId)
+                    setSubcategoryId('')
+                    const foundCat = categories.find((c) => c.id === newCatId)
+                    if (foundCat) {
+                      const slug = (foundCat.slug || '').toLowerCase().trim()
+                      const title = (foundCat.title || '').toLowerCase().trim()
+                      const isJewelry = slug === 'apparel' || title.includes('jewel') || title.includes('accessories')
+                      if (!isJewelry) {
+                        setTargetGender('none')
+                      } else if (targetGender === 'none') {
+                        setTargetGender('unisex')
+                      }
+                    }
+                  }}
                   className="w-full px-3.5 py-2.5 bg-[#FAF8F5] border border-[#E2DBD0] rounded-xl font-semibold text-[#0B241C] focus:outline-none focus:border-[#C5A059]"
                 >
                   <option value="">Select Category</option>
@@ -1574,20 +1597,42 @@ function AdminAddProductPage() {
 
               {/* TARGET GENDER RADIO BUTTONS */}
               <div>
-                <label className="block font-bold text-[#0B241C] mb-2">
-                  Target Gender / Audience
-                </label>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block font-bold text-[#0B241C]">
+                    Target Gender / Audience
+                  </label>
+                  {!isGenderApplicableCategory ? (
+                    <span className="text-[11px] font-semibold text-[#8B6E32] bg-[#FAF3E0] px-2 py-0.5 rounded-full border border-[#E8DCB8]">
+                      Not Applicable ({selectedCategory?.title || 'Category'})
+                    </span>
+                  ) : (
+                    <span className="text-[11px] text-[#5A7469]">
+                      Select &apos;None&apos; if not gender-specific
+                    </span>
+                  )}
+                </div>
+
+                {!isGenderApplicableCategory && (
+                  <div className="text-xs text-[#5A7469] mb-3 bg-[#FAF8F5] p-3 rounded-xl border border-[#E2DBD0] flex items-start gap-2">
+                    <span className="text-sm">💡</span>
+                    <span>
+                      <strong>{selectedCategory?.title}</strong> is a non-apparel lifestyle category (Candle &amp; Home, Home Decor, Wellness, Gifts) with no gender audience. It is automatically saved as <strong>None (No Gender)</strong>.
+                    </span>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   {[
-                    { id: 'men', label: 'Men' },
-                    { id: 'women', label: 'Women' },
-                    { id: 'unisex', label: 'Unisex' },
+                    { id: 'unisex', label: 'Unisex', desc: isGenderApplicableCategory ? 'Default' : 'Both' },
+                    { id: 'women', label: 'Women', desc: 'Female' },
+                    { id: 'men', label: 'Men', desc: 'Male' },
+                    { id: 'none', label: 'None', desc: '' },
                   ].map((g) => {
                     const isSelected = targetGender.toLowerCase() === g.id
                     return (
                       <label
                         key={g.id}
-                        className={`flex items-center justify-center gap-2 p-2.5 rounded-xl border-2 font-bold cursor-pointer transition-all text-xs ${
+                        className={`flex flex-col items-center justify-center p-2.5 rounded-xl border-2 cursor-pointer transition-all text-center ${
                           isSelected
                             ? 'border-[#0B241C] bg-[#0B241C] text-white shadow-sm'
                             : 'border-[#E2DBD0] bg-[#FAF8F5] text-[#0B241C] hover:border-[#C5A059]'
@@ -1601,7 +1646,10 @@ function AdminAddProductPage() {
                           onChange={(e) => setTargetGender(e.target.value)}
                           className="sr-only"
                         />
-                        <span>{g.label}</span>
+                        <span className="font-bold text-xs">{g.label}</span>
+                        <span className={`text-[10px] mt-0.5 ${isSelected ? 'text-white/70' : 'text-[#5A7469]'}`}>
+                          {g.desc}
+                        </span>
                       </label>
                     )
                   })}
@@ -1721,7 +1769,7 @@ function AdminAddProductPage() {
               <div className="flex justify-between items-center pb-3 border-b border-white/10">
                 <span className="text-white/60">Target Gender</span>
                 <span className="font-semibold capitalize">
-                  {targetGender}
+                  {targetGender === 'none' ? 'None ' : targetGender}
                 </span>
               </div>
 
