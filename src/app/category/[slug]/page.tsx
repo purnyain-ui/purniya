@@ -106,10 +106,37 @@ function CategoryContent({ slug }: { slug: string }) {
     const decodedSlug = decodeURIComponent(slug).trim().toLowerCase();
     return (
       categories.find((c) => (c.slug || '').trim().toLowerCase() === decodedSlug) ||
-      categories[0] ||
+      categories.find((c) => {
+        const s = (c.slug || '').trim().toLowerCase();
+        const t = (c.title || '').trim().toLowerCase();
+        return (
+          s.includes(decodedSlug) ||
+          decodedSlug.includes(s) ||
+          t.includes(decodedSlug) ||
+          decodedSlug.includes(t)
+        );
+      }) ||
       null
     );
   }, [categories, slug]);
+
+  // Check if current category is Jewellery & Accessories (slug: 'apparel', or title containing 'jewel')
+  const isJewelryCategory = useMemo(() => {
+    if (!currentCategory) return false;
+    const targetSlug = decodeURIComponent(slug).trim().toLowerCase();
+    const s = (currentCategory.slug || '').trim().toLowerCase();
+    const t = (currentCategory.title || '').trim().toLowerCase();
+    return (
+      targetSlug === 'apparel' ||
+      targetSlug === 'jewellery' ||
+      targetSlug === 'jewelry' ||
+      s === 'apparel' ||
+      s === 'jewellery' ||
+      s === 'jewelry' ||
+      t.includes('jewel') ||
+      t.includes('jewelry')
+    );
+  }, [currentCategory, slug]);
 
   const [userSubcategory, setUserSubcategory] = useState<string | null>(null);
   const selectedSubcategory = userSubcategory ?? (subQuery || 'All');
@@ -706,61 +733,63 @@ function CategoryContent({ slug }: { slug: string }) {
         </div>
       </section>
 
-      {/* 2.5.7 SHOP BY GENDER — opens all-products with the gender filter */}
-      <section className="w-full px-2 sm:px-4 lg:px-6">
-        <div className="text-center max-w-2xl mx-auto space-y-2 mb-8 sm:mb-10">
-          <p className="text-xs font-bold uppercase tracking-[0.25em] text-[#C5A059]">
-            Shop by Gender
-          </p>
-          <h2 className="font-serif-title text-3xl sm:text-4xl font-bold text-[#0B241C]">
-            Who Are You Shopping For?
-          </h2>
-        </div>
+      {/* 2.5.7 SHOP BY GENDER — opens all-products with the gender filter (Jewellery only) */}
+      {isJewelryCategory && (
+        <section className="w-full px-2 sm:px-4 lg:px-6">
+          <div className="text-center max-w-2xl mx-auto space-y-2 mb-8 sm:mb-10">
+            <p className="text-xs font-bold uppercase tracking-[0.25em] text-[#C5A059]">
+              Shop by Gender
+            </p>
+            <h2 className="font-serif-title text-3xl sm:text-4xl font-bold text-[#0B241C]">
+              Who Are You Shopping For?
+            </h2>
+          </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 lg:gap-8 max-w-7xl mx-auto">
-          {[
-            {
-              value: 'men',
-              buttonText: 'SHOP FOR HIM',
-              image: '/images/gender/shop-for-him.jpg',
-              imagePosition: 'object-[center_16%]',
-            },
-            {
-              value: 'women',
-              buttonText: 'SHOP FOR HER',
-              image: '/images/gender/shop-for-her.png',
-              imagePosition: 'object-[center_20%]',
-            },
-            {
-              value: 'unisex',
-              buttonText: 'SHOP UNISEX',
-              image: '/images/gender/shop-unisex.jpg',
-              imagePosition: 'object-[center_26%]',
-            },
-          ].map(({ value, buttonText, image, imagePosition }) => (
-            <Link
-              key={value}
-              href={`/all-products/${categorySlug}?gender=${value}`}
-              className="group relative block w-full rounded-[40px] sm:rounded-[52px] lg:rounded-full overflow-hidden bg-[#FCE5D6] aspect-[16/9] sm:aspect-[7/4] md:aspect-[16/10] lg:aspect-[16/9] shadow-sm hover:shadow-xl transition-all duration-300 ring-1 ring-[#E2DBD0]/60 hover:ring-2 hover:ring-[#C5A059]/60"
-            >
-              <img
-                src={image}
-                alt={buttonText}
-                className={`w-full h-full object-cover ${imagePosition} group-hover:scale-105 transition-transform duration-700 ease-out`}
-              />
-              {/* Soft overlay */}
-              <div className="absolute inset-0 bg-black/5 group-hover:bg-black/10 transition-colors duration-300" />
-              {/* Centered Green Pill Button */}
-              <div className="absolute inset-0 flex items-center justify-center p-3 pointer-events-none">
-                <span className="px-5 sm:px-6 py-2 sm:py-2.5 rounded-full bg-[#056828] text-white text-xs sm:text-sm font-serif font-bold uppercase tracking-wider shadow-md group-hover:bg-[#03521E] group-hover:scale-105 group-hover:shadow-xl transition-all duration-300 flex items-center gap-1.5 sm:gap-2">
-                  <span>{buttonText}</span>
-                  <span className="text-[9px] sm:text-[10px] leading-none">▶</span>
-                </span>
-              </div>
-            </Link>
-          ))}
-        </div>
-      </section>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 lg:gap-8 max-w-7xl mx-auto">
+            {[
+              {
+                value: 'men',
+                buttonText: 'SHOP FOR HIM',
+                image: '/images/gender/shop-for-him.jpg',
+                imagePosition: 'object-[center_16%]',
+              },
+              {
+                value: 'women',
+                buttonText: 'SHOP FOR HER',
+                image: '/images/gender/shop-for-her.png',
+                imagePosition: 'object-[center_20%]',
+              },
+              {
+                value: 'unisex',
+                buttonText: 'SHOP UNISEX',
+                image: '/images/gender/shop-unisex.jpg',
+                imagePosition: 'object-[center_26%]',
+              },
+            ].map(({ value, buttonText, image, imagePosition }) => (
+              <Link
+                key={value}
+                href={`/all-products/${categorySlug}?gender=${value}`}
+                className="group relative block w-full rounded-[40px] sm:rounded-[52px] lg:rounded-full overflow-hidden bg-[#FCE5D6] aspect-[16/9] sm:aspect-[7/4] md:aspect-[16/10] lg:aspect-[16/9] shadow-sm hover:shadow-xl transition-all duration-300 ring-1 ring-[#E2DBD0]/60 hover:ring-2 hover:ring-[#C5A059]/60"
+              >
+                <img
+                  src={image}
+                  alt={buttonText}
+                  className={`w-full h-full object-cover ${imagePosition} group-hover:scale-105 transition-transform duration-700 ease-out`}
+                />
+                {/* Soft overlay */}
+                <div className="absolute inset-0 bg-black/5 group-hover:bg-black/10 transition-colors duration-300" />
+                {/* Centered Green Pill Button */}
+                <div className="absolute inset-0 flex items-center justify-center p-3 pointer-events-none">
+                  <span className="px-5 sm:px-6 py-2 sm:py-2.5 rounded-full bg-[#056828] text-white text-xs sm:text-sm font-serif font-bold uppercase tracking-wider shadow-md group-hover:bg-[#03521E] group-hover:scale-105 group-hover:shadow-xl transition-all duration-300 flex items-center gap-1.5 sm:gap-2">
+                    <span>{buttonText}</span>
+                    <span className="text-[9px] sm:text-[10px] leading-none">▶</span>
+                  </span>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* 3. MAIN PRODUCT CATALOG — limited to 6 rows, then "Show All Products" */}
       <section id="catalog-section" className="w-full px-2 sm:px-3 space-y-8 pt-8">

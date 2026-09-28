@@ -944,44 +944,55 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
               </div>
             </div>
 
-            {/* Guarantees / Trust Badges */}
-            <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 py-6 border-t border-[#E2DBD0]">
-              <div className="flex flex-col items-center text-center space-y-3">
-                <div className="flex gap-1">
-                  <CreditCard className="w-10 h-10 text-[#0B241C] stroke-[1.5]" />
-                  <ShieldCheck className="w-6 h-6 text-[#25D366] self-end -ml-2 bg-white rounded-full" />
+            {/* Desktop Guarantees / Trust Badges — Below Image Gallery */}
+            <div className="hidden lg:block pt-6 border-t border-[#E2DBD0]">
+              <div className="grid grid-cols-5 gap-3">
+                {/* 1. Payment */}
+                <div className="bg-[#FAF8F5]/90 hover:bg-white border border-[#E2DBD0] hover:border-[#C5A059] rounded-2xl p-3 flex flex-col items-center justify-center text-center shadow-2xs hover:shadow-xs transition-all group min-h-[105px]">
+                  <div className="w-10 h-10 rounded-xl bg-[#EBF3EF] text-[#0C3B2E] flex items-center justify-center mb-1.5 shadow-2xs group-hover:scale-105 transition-transform">
+                    <div className="relative flex items-center justify-center">
+                      <CreditCard className="w-5 h-5 text-[#0C3B2E] stroke-[1.75]" />
+                      <span className="w-2 h-2 rounded-full bg-[#25D366] ring-1.5 ring-white absolute -bottom-0.5 -right-0.5" />
+                    </div>
+                  </div>
+                  <p className="text-xs font-bold uppercase tracking-wider text-[#0B241C] leading-tight">Payment</p>
+                  <p className="text-[11px] text-[#5A7469] font-medium leading-tight mt-0.5">UPI &amp; Razorpay</p>
                 </div>
-                <div>
-                  <p className="text-[11px] font-bold uppercase tracking-wide text-[#0B241C] mb-1">Secure</p>
-                  <p className="text-[10px] text-[#5A7469] leading-tight px-1">Payment UPI &amp; Razorpay</p>
+
+                {/* 2. Premium */}
+                <div className="bg-[#FAF8F5]/90 hover:bg-white border border-[#E2DBD0] hover:border-[#C5A059] rounded-2xl p-3 flex flex-col items-center justify-center text-center shadow-2xs hover:shadow-xs transition-all group min-h-[105px]">
+                  <div className="w-10 h-10 rounded-xl bg-[#FAF5E8] text-[#C5A059] flex items-center justify-center mb-1.5 shadow-2xs group-hover:scale-105 transition-transform">
+                    <Gem className="w-5 h-5 text-[#C5A059] stroke-[1.75]" />
+                  </div>
+                  <p className="text-xs font-bold uppercase tracking-wider text-[#0B241C] leading-tight">Premium</p>
+                  <p className="text-[11px] text-[#5A7469] font-medium leading-tight mt-0.5">Quality 18K Gold Plated</p>
                 </div>
-              </div>
-              <div className="flex flex-col items-center text-center space-y-3">
-                <Gem className="w-10 h-10 text-[#C5A059] stroke-[1.5]" />
-                <div>
-                  <p className="text-[11px] font-bold uppercase tracking-wide text-[#0B241C] mb-1">Premium</p>
-                  <p className="text-[10px] text-[#5A7469] leading-tight px-1">Quality 18K Gold Plated</p>
+
+                {/* 3. Anti-Tarnish */}
+                <div className="bg-[#FAF8F5]/90 hover:bg-white border border-[#E2DBD0] hover:border-[#C5A059] rounded-2xl p-3 flex flex-col items-center justify-center text-center shadow-2xs hover:shadow-xs transition-all group min-h-[105px]">
+                  <div className="w-10 h-10 rounded-xl bg-[#FAF5E8] text-[#C5A059] flex items-center justify-center mb-1.5 shadow-2xs group-hover:scale-105 transition-transform">
+                    <ShieldCheck className="w-5 h-5 text-[#C5A059] stroke-[1.75]" />
+                  </div>
+                  <p className="text-xs font-bold uppercase tracking-wider text-[#0B241C] leading-tight">Anti-Tarnish</p>
+                  <p className="text-[11px] text-[#5A7469] font-medium leading-tight mt-0.5">Long-Lasting Shine</p>
                 </div>
-              </div>
-              <div className="flex flex-col items-center text-center space-y-3">
-                <ShieldCheck className="w-10 h-10 text-[#C5A059] stroke-[1.5]" />
-                <div>
-                  <p className="text-[11px] font-bold uppercase tracking-wide text-[#0B241C] mb-1">Anti-Tarnish</p>
-                  <p className="text-[10px] text-[#5A7469] leading-tight px-1">Long-Lasting Shine</p>
+
+                {/* 4. Water Resistant */}
+                <div className="bg-[#FAF8F5]/90 hover:bg-white border border-[#E2DBD0] hover:border-[#C5A059] rounded-2xl p-3 flex flex-col items-center justify-center text-center shadow-2xs hover:shadow-xs transition-all group min-h-[105px]">
+                  <div className="w-10 h-10 rounded-xl bg-[#E8F4FD] text-[#0984E3] flex items-center justify-center mb-1.5 shadow-2xs group-hover:scale-105 transition-transform">
+                    <Droplet className="w-5 h-5 text-[#0984E3] stroke-[1.75]" />
+                  </div>
+                  <p className="text-xs font-bold uppercase tracking-wider text-[#0B241C] leading-tight">Water Resistant</p>
+                  <p className="text-[11px] text-[#5A7469] font-medium leading-tight mt-0.5">Everyday Wear</p>
                 </div>
-              </div>
-              <div className="flex flex-col items-center text-center space-y-3">
-                <Droplet className="w-10 h-10 text-[#0984E3] stroke-[1.5]" />
-                <div>
-                  <p className="text-[11px] font-bold uppercase tracking-wide text-[#0B241C] mb-1">Water Resistant</p>
-                  <p className="text-[10px] text-[#5A7469] leading-tight px-1">Everyday Wear</p>
-                </div>
-              </div>
-              <div className="flex flex-col items-center text-center space-y-3">
-                <Heart className="w-10 h-10 text-[#C5A059] stroke-[1.5]" />
-                <div>
-                  <p className="text-[11px] font-bold uppercase tracking-wide text-[#0B241C] mb-1">Skin-Friendly</p>
-                  <p className="text-[10px] text-[#5A7469] leading-tight px-1">Hypoallergenic</p>
+
+                {/* 5. Skin-Friendly */}
+                <div className="bg-[#FAF8F5]/90 hover:bg-white border border-[#E2DBD0] hover:border-[#C5A059] rounded-2xl p-3 flex flex-col items-center justify-center text-center shadow-2xs hover:shadow-xs transition-all group min-h-[105px]">
+                  <div className="w-10 h-10 rounded-xl bg-[#FDF2F4] text-[#E84393] flex items-center justify-center mb-1.5 shadow-2xs group-hover:scale-105 transition-transform">
+                    <Heart className="w-5 h-5 text-[#E84393] stroke-[1.75]" />
+                  </div>
+                  <p className="text-xs font-bold uppercase tracking-wider text-[#0B241C] leading-tight">Skin-Friendly</p>
+                  <p className="text-[11px] text-[#5A7469] font-medium leading-tight mt-0.5">Hypoallergenic</p>
                 </div>
               </div>
             </div>
@@ -995,9 +1006,6 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
                   {[category?.title, subcategory?.name].filter(Boolean).join(' · ')}
                 </p>
                 <div className="flex items-center gap-1.5 text-[11px] font-mono text-[#5A7469]">
-                  <span className="bg-[#FAF8F5] px-2 py-0.5 rounded border border-[#E2DBD0]" title="Product ID">
-                    ID: {product.id}
-                  </span>
                   {product.sku && (
                     <span className="bg-[#FAF8F5] px-2 py-0.5 rounded border border-[#E2DBD0]" title="SKU">
                       SKU: {product.sku}
@@ -1258,6 +1266,77 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
               <div className="flex items-center gap-2.5">
                 <ShieldCheck className="w-4 h-4 text-[#0C3B2E] shrink-0" />
                 <span>100% authentic artisanal craftsmanship guarantee</span>
+              </div>
+            </div>
+
+            {/* 5 Core Trust Badges — Mobile / Tablet (Row 1: 2, Row 2: 3) — Hidden on Desktop */}
+            <div className="grid grid-cols-6 gap-2 sm:gap-2.5 pt-1 lg:hidden">
+              {/* 1. Payment — UPI & Razorpay (Row 1, 1st item) */}
+              <div className="col-span-3 bg-[#FAF8F5]/90 hover:bg-white border border-[#E2DBD0] hover:border-[#C5A059] rounded-2xl p-2.5 sm:p-3 flex flex-col items-center justify-center text-center shadow-2xs hover:shadow-xs transition-all group min-h-[88px] sm:min-h-[105px]">
+                <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-[#EBF3EF] text-[#0C3B2E] flex items-center justify-center mb-1.5 shadow-2xs group-hover:scale-105 transition-transform">
+                  <div className="relative flex items-center justify-center">
+                    <CreditCard className="w-4.5 h-4.5 sm:w-5 sm:h-5 text-[#0C3B2E] stroke-[1.75]" />
+                    <span className="w-2 h-2 rounded-full bg-[#25D366] ring-1.5 ring-white absolute -bottom-0.5 -right-0.5" />
+                  </div>
+                </div>
+                <p className="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-[#0B241C] leading-tight">
+                  Payment
+                </p>
+                <p className="text-[9.5px] sm:text-[10.5px] text-[#5A7469] font-medium leading-tight mt-0.5">
+                  UPI &amp; Razorpay
+                </p>
+              </div>
+
+              {/* 2. Premium — Quality 18K Gold Plated (Row 1, 2nd item) */}
+              <div className="col-span-3 bg-[#FAF8F5]/90 hover:bg-white border border-[#E2DBD0] hover:border-[#C5A059] rounded-2xl p-2.5 sm:p-3 flex flex-col items-center justify-center text-center shadow-2xs hover:shadow-xs transition-all group min-h-[88px] sm:min-h-[105px]">
+                <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-[#FAF5E8] text-[#C5A059] flex items-center justify-center mb-1.5 shadow-2xs group-hover:scale-105 transition-transform">
+                  <Gem className="w-4.5 h-4.5 sm:w-5 sm:h-5 text-[#C5A059] stroke-[1.75]" />
+                </div>
+                <p className="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-[#0B241C] leading-tight">
+                  Premium
+                </p>
+                <p className="text-[9.5px] sm:text-[10.5px] text-[#5A7469] font-medium leading-tight mt-0.5">
+                  Quality 18K Gold Plated
+                </p>
+              </div>
+
+              {/* 3. Anti-Tarnish — Long-Lasting Shine (Row 2, 1st item) */}
+              <div className="col-span-2 bg-[#FAF8F5]/90 hover:bg-white border border-[#E2DBD0] hover:border-[#C5A059] rounded-2xl p-2 sm:p-2.5 flex flex-col items-center justify-center text-center shadow-2xs hover:shadow-xs transition-all group min-h-[88px] sm:min-h-[105px]">
+                <div className="w-7.5 h-7.5 sm:w-9 sm:h-9 rounded-xl bg-[#FAF5E8] text-[#C5A059] flex items-center justify-center mb-1.5 shadow-2xs group-hover:scale-105 transition-transform">
+                  <ShieldCheck className="w-4 h-4 sm:w-5 sm:h-5 text-[#C5A059] stroke-[1.75]" />
+                </div>
+                <p className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-[#0B241C] leading-tight">
+                  Anti-Tarnish
+                </p>
+                <p className="text-[9px] sm:text-[10.5px] text-[#5A7469] font-medium leading-tight mt-0.5">
+                  Long-Lasting Shine
+                </p>
+              </div>
+
+              {/* 4. Water Resistant — Everyday Wear (Row 2, 2nd item) */}
+              <div className="col-span-2 bg-[#FAF8F5]/90 hover:bg-white border border-[#E2DBD0] hover:border-[#C5A059] rounded-2xl p-2 sm:p-2.5 flex flex-col items-center justify-center text-center shadow-2xs hover:shadow-xs transition-all group min-h-[88px] sm:min-h-[105px]">
+                <div className="w-7.5 h-7.5 sm:w-9 sm:h-9 rounded-xl bg-[#E8F4FD] text-[#0984E3] flex items-center justify-center mb-1.5 shadow-2xs group-hover:scale-105 transition-transform">
+                  <Droplet className="w-4 h-4 sm:w-5 sm:h-5 text-[#0984E3] stroke-[1.75]" />
+                </div>
+                <p className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-[#0B241C] leading-tight">
+                  Water Resistant
+                </p>
+                <p className="text-[9px] sm:text-[10.5px] text-[#5A7469] font-medium leading-tight mt-0.5">
+                  Everyday Wear
+                </p>
+              </div>
+
+              {/* 5. Skin-Friendly — Hypoallergenic (Row 2, 3rd item) */}
+              <div className="col-span-2 bg-[#FAF8F5]/90 hover:bg-white border border-[#E2DBD0] hover:border-[#C5A059] rounded-2xl p-2 sm:p-2.5 flex flex-col items-center justify-center text-center shadow-2xs hover:shadow-xs transition-all group min-h-[88px] sm:min-h-[105px]">
+                <div className="w-7.5 h-7.5 sm:w-9 sm:h-9 rounded-xl bg-[#FDF2F4] text-[#E84393] flex items-center justify-center mb-1.5 shadow-2xs group-hover:scale-105 transition-transform">
+                  <Heart className="w-4 h-4 sm:w-5 sm:h-5 text-[#E84393] stroke-[1.75]" />
+                </div>
+                <p className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-[#0B241C] leading-tight">
+                  Skin-Friendly
+                </p>
+                <p className="text-[9px] sm:text-[10.5px] text-[#5A7469] font-medium leading-tight mt-0.5">
+                  Hypoallergenic
+                </p>
               </div>
             </div>
           </div>
