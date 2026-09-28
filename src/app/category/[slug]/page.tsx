@@ -95,6 +95,41 @@ function AutoScrollRow({
     </div>
   );
 }
+function ClampedText({ text, className = '' }: { text?: string; className?: string }) {
+  const [expanded, setExpanded] = useState(false);
+  const [isClamped, setIsClamped] = useState(false);
+  const ref = useRef<HTMLParagraphElement>(null);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const check = () => {
+      if (!expanded) setIsClamped(el.scrollHeight > el.clientHeight + 1);
+    };
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, [text, expanded]);
+
+  if (!text) return null;
+
+  return (
+    <div>
+      <p ref={ref} className={`${className} ${expanded ? '' : 'line-clamp-2'} sm:line-clamp-none`}>
+        {text}
+      </p>
+      {(isClamped || expanded) && (
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          className="sm:hidden mt-1.5 text-xs font-bold uppercase tracking-wider text-[#D4AF37] underline underline-offset-4"
+        >
+          {expanded ? 'Read less' : 'Read more'}
+        </button>
+      )}
+    </div>
+  );
+}
 
 function CategoryContent({ slug }: { slug: string }) {
   const searchParams = useSearchParams();
@@ -290,16 +325,16 @@ function CategoryContent({ slug }: { slug: string }) {
         <div className="absolute inset-0 bg-gradient-to-r from-[#08281F]/95 via-[#0C3B2E]/70 to-black/30" />
         <div className="absolute inset-0 bg-gradient-to-t from-[#08281F] via-transparent to-transparent" />
 
-        <div className="relative w-full px-4 sm:px-6 py-14 sm:py-16">
+        <div className="relative w-full px-4 sm:px-6 py-14 sm:py-16 pb-16 sm:pb-20">
           {/* Top Breadcrumb & Badge */}
-          <div className="flex flex-wrap items-center gap-2.5 mb-4">
+          <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 mb-4">
             <Link
               href="/"
-              className="text-xs text-[#FAF8F5]/80 hover:text-[#D4AF37] uppercase tracking-widest flex items-center gap-1 font-semibold"
+              className="text-xs text-[#FAF8F5]/80 hover:text-[#D4AF37] uppercase tracking-widest flex items-center gap-1 font-semibold shrink-0"
             >
               <span>Home</span>
             </Link>
-            <ChevronRight className="w-3.5 h-3.5 text-[#C5A059]" />
+            <ChevronRight className="w-3.5 h-3.5 text-[#C5A059] shrink-0" />
             <span className="text-xs text-[#D4AF37] uppercase tracking-widest font-bold">
               {currentCategory.title} Flagship
             </span>
@@ -313,10 +348,10 @@ function CategoryContent({ slug }: { slug: string }) {
             <h1 className="font-serif-title text-4xl sm:text-6xl lg:text-7xl font-bold text-white tracking-tight leading-[1.08]">
               {currentCategory.title}
             </h1>
-
-            <p className="text-sm sm:text-lg text-[#E8F0EC]/90 leading-relaxed font-normal max-w-2xl">
-              {currentCategory.subtitle}
-            </p>
+            <ClampedText
+              text={currentCategory.subtitle}
+              className="text-sm sm:text-lg text-[#E8F0EC]/90 leading-relaxed font-normal max-w-2xl"
+            />
 
             {/* Feature Pills */}
             <div className="pt-2 flex flex-wrap gap-2.5 text-xs text-[#FAF8F5]">
@@ -600,11 +635,10 @@ function CategoryContent({ slug }: { slug: string }) {
               <Link
                 key={price}
                 href={`/all-products/${categorySlug}?price=under${price}`}
-                className={`relative block rounded-[1.5rem] sm:rounded-3xl overflow-hidden aspect-[2/1] sm:aspect-[2.5/1] shadow-md hover:shadow-xl transition-all hover:-translate-y-1 group border border-[#591420]/20 ${
-                  isLast
-                    ? 'col-span-2 sm:col-span-1 w-[calc(50%-6px)] sm:w-full mx-auto justify-self-center sm:justify-self-auto'
-                    : 'w-full'
-                }`}
+                className={`relative block rounded-[1.5rem] sm:rounded-3xl overflow-hidden aspect-[2/1] sm:aspect-[2.5/1] shadow-md hover:shadow-xl transition-all hover:-translate-y-1 group border border-[#591420]/20 ${isLast
+                  ? 'col-span-2 sm:col-span-1 w-[calc(50%-6px)] sm:w-full mx-auto justify-self-center sm:justify-self-auto'
+                  : 'w-full'
+                  }`}
               >
                 <div
                   className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-105"
@@ -705,11 +739,10 @@ function CategoryContent({ slug }: { slug: string }) {
                 <Link
                   key={cat.id}
                   href={`/category/${cat.slug}`}
-                  className={`group relative flex flex-col items-center text-center gap-3 p-5 rounded-2xl bg-white border border-[#E2DBD0] hover:border-[#C5A059] hover:shadow-lg transition-all ${
-                    isLastOdd
-                      ? 'col-span-2 sm:col-span-1 w-[calc(50%-8px)] sm:w-full mx-auto sm:mx-0 justify-self-center sm:justify-self-auto'
-                      : ''
-                  }`}
+                  className={`group relative flex flex-col items-center text-center gap-3 p-5 rounded-2xl bg-white border border-[#E2DBD0] hover:border-[#C5A059] hover:shadow-lg transition-all ${isLastOdd
+                    ? 'col-span-2 sm:col-span-1 w-[calc(50%-8px)] sm:w-full mx-auto sm:mx-0 justify-self-center sm:justify-self-auto'
+                    : ''
+                    }`}
                 >
                   <div className="w-14 h-14 rounded-2xl bg-[#EBF3EF] flex items-center justify-center text-[#0C3B2E] group-hover:bg-[#0C3B2E] group-hover:text-[#D4AF37] transition-colors shadow-inner">
                     <Icon className="w-6 h-6" />

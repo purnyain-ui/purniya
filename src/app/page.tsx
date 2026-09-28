@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import {
   ChevronLeft,
@@ -141,93 +141,102 @@ export default function HomePage() {
 
   return (
     <div className="space-y-6 sm:space-y-10 pb-12">
-      {/* 1. HERO BANNER SECTION (SOW 5.A) */}
-      <section className="relative w-full h-[520px] sm:h-[620px] lg:h-[680px] overflow-hidden bg-[#08281F]">
-        {displayedBanners.map((slide, idx) => (
-          <div
-            key={slide.id}
-            className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${idx === activeSlide ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'
-              }`}
-          >
-            <img
-              src={slide.image}
-              alt={slide.title}
-              className="w-full h-full object-cover object-center scale-105 transition-transform duration-10000 ease-out opacity-90"
-            />
-            {/* Emerald Deep Atmospheric Gradient Overlay */}
-            <div className="absolute inset-0 bg-gradient-to-r from-[#08281F]/90 via-[#0C3B2E]/60 to-black/30" />
-            <div className="absolute inset-0 bg-gradient-to-t from-[#08281F]/80 via-transparent to-transparent" />
+{/* 1. HERO BANNER SECTION (SOW 5.A) */}
+<section className="relative w-full h-[520px] sm:h-[620px] lg:h-[680px] overflow-hidden bg-[#08281F]">
+  {displayedBanners.map((slide, idx) => (
+    <div
+      key={slide.id}
+      className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${
+        idx === activeSlide ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'
+      }`}
+    >
+      <img
+        src={slide.image}
+        alt={slide.title}
+        className="w-full h-full object-cover object-center scale-105 transition-transform duration-10000 ease-out opacity-90"
+      />
+      {/* Emerald Deep Atmospheric Gradient Overlay */}
+      <div className="absolute inset-0 bg-gradient-to-r from-[#08281F]/90 via-[#0C3B2E]/60 to-black/30" />
+      <div className="absolute inset-0 bg-gradient-to-t from-[#08281F]/80 via-transparent to-transparent" />
 
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full px-3 sm:px-4">
-                <div className="max-w-2xl text-[#FAF8F5] space-y-4 sm:space-y-6">
-                  {slide.pretitle && (
-                    <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/10 backdrop-blur-md text-[#D4AF37] text-xs font-semibold uppercase tracking-[0.25em] border border-[#D4AF37]/30">
-                      <span>{slide.pretitle}</span>
-                    </div>
-                  )}
-                  <h1 className="font-serif-title text-4xl sm:text-6xl lg:text-7xl font-bold tracking-tight text-white leading-[1.06]">
-                    {slide.title}
-                  </h1>
-                  <p className="text-base sm:text-lg text-[#E8F0EC] font-normal leading-relaxed max-w-lg">
-                    {slide.subtitle}
-                  </p>
-                  <div className="pt-2 flex flex-wrap gap-4">
-                    <Link
-                      href={slide.ctaLink}
-                      className="px-8 py-3.5 rounded-full bg-gradient-to-r from-[#D4AF37] to-[#C5A059] hover:from-[#E6C25B] hover:to-[#D4AF37] text-[#08281F] font-bold text-xs sm:text-sm uppercase tracking-widest shadow-xl transition-all hover:scale-105 flex items-center gap-2"
-                    >
-                      <span>{slide.ctaText}</span>
-                      <ArrowRight className="w-4 h-4" />
-                    </Link>
-                    {categories.length > 0 && (
-                      <Link
-                        href={`/category/${categories[0].slug}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="px-8 py-3.5 rounded-full bg-white/10 hover:bg-white/20 text-white font-semibold text-xs sm:text-sm uppercase tracking-widest backdrop-blur-md border border-white/25 transition-all"
-                      >
-                        Explore {categories[0].title} ↗
-                      </Link>
-                    )}
-                  </div>
-                </div>
+      {/* pb-20 / sm:pb-24 keeps text clear of the bottom controls */}
+      <div className="absolute inset-0 flex items-center pb-20 sm:pb-24">
+        <div className="w-full px-3 sm:px-4">
+          <div className="max-w-2xl text-[#FAF8F5] space-y-4 sm:space-y-6">
+            {slide.pretitle && (
+              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/10 backdrop-blur-md text-[#D4AF37] text-xs font-semibold uppercase tracking-[0.25em] border border-[#D4AF37]/30">
+                <span>{slide.pretitle}</span>
               </div>
+            )}
+            <h1 className="font-serif-title text-4xl sm:text-6xl lg:text-7xl font-bold tracking-tight text-white leading-[1.06]">
+              {slide.title}
+            </h1>
+           <ClampedText
+  text={slide.subtitle}
+  className="text-base sm:text-lg text-[#E8F0EC] font-normal leading-relaxed max-w-lg"
+/>
+            <div className="pt-2 flex flex-wrap gap-4">
+              <Link
+                href={slide.ctaLink}
+                className="px-8 py-3.5 rounded-full bg-gradient-to-r from-[#D4AF37] to-[#C5A059] hover:from-[#E6C25B] hover:to-[#D4AF37] text-[#08281F] font-bold text-xs sm:text-sm uppercase tracking-widest shadow-xl transition-all hover:scale-105 flex items-center gap-2"
+              >
+                <span>{slide.ctaText}</span>
+                <ArrowRight className="w-4 h-4" />
+              </Link>
+              {categories.length > 0 && (
+                <Link
+                  href={`/category/${categories[0].slug}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-8 py-3.5 rounded-full bg-white/10 hover:bg-white/20 text-white font-semibold text-xs sm:text-sm uppercase tracking-widest backdrop-blur-md border border-white/25 transition-all"
+                >
+                  Explore {categories[0].title} ↗
+                </Link>
+              )}
             </div>
           </div>
-        ))}
+        </div>
+      </div>
+    </div>
+  ))}
 
-        {/* Hero Navigation Controls */}
-        {displayedBanners.length > 1 && (
-          <>
-            <button
-              onClick={prevSlide}
-              aria-label="Previous Slide"
-              className="absolute left-4 sm:left-8 top-1/2 -translate-y-1/2 z-20 w-11 h-11 rounded-full bg-black/25 hover:bg-[#0C3B2E] text-white flex items-center justify-center backdrop-blur-md border border-white/20 transition-all hover:scale-110 shadow-lg"
-            >
-              <ChevronLeft className="w-6 h-6" />
-            </button>
-            <button
-              onClick={nextSlide}
-              aria-label="Next Slide"
-              className="absolute right-4 sm:right-8 top-1/2 -translate-y-1/2 z-20 w-11 h-11 rounded-full bg-black/25 hover:bg-[#0C3B2E] text-white flex items-center justify-center backdrop-blur-md border border-white/20 transition-all hover:scale-110 shadow-lg"
-            >
-              <ChevronRight className="w-6 h-6" />
-            </button>
-            <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-20 flex gap-2.5">
-              {displayedBanners.map((_, i) => (
-                <button
-                  key={i}
-                  onClick={() => setActiveSlide(i)}
-                  className={`h-2 rounded-full transition-all duration-300 ${i === activeSlide ? 'w-8 bg-[#D4AF37]' : 'w-2 bg-white/40 hover:bg-white/70'
-                    }`}
-                  aria-label={`Slide ${i + 1}`}
-                />
-              ))}
-            </div>
-          </>
-        )}
-      </section>
+  {/* Hero Navigation Controls — bottom row: dots (left) + arrows (bottom-right corner) */}
+  {displayedBanners.length > 1 && (
+    <div className="absolute bottom-4 sm:bottom-8 inset-x-3 sm:inset-x-8 z-20 flex items-center justify-between">
+      {/* Dots */}
+      <div className="flex gap-2.5">
+        {displayedBanners.map((_, i) => (
+          <button
+            key={i}
+            onClick={() => setActiveSlide(i)}
+            className={`h-2 rounded-full transition-all duration-300 ${
+              i === activeSlide ? 'w-8 bg-[#D4AF37]' : 'w-2 bg-white/40 hover:bg-white/70'
+            }`}
+            aria-label={`Slide ${i + 1}`}
+          />
+        ))}
+      </div>
+
+      {/* Arrows — bottom-right corner */}
+      <div className="flex items-center gap-2 sm:gap-3">
+        <button
+          onClick={prevSlide}
+          aria-label="Previous Slide"
+          className="w-9 h-9 sm:w-11 sm:h-11 rounded-full bg-black/30 hover:bg-[#0C3B2E] text-white flex items-center justify-center backdrop-blur-md border border-white/20 transition-all hover:scale-110 shadow-lg"
+        >
+          <ChevronLeft className="w-5 h-5 sm:w-6 sm:h-6" />
+        </button>
+        <button
+          onClick={nextSlide}
+          aria-label="Next Slide"
+          className="w-9 h-9 sm:w-11 sm:h-11 rounded-full bg-black/30 hover:bg-[#0C3B2E] text-white flex items-center justify-center backdrop-blur-md border border-white/20 transition-all hover:scale-110 shadow-lg"
+        >
+          <ChevronRight className="w-5 h-5 sm:w-6 sm:h-6" />
+        </button>
+      </div>
+    </div>
+  )}
+</section>
 
       {/* 2. FIVE CATEGORY DISCOVERY ROWS (SOW SECTION 5.1 & 5.B, 5.C, 5.D, 5.E, 5.F, 5.G) */}
       <section className="w-full px-2 sm:px-3 space-y-8">
@@ -611,6 +620,42 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+    </div>
+  );
+}
+
+function ClampedText({ text, className = '' }: { text?: string; className?: string }) {
+  const [expanded, setExpanded] = useState(false);
+  const [isClamped, setIsClamped] = useState(false);
+  const ref = useRef<HTMLParagraphElement>(null);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const check = () => {
+      if (!expanded) setIsClamped(el.scrollHeight > el.clientHeight + 1);
+    };
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, [text, expanded]);
+
+  if (!text) return null;
+
+  return (
+    <div>
+      <p ref={ref} className={`${className} ${expanded ? '' : 'line-clamp-2'} sm:line-clamp-none`}>
+        {text}
+      </p>
+      {(isClamped || expanded) && (
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          className="sm:hidden mt-1.5 text-xs font-bold uppercase tracking-wider text-[#D4AF37] underline underline-offset-4"
+        >
+          {expanded ? 'Read less' : 'Read more'}
+        </button>
+      )}
     </div>
   );
 }
