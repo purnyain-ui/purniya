@@ -20,6 +20,7 @@ import {
   CheckCircle2,
 } from 'lucide-react';
 import { supabase } from '../../../lib/supabaseClient';
+import { readAdminSession, getProductAccess, AdminSession } from '@/lib/adminPermissions';
 
 // Never render <img src=""> — falls back to this instead.
 const PLACEHOLDER_IMAGE =
@@ -43,13 +44,14 @@ type Product = {
   selling_price: number | null;
   stock: number;
   is_active: boolean;
+  status?: string;
   created_at: string;
   updated_at: string;
   // Joined from product_images
   primary_image?: string | null;
 };
 
-type CategoryLite = { id: string; slug: string; title: string };
+type CategoryLite = { id: string; slug: string; title: string; priority?: number };
 type SubcategoryLite = { id: string; category_id: string; name: string };
 type LifestyleLite = { id: string; name: string | null };
 
@@ -89,11 +91,22 @@ export default function AdminProductsPage() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [toast, setToast] = useState<{ title: string; message: string; kind: 'success' | 'error' } | null>(null);
 
+  // Authentication & RBAC Session
+  const [adminSession, setAdminSession] = useState<AdminSession | null>(null);
+
+  useEffect(() => {
+    setAdminSession(readAdminSession());
+  }, []);
+
+  const productAccess = useMemo(() => getProductAccess(adminSession), [adminSession]);
+
   // Filters
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState<'all' | 'active' | 'inactive'>('all');
   // '' means "All Categories" tab
   const [activeCategoryId, setActiveCategoryId] = useState<string>('');
+  // '' means all subcategories in the selected category
+  const [activeSubcategoryId, setActiveSubcategoryId] = useState<string>('');
 
   // "View" modal state
   const [viewProduct, setViewProduct] = useState<Product | null>(null);
@@ -106,25 +119,59 @@ export default function AdminProductsPage() {
     setTimeout(() => setToast(null), 4000);
   };
 
+  // Categories visible to this admin/subadmin
+  const visibleCategories = useMemo(() => {
+    if (productAccess.all) return categories;
+    return categories.filter((c) => productAccess.categoryIds.includes(c.id));
+  }, [categories, productAccess]);
+
   // ---------------------------------------------------------------
-  // Keep the active category tab in sync with the URL's ?category=
-  // param. This is what makes clicking a category in the sidebar's
-  // "Products Catalog" dropdown filter this page correctly, and also
-  // covers direct links / page refreshes / back-forward navigation.
+  // Keep the active category & subcategory in sync with the URL's
+  // ?category= and ?sub= / ?subcategoryId= params.
   // ---------------------------------------------------------------
   useEffect(() => {
     const catParam = searchParams.get('category') || '';
+    const subParam = searchParams.get('sub') || searchParams.get('subcategoryId') || '';
     setActiveCategoryId(catParam);
+    setActiveSubcategoryId(subParam);
   }, [searchParams]);
 
-  // Selecting a tab on this page also updates the URL, so the sidebar's
-  // own highlighting (which reads the same ?category= param) stays correct.
+  // Selecting a category tab clears subcategory and updates the URL
   const handleCategorySelect = useCallback(
     (categoryId: string) => {
       setActiveCategoryId(categoryId);
+      setActiveSubcategoryId('');
       router.push(categoryId ? `/admin/products?category=${categoryId}` : '/admin/products');
     },
     [router]
+  );
+
+  // If restricted staff lands on products with no category or disallowed category, auto-select their allowed category
+  useEffect(() => {
+    if (!productAccess.all && productAccess.categoryIds.length > 0) {
+      if (!activeCategoryId || !productAccess.categoryIds.includes(activeCategoryId)) {
+        handleCategorySelect(productAccess.categoryIds[0]);
+      }
+    }
+  }, [productAccess, activeCategoryId, handleCategorySelect]);
+
+  // Selecting a subcategory updates URL to include both category and subcategory
+  const handleSubcategorySelect = useCallback(
+    (subId: string) => {
+      setActiveSubcategoryId(subId);
+      if (subId) {
+        const subObj = subcategories.find((s) => s.id === subId);
+        const targetCatId = activeCategoryId || subObj?.category_id || '';
+        if (targetCatId) {
+          router.push(`/admin/products?category=${targetCatId}&sub=${subId}`);
+        } else {
+          router.push(`/admin/products?sub=${subId}`);
+        }
+      } else {
+        router.push(activeCategoryId ? `/admin/products?category=${activeCategoryId}` : '/admin/products');
+      }
+    },
+    [router, activeCategoryId, subcategories]
   );
 
   // ---------------------------------------------------------------
@@ -142,7 +189,11 @@ export default function AdminProductsPage() {
         { data: lifestyleData, error: lifestyleError },
       ] = await Promise.all([
         supabase.from('products').select('*').order('created_at', { ascending: false }),
-        supabase.from('categories').select('id, slug, title').order('title'),
+        supabase
+          .from('categories')
+          .select('id, slug, title, priority')
+          .order('priority', { ascending: true })
+          .order('title', { ascending: true }),
         supabase.from('subcategories').select('id, category_id, name').order('sort_order'),
         supabase.from('lifestyle_sale_tags').select('id, name'),
       ]);
@@ -225,16 +276,28 @@ export default function AdminProductsPage() {
     }
   };
 
-  const toggleActive = async (p: Product) => {
+  const toggleActive = async (p: any) => {
+    const isCurrentlyActive = p.is_active !== undefined ? Boolean(p.is_active) : (p.status === 'Active');
+    const nextActive = !isCurrentlyActive;
+
     const { error } = await supabase
       .from('products')
-      .update({ is_active: !p.is_active })
+      .update({
+        is_active: nextActive,
+      })
       .eq('id', p.id);
 
     if (error) {
       showToast('Update failed', error.message, 'error');
     } else {
-      showToast('Updated', `${p.name} is now ${!p.is_active ? 'active' : 'inactive'}.`, 'success');
+      showToast('Updated', `${p.name || 'Product'} is now ${nextActive ? 'Active' : 'Inactive'}.`, 'success');
+      if (viewProduct && viewProduct.id === p.id) {
+        setViewProduct({
+          ...viewProduct,
+          is_active: nextActive,
+          status: nextActive ? 'Active' : 'Inactive',
+        });
+      }
       await fetchData();
     }
   };
@@ -357,57 +420,97 @@ export default function AdminProductsPage() {
     });
 
   // ---------------------------------------------------------------
-  // Derived: product count per category (for the tab badges)
+  // Derived: active category & subcategory objects
   // ---------------------------------------------------------------
+  const activeSubcategory = useMemo(() => {
+    if (!activeSubcategoryId) return null;
+    return subcategories.find((s) => s.id === activeSubcategoryId) || null;
+  }, [subcategories, activeSubcategoryId]);
+
+  const activeCategory = useMemo(() => {
+    const targetId = activeCategoryId || activeSubcategory?.category_id || '';
+    if (!targetId) return null;
+    return (
+      categories.find(
+        (c) =>
+          c.id === targetId ||
+          (c.slug && c.slug.trim().toLowerCase() === targetId.trim().toLowerCase())
+      ) || null
+    );
+  }, [categories, activeCategoryId, activeSubcategory]);
+
+  const activeCategoryLabel = activeCategory
+    ? activeCategory.title.trim()
+    : activeCategoryId
+      ? 'Category'
+      : 'All Categories';
+
+  const availableSubcategories = useMemo(() => {
+    const targetCatId = activeCategory ? activeCategory.id : activeCategoryId;
+    if (!targetCatId) return [];
+    return subcategories.filter((s) => s.category_id === targetCatId);
+  }, [subcategories, activeCategoryId, activeCategory]);
+
   const productCountForCategory = (categoryId: string) =>
     products.filter((p) => p.category_id === categoryId).length;
 
+  const productCountForSubcategory = (subId: string) =>
+    products.filter((p) => p.subcategory_id === subId).length;
+
   // ---------------------------------------------------------------
-  // Derived: filtered list (category tab + search + active/inactive) + stats
-  // ---------------------------------------------------------------
-  // ---------------------------------------------------------------
-  // Derived: filtered list (category tab + search + active/inactive)
+  // Derived: filtered list (category + subcategory + search + active/inactive)
   // ---------------------------------------------------------------
   const filteredProducts = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     return products.filter((p) => {
-      const matchesCategory = !activeCategoryId || p.category_id === activeCategoryId;
+      const matchesCategory =
+        !activeCategoryId ||
+        p.category_id === activeCategoryId ||
+        (activeCategory && p.category_id === activeCategory.id);
+
+      const matchesSubcategory =
+        !activeSubcategoryId ||
+        p.subcategory_id === activeSubcategoryId;
+
       const matchesActive =
         activeFilter === 'all' ||
         (activeFilter === 'active' && p.is_active) ||
         (activeFilter === 'inactive' && !p.is_active);
+
       const matchesQuery =
         !q ||
         p.name.toLowerCase().includes(q) ||
         p.slug.toLowerCase().includes(q) ||
+        p.id.toLowerCase().includes(q) ||
         (p.sku || '').toLowerCase().includes(q);
-      return matchesCategory && matchesActive && matchesQuery;
+
+      return matchesCategory && matchesSubcategory && matchesActive && matchesQuery;
     });
-  }, [products, searchQuery, activeFilter, activeCategoryId]);
+  }, [products, searchQuery, activeFilter, activeCategoryId, activeCategory, activeSubcategoryId]);
 
   // ---------------------------------------------------------------
-  // Derived: stat cards — scoped to the active category only, so
-  // "Total / Active / Low stock / Out of stock" reflect just the
-  // products in whichever category tab is currently selected.
-  // Search text and the active/inactive filter are intentionally
-  // NOT applied here, so the cards always show the full category
-  // picture even while the person is typing a search.
+  // Derived: stat cards — scoped to the active category & subcategory
   // ---------------------------------------------------------------
   const stats = useMemo(() => {
-    const scoped = activeCategoryId
-      ? products.filter((p) => p.category_id === activeCategoryId)
-      : products;
+    const scoped = products.filter((p) => {
+      const matchesCategory =
+        !activeCategoryId ||
+        p.category_id === activeCategoryId ||
+        (activeCategory && p.category_id === activeCategory.id);
+
+      const matchesSubcategory =
+        !activeSubcategoryId ||
+        p.subcategory_id === activeSubcategoryId;
+
+      return matchesCategory && matchesSubcategory;
+    });
 
     const active = scoped.filter((p) => p.is_active).length;
+    const inactive = scoped.filter((p) => !p.is_active).length;
     const lowStock = scoped.filter((p) => p.is_active && p.stock > 0 && p.stock <= 5).length;
     const outOfStock = scoped.filter((p) => p.stock === 0).length;
-    return { total: scoped.length, active, lowStock, outOfStock };
-  }, [products, activeCategoryId]);
-
-
-  const activeCategoryLabel = activeCategoryId
-    ? categories.find((c) => c.id === activeCategoryId)?.title || 'Category'
-    : 'All Categories';
+    return { total: scoped.length, active, inactive, lowStock, outOfStock };
+  }, [products, activeCategoryId, activeCategory, activeSubcategoryId]);
 
   return (
     <div className="space-y-8 max-w-7xl mx-auto">
@@ -427,13 +530,39 @@ export default function AdminProductsPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="font-serif-title text-2xl sm:text-3xl font-bold text-[#0B241C]">Products</h1>
-          <p className="text-xs sm:text-sm text-[#2C4A3E]">
-            {stats.total} product{stats.total === 1 ? '' : 's'} in your catalog, organized by category.
+          <div className="flex items-center gap-2 flex-wrap">
+            <h1 className="font-serif-title text-2xl sm:text-3xl font-bold text-[#0B241C]">Products</h1>
+            {activeCategory && (
+              <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-[#0B241C] text-[#FAF8F5]">
+                {activeCategory.title}
+              </span>
+            )}
+            {activeSubcategory && (
+              <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-[#C5A059] text-[#1E130D] flex items-center gap-1.5 shadow-2xs">
+                <span>{activeSubcategory.name}</span>
+                <button
+                  type="button"
+                  onClick={() => handleSubcategorySelect('')}
+                  className="hover:opacity-75 cursor-pointer ml-0.5"
+                  title="Clear subcategory filter"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            )}
+          </div>
+          <p className="text-xs sm:text-sm text-[#2C4A3E] mt-1">
+            {stats.total} product{stats.total === 1 ? '' : 's'} {activeSubcategory ? `in ${activeSubcategory.name}` : activeCategory ? `in ${activeCategory.title}` : 'in your catalog'}.
           </p>
         </div>
         <button
-          onClick={() => router.push('/admin/products/add')}
+          onClick={() => {
+            const params = new URLSearchParams();
+            if (activeCategoryId) params.set('categoryId', activeCategoryId);
+            if (activeSubcategoryId) params.set('subcategoryId', activeSubcategoryId);
+            const qs = params.toString();
+            router.push(qs ? `/admin/products/add?${qs}` : '/admin/products/add');
+          }}
           className="px-4 py-2.5 rounded-xl bg-[#0B241C] hover:bg-[#123528] text-white text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer shadow-sm self-start sm:self-auto"
         >
           <Plus className="w-3.5 h-3.5" />
@@ -461,97 +590,190 @@ export default function AdminProductsPage() {
 
       {/* Quick stats */}
       {!loadError && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
           <StatCard label="Total products" value={stats.total} />
           <StatCard label="Active" value={stats.active} tone="emerald" />
+          <StatCard label="Inactive" value={stats.inactive} tone="rose" />
           <StatCard label="Low stock (≤5)" value={stats.lowStock} tone="amber" />
-          <StatCard label="Out of stock" value={stats.outOfStock} tone="rose" />
+          <StatCard label="Out of stock" value={stats.outOfStock} tone="neutral" />
         </div>
       )}
 
-      {/* Category Tabs — full switcher only shows when NOT scoped to one
-          category. When a category comes in via the sidebar's dropdown
-          (or a direct ?category= link), we lock the page to that single
-          category instead of exposing every other category as a tab. */}
-      {!activeCategoryId ? (
-        <div className="flex border-b border-[#E2DBD0] gap-2 overflow-x-auto text-xs font-bold pb-1">
+      {/* Category Tabs — ALWAYS visible so admin can freely switch between categories */}
+      <div className="flex border-b border-[#E2DBD0] gap-2 overflow-x-auto text-xs font-bold pb-1 scrollbar-none">
+        {productAccess.all && (
           <button
             onClick={() => handleCategorySelect('')}
-            className="px-4 py-3 border-b-2 transition-all flex items-center gap-2 cursor-pointer shrink-0 border-[#C5A059] text-[#0B241C] bg-white rounded-t-xl"
+            className={`px-4 py-3 border-b-2 transition-all flex items-center gap-2 cursor-pointer shrink-0 rounded-t-xl ${
+              !activeCategoryId
+                ? 'border-[#C5A059] text-[#0B241C] bg-white shadow-2xs font-bold'
+                : 'border-transparent text-[#5A7469] hover:text-[#0B241C] hover:bg-white/50'
+            }`}
           >
             <span>All Categories</span>
-            <span className="px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-[#0B241C] text-white">
+            <span
+              className={`px-1.5 py-0.5 rounded-full text-[10px] font-semibold ${
+                !activeCategoryId ? 'bg-[#0B241C] text-white' : 'bg-gray-100 text-[#5A7469]'
+              }`}
+            >
               {products.length}
             </span>
           </button>
+        )}
 
-          {categories.map((cat) => {
-            const count = productCountForCategory(cat.id);
+        {visibleCategories.map((cat) => {
+          const isSelected = activeCategoryId === cat.id || (activeCategory && activeCategory.id === cat.id);
+          const count = productCountForCategory(cat.id);
+          return (
+            <button
+              key={cat.id}
+              onClick={() => handleCategorySelect(cat.id)}
+              className={`px-4 py-3 border-b-2 transition-all flex items-center gap-2 cursor-pointer shrink-0 rounded-t-xl ${
+                isSelected
+                  ? 'border-[#C5A059] text-[#0B241C] bg-white shadow-2xs font-bold'
+                  : 'border-transparent text-[#5A7469] hover:text-[#0B241C] hover:bg-white/50'
+              }`}
+            >
+              <span>{cat.title.trim()}</span>
+              <span
+                className={`px-1.5 py-0.5 rounded-full text-[10px] font-semibold ${
+                  isSelected ? 'bg-[#0B241C] text-white' : 'bg-gray-100 text-[#5A7469]'
+                }`}
+              >
+                {count}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Subcategory Filter Pills — shown when category has subcategories */}
+      {availableSubcategories.length > 0 && (
+        <div className="flex items-center gap-2 overflow-x-auto py-2.5 px-3 scrollbar-none bg-[#FAF8F5] rounded-2xl border border-[#E2DBD0]">
+          <span className="text-[11px] font-bold text-[#5A7469] uppercase tracking-wider pr-1 shrink-0 flex items-center gap-1.5">
+            <Layers className="w-3.5 h-3.5 text-[#C5A059]" />
+            Subcategories:
+          </span>
+
+          <button
+            type="button"
+            onClick={() => handleSubcategorySelect('')}
+            className={`px-3 py-1.5 rounded-xl text-xs font-semibold shrink-0 transition-all cursor-pointer flex items-center gap-1.5 ${
+              !activeSubcategoryId
+                ? 'bg-[#0B241C] text-[#FAF8F5] font-bold shadow-xs'
+                : 'bg-white text-[#2C4A3E] border border-[#E2DBD0] hover:border-[#C5A059] hover:text-[#0B241C]'
+            }`}
+          >
+            <span>All {activeCategory?.title || 'in Category'}</span>
+            <span
+              className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                !activeSubcategoryId
+                  ? 'bg-[#C5A059] text-[#1E130D]'
+                  : 'bg-gray-100 text-[#5A7469]'
+              }`}
+            >
+              {products.filter((p) => p.category_id === (activeCategory?.id || activeCategoryId)).length}
+            </span>
+          </button>
+
+          {availableSubcategories.map((sub) => {
+            const isSubSelected = activeSubcategoryId === sub.id;
+            const subCount = productCountForSubcategory(sub.id);
             return (
               <button
-                key={cat.id}
-                onClick={() => handleCategorySelect(cat.id)}
-                className="px-4 py-3 border-b-2 transition-all flex items-center gap-2 cursor-pointer shrink-0 border-transparent text-[#5A7469] hover:text-[#0B241C]"
+                key={sub.id}
+                type="button"
+                onClick={() => handleSubcategorySelect(sub.id)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold shrink-0 transition-all cursor-pointer flex items-center gap-1.5 ${
+                  isSubSelected
+                    ? 'bg-[#C5A059] text-[#1E130D] font-bold shadow-xs'
+                    : 'bg-white text-[#2C4A3E] border border-[#E2DBD0] hover:border-[#C5A059] hover:text-[#0B241C]'
+                }`}
               >
-                <span>{cat.title}</span>
-                <span className="px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-gray-100 text-[#5A7469]">
-                  {count}
+                <span>{sub.name}</span>
+                <span
+                  className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                    isSubSelected
+                      ? 'bg-[#1E130D] text-white'
+                      : 'bg-gray-100 text-[#5A7469]'
+                  }`}
+                >
+                  {subCount}
                 </span>
               </button>
             );
           })}
         </div>
-      ) : (
-        <div className="flex items-center justify-between gap-3 pb-1 border-b border-[#E2DBD0]">
-          <div className="px-4 py-3 border-b-2 border-[#C5A059] text-[#0B241C] font-bold text-xs flex items-center gap-2 -mb-px">
-            <span>{activeCategoryLabel}</span>
-            <span className="px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-[#0B241C] text-white">
-              {stats.total}
-            </span>
-          </div>
-          <button
-            onClick={() => handleCategorySelect('')}
-            className="text-[11px] font-bold text-[#C5A059] hover:underline cursor-pointer shrink-0 mb-2"
-          >
-            View All Categories
-          </button>
-        </div>
       )}
 
       {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-2.5">
+      <div className="flex flex-col sm:flex-row gap-2.5 items-stretch sm:items-center">
         <div className="relative flex-1">
           <Search className="w-3.5 h-3.5 text-[#8A9A92] absolute left-3 top-1/2 -translate-y-1/2" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder={`Search in ${activeCategoryLabel}…`}
+            placeholder={`Search in ${activeSubcategory ? activeSubcategory.name : activeCategoryLabel}…`}
             className="w-full pl-8 pr-3 py-2.5 bg-white border border-[#E2DBD0] rounded-xl text-xs font-medium text-[#0B241C] focus:outline-none focus:border-[#C5A059]"
           />
         </div>
-        <select
-          value={activeFilter}
-          onChange={(e) => setActiveFilter(e.target.value as 'all' | 'active' | 'inactive')}
-          className="px-3.5 py-2.5 bg-white border border-[#E2DBD0] rounded-xl text-xs font-semibold text-[#0B241C] focus:outline-none focus:border-[#C5A059]"
-        >
-          <option value="all">All products</option>
-          <option value="active">Active only</option>
-          <option value="inactive">Inactive only</option>
-        </select>
+        <div className="flex items-center gap-1.5 bg-white p-1 border border-[#E2DBD0] rounded-xl self-start sm:self-auto shrink-0">
+          <button
+            type="button"
+            onClick={() => setActiveFilter('all')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+              activeFilter === 'all'
+                ? 'bg-[#0B241C] text-white shadow-xs'
+                : 'text-[#5A7469] hover:text-[#0B241C] hover:bg-[#FAF8F5]'
+            }`}
+          >
+            All ({stats.total})
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveFilter('active')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+              activeFilter === 'active'
+                ? 'bg-emerald-600 text-white shadow-xs'
+                : 'text-emerald-700 hover:bg-emerald-50'
+            }`}
+          >
+            <span className="w-2 h-2 rounded-full bg-emerald-400" />
+            <span>Active ({stats.active})</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveFilter('inactive')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+              activeFilter === 'inactive'
+                ? 'bg-rose-600 text-white shadow-xs'
+                : 'text-rose-700 hover:bg-rose-50'
+            }`}
+          >
+            <span className="w-2 h-2 rounded-full bg-rose-400" />
+            <span>Inactive ({stats.inactive})</span>
+          </button>
+        </div>
       </div>
 
-      {/* Section header — mirrors "Subcategories in {category}" from the Categories page */}
+      {/* Section header — scoped to category and subcategory */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-2">
         <div>
           <h2 className="font-serif-title text-xl font-bold text-[#0B241C] flex items-center gap-2">
-            <span>Products in {activeCategoryLabel}</span>
+            <span>
+              Products in {activeSubcategory ? `${activeSubcategory.name} (${activeCategoryLabel})` : activeCategoryLabel}
+            </span>
             <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300">
               {filteredProducts.length} {filteredProducts.length === 1 ? 'Product' : 'Products'}
             </span>
           </h2>
           <p className="text-xs text-[#5A7469]">
-            Each card is a row in the <code>products</code> table. Click a card's actions to view, edit, or remove it.
+            {activeSubcategory
+              ? `Showing only products under the "${activeSubcategory.name}" subcategory.`
+              : activeCategory
+                ? `Showing products under the "${activeCategory.title}" category.`
+                : 'Showing all products in your catalog.'}
           </p>
         </div>
       </div>
@@ -572,21 +794,95 @@ export default function AdminProductsPage() {
           </div>
           {products.length === 0 ? (
             <>
-              <p className="font-bold text-[#0B241C] text-xs">No products yet</p>
-              <p className="text-[#5A7469] text-xs">Add your first piece to start building the catalog.</p>
+              <p className="font-bold text-[#0B241C] text-sm">No products in your catalog yet</p>
+              <p className="text-[#5A7469] text-xs">Add your first piece to start building your catalog.</p>
               <button
                 onClick={() => router.push('/admin/products/add')}
-                className="mt-1 px-4 py-2 rounded-xl bg-[#0B241C] hover:bg-[#123528] text-white font-semibold flex items-center gap-1.5 cursor-pointer text-xs"
+                className="mt-2 px-4 py-2 rounded-xl bg-[#0B241C] hover:bg-[#123528] text-white font-semibold flex items-center gap-1.5 cursor-pointer text-xs"
               >
                 <Plus className="w-3.5 h-3.5" />
                 Add Product
               </button>
             </>
+          ) : searchQuery ? (
+            <>
+              <p className="font-bold text-[#0B241C] text-sm">No matching products found</p>
+              <p className="text-[#5A7469] text-xs">
+                No products match &ldquo;{searchQuery}&rdquo; in {activeSubcategory ? activeSubcategory.name : activeCategoryLabel}
+                {activeFilter !== 'all' ? ` (${activeFilter})` : ''}.
+              </p>
+              <button
+                onClick={() => setSearchQuery('')}
+                className="mt-2 text-xs font-semibold text-[#C5A059] hover:underline cursor-pointer"
+              >
+                Clear Search
+              </button>
+            </>
+          ) : activeFilter !== 'all' ? (
+            <>
+              <p className="font-bold text-[#0B241C] text-sm">No {activeFilter} products</p>
+              <p className="text-[#5A7469] text-xs">
+                There are currently no {activeFilter} products in {activeSubcategory ? activeSubcategory.name : activeCategoryLabel}.
+              </p>
+              <button
+                onClick={() => setActiveFilter('all')}
+                className="mt-2 text-xs font-semibold text-[#C5A059] hover:underline cursor-pointer"
+              >
+                Show All in {activeSubcategory ? activeSubcategory.name : activeCategoryLabel}
+              </button>
+            </>
+          ) : activeSubcategory ? (
+            <>
+              <p className="font-bold text-[#0B241C] text-sm">No products in &ldquo;{activeSubcategory.name}&rdquo; yet</p>
+              <p className="text-[#5A7469] text-xs max-w-sm">
+                No products have been added to this subcategory yet. You can add one now or select another subcategory.
+              </p>
+              <div className="flex items-center gap-2 mt-2">
+                <button
+                  onClick={() => router.push(`/admin/products/add?categoryId=${activeCategoryId}&subcategoryId=${activeSubcategoryId}`)}
+                  className="px-4 py-2 rounded-xl bg-[#0B241C] hover:bg-[#123528] text-white font-semibold flex items-center gap-1.5 cursor-pointer text-xs shadow-xs"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Add Product in {activeSubcategory.name}</span>
+                </button>
+                <button
+                  onClick={() => handleSubcategorySelect('')}
+                  className="px-3.5 py-2 rounded-xl border border-[#E2DBD0] hover:bg-[#FAF8F5] text-[#0B241C] font-semibold text-xs cursor-pointer transition-colors"
+                >
+                  View All in {activeCategoryLabel}
+                </button>
+              </div>
+            </>
           ) : (
-            <p className="text-[#5A7469] text-xs">
-              No products match "{searchQuery}" in {activeCategoryLabel}
-              {activeFilter !== 'all' ? ` (${activeFilter})` : ''}.
-            </p>
+            <>
+              <p className="font-bold text-[#0B241C] text-sm">No products in {activeCategoryLabel} yet</p>
+              <p className="text-[#5A7469] text-xs max-w-sm">
+                No products have been added to this category yet. You can add one now or select another category from the tabs above.
+              </p>
+              <div className="flex items-center gap-2 mt-2">
+                <button
+                  onClick={() =>
+                    router.push(
+                      activeCategoryId
+                        ? `/admin/products/add?categoryId=${activeCategoryId}`
+                        : '/admin/products/add'
+                    )
+                  }
+                  className="px-4 py-2 rounded-xl bg-[#0B241C] hover:bg-[#123528] text-white font-semibold flex items-center gap-1.5 cursor-pointer text-xs shadow-xs"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Add Product in {activeCategoryLabel}</span>
+                </button>
+                {productAccess.all && activeCategoryId && (
+                  <button
+                    onClick={() => handleCategorySelect('')}
+                    className="px-3.5 py-2 rounded-xl border border-[#E2DBD0] hover:bg-[#FAF8F5] text-[#0B241C] font-semibold text-xs cursor-pointer transition-colors"
+                  >
+                    View All Products ({products.length})
+                  </button>
+                )}
+              </div>
+            </>
           )}
         </div>
       )}
@@ -616,11 +912,23 @@ export default function AdminProductsPage() {
                     </div>
                   )}
 
-                  {p.is_featured && (
-                    <span className="absolute top-2 left-2 px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
-                      ★ Featured
+                  <div className="absolute top-2 left-2 flex flex-col gap-1 items-start">
+                    <span
+                      className={`px-2 py-0.5 rounded-full text-[10px] font-bold shadow-xs backdrop-blur-xs flex items-center gap-1.5 border ${
+                        p.is_active
+                          ? 'bg-emerald-600/90 text-white border-emerald-400/50'
+                          : 'bg-rose-600/90 text-white border-rose-400/50'
+                      }`}
+                    >
+                      <span className={`w-1.5 h-1.5 rounded-full ${p.is_active ? 'bg-emerald-200 animate-pulse' : 'bg-rose-200'}`} />
+                      {p.is_active ? 'Active' : 'Inactive'}
                     </span>
-                  )}
+                    {p.is_featured && (
+                      <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-500/90 text-white border border-amber-300 shadow-xs">
+                        ★ Featured
+                      </span>
+                    )}
+                  </div>
 
                   <div className="absolute top-2 right-2 flex gap-1 opacity-90 sm:opacity-0 group-hover:opacity-100 transition-opacity">
                     <button
@@ -647,10 +955,21 @@ export default function AdminProductsPage() {
                   </div>
                 </div>
 
-                <div className="p-3.5 space-y-1">
+                <div className="p-3.5 space-y-1.5">
+                  <div className="flex items-center justify-between gap-1 text-[10px] font-mono text-[#5A7469]">
+                    <span className="bg-[#FAF8F5] px-1.5 py-0.5 rounded border border-[#E2DBD0] truncate font-medium" title={`Product ID: ${p.id}`}>
+                      ID: {p.id}
+                    </span>
+                    {p.sku && (
+                      <span className="text-[#8C7A6B] truncate max-w-[120px]" title={`SKU: ${p.sku}`}>
+                        SKU: {p.sku}
+                      </span>
+                    )}
+                  </div>
                   <h3 className="font-bold text-xs text-[#0B241C] truncate">{p.name}</h3>
-                  <p className="text-[11px] text-[#5A7469]">
-                    {subcategoryTitle(p.subcategory_id) || categoryTitle(p.category_id)}
+                  <p className="text-[11px] text-[#5A7469] truncate">
+                    {categoryTitle(p.category_id)}
+                    {subcategoryTitle(p.subcategory_id) ? ` • ${subcategoryTitle(p.subcategory_id)}` : ''}
                   </p>
                   <div className="flex items-center justify-between pt-1">
                     <span className="font-bold text-[#0B241C] text-xs">
@@ -678,21 +997,24 @@ export default function AdminProductsPage() {
                 </div>
               </div>
 
-              <div className="p-3 pt-0 border-t border-[#EFEBE3] mt-2 flex justify-between items-center text-[11px]">
+              <div className="p-3 pt-2 border-t border-[#EFEBE3] mt-2 flex justify-between items-center text-[11px]">
                 <button
                   onClick={() => router.push(`/admin/products/add?id=${p.id}`)}
-                  className="text-[#C5A059] font-bold hover:underline cursor-pointer"
+                  className="text-[#0B241C] font-semibold hover:text-[#C5A059] flex items-center gap-1.5 transition-colors cursor-pointer"
                 >
-                  Edit Details
+                  <Edit2 className="w-3.5 h-3.5 text-[#C5A059]" />
+                  <span>Edit Product</span>
                 </button>
                 <button
                   onClick={() => toggleActive(p)}
-                  className={`px-2 py-0.5 rounded-full text-[10px] font-bold border cursor-pointer transition-colors ${p.is_active
-                      ? 'bg-emerald-100 text-emerald-800 border-emerald-300 hover:bg-emerald-200'
-                      : 'bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200'
+                  title={`Click to set as ${p.is_active ? 'Inactive' : 'Active'}`}
+                  className={`px-2.5 py-1 rounded-full text-[10px] font-bold border cursor-pointer transition-all flex items-center gap-1.5 shadow-2xs ${p.is_active
+                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100 hover:border-emerald-300'
+                    : 'bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100 hover:border-rose-300'
                     }`}
                 >
-                  {p.is_active ? 'Active' : 'Inactive'}
+                  <span className={`w-1.5 h-1.5 rounded-full ${p.is_active ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+                  <span>{p.is_active ? 'Active' : 'Inactive'}</span>
                 </button>
               </div>
             </div>
@@ -725,25 +1047,37 @@ export default function AdminProductsPage() {
                       ★ Featured
                     </span>
                   )}
-                  <span
-                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${viewProduct.is_active
-                        ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
-                        : 'bg-gray-100 text-gray-700 border-gray-300'
+                  <button
+                    onClick={() => toggleActive(viewProduct)}
+                    title={`Click to set as ${viewProduct.is_active ? 'Inactive' : 'Active'}`}
+                    className={`px-2.5 py-1 rounded-full text-[10px] font-bold border cursor-pointer transition-all flex items-center gap-1.5 shadow-2xs ${viewProduct.is_active
+                      ? 'bg-emerald-100 text-emerald-800 border-emerald-300 hover:bg-emerald-200'
+                      : 'bg-rose-100 text-rose-800 border-rose-300 hover:bg-rose-200'
                       }`}
                   >
-                    {viewProduct.is_active ? 'Active' : 'Inactive'}
-                  </span>
+                    <span className={`w-1.5 h-1.5 rounded-full ${viewProduct.is_active ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+                    <span>{viewProduct.is_active ? 'Active' : 'Inactive'} (Click to toggle)</span>
+                  </button>
                 </div>
                 <p className="text-[11px] text-[#5A7469] mt-1">
                   {viewProduct.sku || viewProduct.slug}
                 </p>
               </div>
-              <button
-                onClick={closeView}
-                className="p-2 rounded-xl bg-[#FAF8F5] hover:bg-[#EFEBE3] border border-[#E2DBD0] text-[#0B241C] shrink-0 cursor-pointer"
-              >
-                <X className="w-4 h-4" />
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => router.push(`/admin/products/add?id=${viewProduct.id}`)}
+                  className="px-3 py-2 rounded-xl bg-[#0B241C] hover:bg-[#123528] text-white text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer shrink-0 shadow-xs"
+                >
+                  <Edit2 className="w-3.5 h-3.5 text-[#C5A059]" />
+                  <span>Edit Product</span>
+                </button>
+                <button
+                  onClick={closeView}
+                  className="p-2 rounded-xl bg-[#FAF8F5] hover:bg-[#EFEBE3] border border-[#E2DBD0] text-[#0B241C] shrink-0 cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
             </div>
 
             {/* Modal Body */}
@@ -771,6 +1105,7 @@ export default function AdminProductsPage() {
                   <div>
                     <SectionLabel icon={Package} text="Product Details" />
                     <div className="divide-y divide-[#EFEBE3] border border-[#E2DBD0] rounded-2xl overflow-hidden bg-[#FAF8F5]/60 mt-3">
+                      <InfoRow label="Product ID" value={viewProduct.id} />
                       <InfoRow label="Category" value={categoryTitle(viewProduct.category_id)} />
                       {subcategoryTitle(viewProduct.subcategory_id) && (
                         <InfoRow label="Subcategory" value={subcategoryTitle(viewProduct.subcategory_id)} />
@@ -876,8 +1211,8 @@ export default function AdminProductsPage() {
                                 </div>
                                 <span
                                   className={`px-2 py-0.5 rounded-full text-[10px] font-bold border shrink-0 ${v.is_active
-                                      ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
-                                      : 'bg-gray-100 text-gray-700 border-gray-300'
+                                    ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                                    : 'bg-gray-100 text-gray-700 border-gray-300'
                                     }`}
                                 >
                                   {v.is_active ? 'Active' : 'Inactive'}

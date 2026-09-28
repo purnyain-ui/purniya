@@ -57,6 +57,7 @@ type ProductRow = {
   selling_price: number | null;
   stock: number | null;
   is_active: boolean | null;
+  target_gender: string | null;
 };
 
 type CategoryInfo = { id: string; title: string; slug: string };
@@ -115,6 +116,17 @@ type ReviewStats = {
   review_count: number;
   average_rating: number; // defaults to 5 when there are no reviews yet
 };
+
+function formatTargetGender(value: string | null | undefined): string {
+  const v = (value || 'unisex').trim().toLowerCase();
+  const map: Record<string, string> = {
+    men: 'Men', male: 'Men', man: 'Men',
+    women: 'Women', female: 'Women', woman: 'Women',
+    kids: 'Kids', kid: 'Kids', boys: 'Boys', girls: 'Girls',
+    unisex: 'Unisex (Men & Women)',
+  };
+  return map[v] || v.replace(/[-_]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+}
 
 async function fetchFullProduct(id: string): Promise<FullProduct | null> {
   const { data: product, error: productError } = await supabase
@@ -978,9 +990,21 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
           {/* Right Column: Details & Purchasing */}
           <div className="lg:col-span-5 space-y-6">
             <div>
-              <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#C5A059] mb-1">
-                {[category?.title, subcategory?.name].filter(Boolean).join(' · ')}
-              </p>
+              <div className="flex items-center justify-between gap-2 flex-wrap mb-1">
+                <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#C5A059]">
+                  {[category?.title, subcategory?.name].filter(Boolean).join(' · ')}
+                </p>
+                <div className="flex items-center gap-1.5 text-[11px] font-mono text-[#5A7469]">
+                  <span className="bg-[#FAF8F5] px-2 py-0.5 rounded border border-[#E2DBD0]" title="Product ID">
+                    ID: {product.id}
+                  </span>
+                  {product.sku && (
+                    <span className="bg-[#FAF8F5] px-2 py-0.5 rounded border border-[#E2DBD0]" title="SKU">
+                      SKU: {product.sku}
+                    </span>
+                  )}
+                </div>
+              </div>
 
               <div className="flex items-start justify-between gap-4">
                 <h1 className="font-serif-title text-2xl sm:text-3xl lg:text-4xl font-bold text-[#0B241C] leading-snug">
@@ -1111,15 +1135,15 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
                         onClick={() => handleColorSelect(color.id)}
                         title={color.name}
                         className={`w-9 h-9 rounded-full border-2 transition-all ${isSelected
-                    ? 'border-[#0C3B2E] ring-2 ring-[#C5A059] ring-offset-2 scale-105'
-                    : 'border-[#E2DBD0] hover:border-[#0C3B2E]/50'
-                  }`}
-                  style={{ backgroundColor: color.hex }}
+                          ? 'border-[#0C3B2E] ring-2 ring-[#C5A059] ring-offset-2 scale-105'
+                          : 'border-[#E2DBD0] hover:border-[#0C3B2E]/50'
+                          }`}
+                        style={{ backgroundColor: color.hex }}
                       />
-                  );
+                    );
                   })}
                 </div>
-            </div>
+              </div>
             )}
 
             {/* Size Selector */}
@@ -1307,6 +1331,10 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
                   <div className="grid grid-cols-3 p-3.5 text-xs">
                     <span className="font-semibold text-[#5A7469]">Origin</span>
                     <span className="col-span-2 font-medium text-[#0B241C]">India (Artisanal Made)</span>
+                  </div>
+                  <div className="grid grid-cols-3 p-3.5 text-xs">
+                    <span className="font-semibold text-[#5A7469]">Belongs To</span>
+                    <span className="col-span-2 font-medium text-[#0B241C]">{formatTargetGender(product.target_gender)}</span>
                   </div>
                 </div>
               </div>

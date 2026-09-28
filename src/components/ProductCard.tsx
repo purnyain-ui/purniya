@@ -20,6 +20,10 @@ export default function ProductCard({
   hidePrice = false,
   showVariants = true,
 }: ProductCardProps) {
+  // If product is inactive, do not show it anywhere on the site!
+  const isInactive = product.is_active === false || product.status === 'Inactive';
+  if (isInactive) return null;
+
   const router = useRouter();
   const { toggleWishlist, isInWishlist, addToCart } = useStore();
   const isWished = isInWishlist(product.id);
@@ -162,9 +166,12 @@ export default function ProductCard({
 
       {/* Info Content */}
       <div className={`p-4 flex flex-col flex-1 ${compact ? 'p-3' : 'p-4'}`}>
-        <p className="text-[11px] font-semibold uppercase tracking-wider text-[#C5A059] mb-1">
-          {product.subcategory}
-        </p>
+        <div className="flex items-center justify-between gap-1 mb-1">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-[#C5A059] truncate">
+            {product.subcategory}
+          </p>
+         
+        </div>
 
         <Link
           href={`/product/${product.id}`}

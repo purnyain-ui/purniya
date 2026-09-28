@@ -98,6 +98,28 @@ export function clearAdminSession() {
   localStorage.removeItem('purnya_admin_session');
 }
 
+/** True if there is currently an active administrator session */
+export function hasActiveAdminSession(): boolean {
+  if (typeof window === 'undefined') return false;
+  return (
+    localStorage.getItem('purnya_admin_authenticated') === 'true' &&
+    readAdminSession() !== null
+  );
+}
+
+/** True if an email corresponds to an active or known administrator account */
+export function isAdminEmail(email: string | null | undefined): boolean {
+  if (!email) return false;
+  const clean = email.trim().toLowerCase();
+  if (clean === 'admin@purnya.com') return true;
+  const session = readAdminSession();
+  if (session && session.email?.trim().toLowerCase() === clean) {
+    return true;
+  }
+  return false;
+}
+
+
 /** Maps a pathname like /admin/products/123 to the permission key that guards it. */
 export function permissionKeyForPath(pathname: string): AdminPermissionKey | null {
   if (pathname === '/admin') return 'dashboard';
@@ -119,4 +141,50 @@ export function permissionKeyForPath(pathname: string): AdminPermissionKey | nul
   ];
   const match = map.find((m) => pathname.startsWith(m.prefix));
   return match ? match.key : null;
+}
+
+// Accept both a JSON array and a JSON-encoded array from the saved session.
+export function normalizePermissions(value: unknown): string[] {
+  if (typeof value === 'string') {
+    try {
+      return normalizePermissions(JSON.parse(value));
+    } catch {
+      return [];
+    }
+  }
+  return Array.isArray(value)
+    ? value
+        .filter((item): item is string => typeof item === 'string')
+        .map((item) => item.trim())
+        .filter(Boolean)
+    : [];
+}
+
+export function getProductAccess(session: AdminSession | null) {
+  const permissions = normalizePermissions(session?.permissions);
+  // A scoped permission must never grant access to every category.
+  const all = Boolean(session && isSuperAdmin(session.role)) || permissions.includes('products');
+  const categoryIds = Array.from(
+    new Set(
+      permissions
+        .filter((permission) => permission.startsWith('products:'))
+        .map((permission) => permission.slice('products:'.length).trim())
+        .filter(Boolean)
+    )
+  );
+  return { all, categoryIds, visible: all || categoryIds.length > 0 };
+}
+
+export function getInventoryAccess(session: AdminSession | null) {
+  const permissions = normalizePermissions(session?.permissions);
+  const all = Boolean(session && isSuperAdmin(session.role)) || permissions.includes('inventory');
+  const categoryIds = Array.from(
+    new Set(
+      permissions
+        .filter((permission) => permission.startsWith('inventory:'))
+        .map((permission) => permission.slice('inventory:'.length).trim())
+        .filter(Boolean)
+    )
+  );
+  return { all, categoryIds, visible: all || categoryIds.length > 0 };
 }

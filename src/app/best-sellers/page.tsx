@@ -6,7 +6,11 @@ import ProductCard from '../../components/ProductCard';
 
 export default function BestSellersPage() {
   const { products } = useStore();
-  const items = products.filter((p) => p.badge === 'Best Seller' || (p.rating && p.rating >= 4.9));
+  const items = products.filter(
+    (p) =>
+      ((p.is_active !== undefined ? p.is_active : p.status === 'Active') && p.status !== 'Inactive') &&
+      (p.badge === 'Best Seller' || (p.rating && p.rating >= 4.9))
+  );
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-16 space-y-8">

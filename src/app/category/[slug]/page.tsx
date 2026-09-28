@@ -1,24 +1,18 @@
 'use client';
 
-import React, { useState, useEffect, useMemo, use, Suspense } from 'react';
+import React, { useState, useEffect, useMemo, useRef, use, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import {
-  SlidersHorizontal,
   ChevronRight,
-  Filter,
   CheckCircle2,
   ArrowRight,
-  LayoutGrid,
-  Package,
-  Star,
   Gem,
   Flame,
   Home,
   Leaf,
   Gift,
   Sparkles,
-  Play,
   X,
 } from 'lucide-react';
 import { useStore } from '../../../context/StoreContext';
@@ -33,6 +27,73 @@ function getCategoryIcon(cat: { slug?: string; title?: string }) {
   if (s.includes('wellness') || s.includes('organic')) return Leaf;
   if (s.includes('gift') || s.includes('stationery')) return Gift;
   return Sparkles;
+}
+
+// Catalog shows at most 6 rows. Grid is 2 cols (mobile) / 3 cols (sm) / 4 cols (lg),
+// so 6 rows = 12 / 18 / 24 products. Extra items are hidden per breakpoint with CSS.
+const MAX_CATALOG_PRODUCTS = 24;
+
+// Mobile: horizontal rows become a vertical 2-column grid, max 15 rows (= 30 products) per section.
+// Change MOBILE_MAX_ROWS to show more / fewer rows. Desktop keeps the horizontal scroll rows.
+const MOBILE_MAX_ROWS = 15;
+const MOBILE_MAX_ITEMS = MOBILE_MAX_ROWS * 2;
+
+// Auto-scroll interval for the horizontal product rows (ms)
+const AUTO_SCROLL_MS = 4000;
+
+// Horizontal product row that moves one card to the left every 4 seconds,
+// loops back to the start at the end, and pauses on hover / touch.
+// On mobile the row is a vertical grid (nothing overflows), so it simply does nothing there.
+function AutoScrollRow({
+  className,
+  children,
+}: {
+  className?: string;
+  children: React.ReactNode;
+}) {
+  const rowRef = useRef<HTMLDivElement>(null);
+  const pausedRef = useRef(false);
+
+  useEffect(() => {
+    const el = rowRef.current;
+    if (!el) return;
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
+
+    const id = window.setInterval(() => {
+      if (pausedRef.current) return;
+      // Nothing to scroll (e.g. mobile grid or few products)
+      if (el.scrollWidth <= el.clientWidth + 4) return;
+
+      const first = el.firstElementChild as HTMLElement | null;
+      if (!first) return;
+      const gap = parseFloat(getComputedStyle(el).columnGap || '0') || 0;
+      const step = first.offsetWidth + gap;
+
+      const atEnd = el.scrollLeft + el.clientWidth >= el.scrollWidth - 4;
+      if (atEnd) {
+        el.scrollTo({ left: 0, behavior: 'smooth' });
+      } else {
+        el.scrollBy({ left: step, behavior: 'smooth' });
+      }
+    }, AUTO_SCROLL_MS);
+
+    return () => window.clearInterval(id);
+  }, []);
+
+  return (
+    <div
+      ref={rowRef}
+      className={className}
+      onMouseEnter={() => (pausedRef.current = true)}
+      onMouseLeave={() => (pausedRef.current = false)}
+      onTouchStart={() => (pausedRef.current = true)}
+      onTouchEnd={() => {
+        window.setTimeout(() => (pausedRef.current = false), AUTO_SCROLL_MS);
+      }}
+    >
+      {children}
+    </div>
+  );
 }
 
 function CategoryContent({ slug }: { slug: string }) {
@@ -54,53 +115,12 @@ function CategoryContent({ slug }: { slug: string }) {
   const selectedSubcategory = userSubcategory ?? (subQuery || 'All');
   const setSelectedSubcategory = (val: string) => setUserSubcategory(val);
 
-  const [selectedPriceRange, setSelectedPriceRange] = useState<string>('all');
-  const [selectedBadge, setSelectedBadge] = useState<string>('all');
-  const [sortBy, setSortBy] = useState<string>('featured');
-  const [showFilterDrawer, setShowFilterDrawer] = useState(false);
-  const [selectedLifestyleTag, setSelectedLifestyleTag] = useState<string>('all');
-
-  // Filter products
-  const filteredProducts = useMemo(() => {
-    const targetSlug = decodeURIComponent(slug).trim().toLowerCase();
-    return products
-      .filter((p) => {
-        const pSlug = (p.categorySlug || '').trim().toLowerCase();
-        const matchesSlug = pSlug === targetSlug;
-        const matchesTitle =
-          currentCategory &&
-          p.category?.trim().toLowerCase() === currentCategory.title?.trim().toLowerCase();
-        return matchesSlug || matchesTitle;
-      })
-      .filter((p) => {
-        if (selectedSubcategory !== 'All' && p.subcategory !== selectedSubcategory) {
-          return false;
-        }
-        if (selectedLifestyleTag !== 'all') {
-          const t = (p.lifestyleTag || (p as any).lifestyleTagName || '').trim();
-          if (t !== selectedLifestyleTag) return false;
-        }
-        if (selectedPriceRange === 'under99' && p.price >= 99) return false;
-        if (selectedPriceRange === 'under499' && p.price >= 499) return false;
-        if (selectedPriceRange === 'under999' && p.price >= 999) return false;
-        if (selectedPriceRange === 'under1000' && p.price >= 1000) return false;
-        if (selectedPriceRange === '1000to2500' && (p.price < 1000 || p.price > 2500)) return false;
-        if (selectedPriceRange === 'above2500' && p.price <= 2500) return false;
-        if (selectedBadge !== 'all' && p.badge !== selectedBadge) return false;
-        return true;
-      })
-      .sort((a, b) => {
-        if (sortBy === 'priceLow') return a.price - b.price;
-        if (sortBy === 'priceHigh') return b.price - a.price;
-        if (sortBy === 'rating') return (b.rating || 0) - (a.rating || 0);
-        return 0; // featured default
-      });
-  }, [products, slug, currentCategory, selectedSubcategory, selectedLifestyleTag, selectedPriceRange, selectedBadge, sortBy]);
-  // All products in this category (not narrowed by subcategory/price/badge filters)
-  // used to build the "Shop by Lifestyle" rows below the subcategory carousel.
+  // All products in this category (used for lifestyle rows, featured, festival, catalog)
   const categoryProducts = useMemo(() => {
     const targetSlug = decodeURIComponent(slug).trim().toLowerCase();
     return products.filter((p: any) => {
+      const isActive = (p.is_active !== undefined ? p.is_active : p.status === 'Active') && p.status !== 'Inactive';
+      if (!isActive) return false;
       const pSlug = (p.categorySlug || '').trim().toLowerCase();
       const matchesSlug = pSlug === targetSlug;
       const matchesTitle =
@@ -110,8 +130,17 @@ function CategoryContent({ slug }: { slug: string }) {
     });
   }, [products, slug, currentCategory]);
 
+  // Catalog products (subcategory only; price/sort/collection filters live on the all-products page)
+  const filteredProducts = useMemo(() => {
+    return categoryProducts.filter((p: any) => {
+      if (selectedSubcategory !== 'All' && p.subcategory !== selectedSubcategory) {
+        return false;
+      }
+      return true;
+    });
+  }, [categoryProducts, selectedSubcategory]);
+
   // Group category products by their lifestyle_sale_tags entry.
-  // Tags with zero matching products are dropped entirely.
   const lifestyleGroups = useMemo(() => {
     const map = new Map<string, { tag: string; items: any[] }>();
     categoryProducts.forEach((p: any) => {
@@ -133,13 +162,6 @@ function CategoryContent({ slug }: { slug: string }) {
 
   const featuredProducts = useMemo(() => {
     return categoryProducts.filter((p: any) => p.featured === true);
-  }, [categoryProducts]);
-
-  const avgRating = useMemo(() => {
-    const rated = categoryProducts.filter((p: any) => typeof p.rating === 'number' && p.rating > 0);
-    if (rated.length === 0) return null;
-    const sum = rated.reduce((acc: number, p: any) => acc + p.rating, 0);
-    return (sum / rated.length).toFixed(1);
   }, [categoryProducts]);
 
   const [instagramVideos, setInstagramVideos] = useState<any[]>([]);
@@ -207,9 +229,31 @@ function CategoryContent({ slug }: { slug: string }) {
     );
   }
 
+  const categorySlug = (currentCategory.slug || '').trim();
+
+  // "Show All Products" link — carries over the active subcategory
+  const allProductsParams = new URLSearchParams();
+  if (selectedSubcategory !== 'All') allProductsParams.set('sub', selectedSubcategory);
+  const allProductsQuery = allProductsParams.toString();
+  const allProductsHref = `/all-products/${categorySlug}${allProductsQuery ? `?${allProductsQuery}` : ''}`;
+
+  const catalogProducts = filteredProducts.slice(0, MAX_CATALOG_PRODUCTS);
+
+  const tagHref = (tag: string) =>
+    `/all-products/${categorySlug}?tag=${encodeURIComponent(tag)}`;
+
+  const festivalProducts = festivalBanner
+    ? categoryProducts
+      .filter((p: any) => {
+        const tag = (p.lifestyleTag || p.lifestyleTagName || '').trim();
+        return tag === festivalBanner.lifestyleTag.trim();
+      })
+      .slice(0, MOBILE_MAX_ITEMS)
+    : [];
+
   return (
     <div className="space-y-12 sm:space-y-16 pb-24">
-      {/* 1. DEDICATED CATEGORY HERO BANNER (Full Standalone Website Feel) */}
+      {/* 1. DEDICATED CATEGORY HERO BANNER */}
       <section className="relative w-full min-h-[460px] sm:min-h-[540px] lg:min-h-[620px] bg-[#08281F] overflow-hidden flex items-center">
         <img
           src={currentCategory.heroImage || currentCategory.bannerImage}
@@ -265,7 +309,6 @@ function CategoryContent({ slug }: { slug: string }) {
           </div>
         </div>
       </section>
-
 
       {/* 2. SUB-CATEGORY QUICK-SHOP — BIG SQUARE CARDS */}
       <section className="w-full px-2 sm:px-3">
@@ -329,7 +372,7 @@ function CategoryContent({ slug }: { slug: string }) {
               return (
                 <Link
                   key={sub.name}
-                  href={`/category/${(currentCategory?.slug || '').trim()}/${encodeURIComponent(sub.name.trim())}`}
+                  href={`/category/${categorySlug}/${encodeURIComponent(sub.name.trim())}`}
                   className={`group relative aspect-square rounded-2xl overflow-hidden border shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 ${isSelected
                     ? 'border-[#D4AF37] ring-2 ring-[#D4AF37] shadow-lg'
                     : 'border-[#E2DBD0] hover:border-[#C5A059]'
@@ -365,12 +408,9 @@ function CategoryContent({ slug }: { slug: string }) {
       {festivalBanner && (
         <section className="w-full px-2 sm:px-3 mt-6 sm:mt-10">
           <div className="relative bg-[#FFEFE8] rounded-[1.75rem] overflow-hidden border border-[#F5DFD6] shadow-sm flex flex-col">
-            {/* The Banner */}
-            <button
-              onClick={() => {
-                setSelectedLifestyleTag(festivalBanner.lifestyleTag);
-                document.getElementById('catalog-section')?.scrollIntoView({ behavior: 'smooth' });
-              }}
+            {/* The Banner → all-products filtered by this sale tag */}
+            <Link
+              href={tagHref(festivalBanner.lifestyleTag)}
               className="w-full block relative aspect-[3000/563] group cursor-pointer shrink-0"
             >
               <img
@@ -379,36 +419,40 @@ function CategoryContent({ slug }: { slug: string }) {
                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
               />
               <div className="absolute inset-0 bg-black/10 group-hover:bg-black/0 transition-colors duration-300" />
-            </button>
+            </Link>
 
-            {/* The Sale Products Row */}
-            <div className="p-6 sm:p-8 lg:p-10 space-y-4 sm:space-y-6">
+            {/* The Sale Products — mobile: 2-col vertical grid, desktop: horizontal row */}
+            <div className="p-4 sm:p-8 lg:p-10 space-y-4 sm:space-y-6">
               <div className="flex items-center justify-between">
                 <h3 className="font-serif-title text-xl sm:text-2xl font-bold text-[#0B241C]">
                   {festivalBanner.lifestyleTag}
                 </h3>
-                <button
-                  onClick={() => {
-                    setSelectedLifestyleTag(festivalBanner.lifestyleTag);
-                    document.getElementById('catalog-section')?.scrollIntoView({ behavior: 'smooth' });
-                  }}
+                <Link
+                  href={tagHref(festivalBanner.lifestyleTag)}
                   className="text-xs font-bold text-[#C5A059] hover:text-[#0C3B2E] transition-colors flex items-center gap-1 uppercase tracking-wider"
                 >
                   View All Sale <ArrowRight className="w-3.5 h-3.5" />
-                </button>
+                </Link>
               </div>
-              <div className="flex overflow-x-auto snap-x snap-mandatory gap-3 sm:gap-4 pb-4 -mx-2 px-2 sm:mx-0 sm:px-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-                {categoryProducts
-                  .filter((p: any) => {
-                    const tag = (p.lifestyleTag || p.lifestyleTagName || '').trim();
-                    return tag === festivalBanner.lifestyleTag.trim();
-                  })
-                  .slice(0, 6)
-                  .map((product: any) => (
-                    <div key={product.id} className="snap-start w-[220px] sm:w-[260px] shrink-0">
-                      <ProductCard product={product} />
-                    </div>
-                  ))}
+              <AutoScrollRow className="grid grid-cols-2 gap-3 sm:flex sm:gap-4 sm:overflow-x-auto sm:snap-x sm:snap-mandatory pb-2 sm:pb-4 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+                {festivalProducts.map((product: any, i: number) => (
+                  <div
+                    key={product.id}
+                    className={`w-full sm:w-[260px] sm:shrink-0 sm:snap-start ${i >= 6 ? 'sm:hidden' : ''}`}
+                  >
+                    <ProductCard product={product} />
+                  </div>
+                ))}
+              </AutoScrollRow>
+
+              {/* Mobile View All */}
+              <div className="sm:hidden flex justify-center">
+                <Link
+                  href={tagHref(festivalBanner.lifestyleTag)}
+                  className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full bg-[#0C3B2E] text-white text-xs font-semibold uppercase tracking-wider shadow-sm"
+                >
+                  View All <ArrowRight className="w-3.5 h-3.5" />
+                </Link>
               </div>
             </div>
           </div>
@@ -484,20 +528,34 @@ function CategoryContent({ slug }: { slug: string }) {
                         {group.items.length} {group.items.length === 1 ? 'Piece' : 'Pieces'}
                       </span>
                       <Link
-                        href={`/category/${(currentCategory.slug || '').trim()}/${encodeURIComponent(group.tag)}`}
-                        className={`text-xs font-semibold inline-flex items-center gap-1.5 transition-colors px-4 py-2 rounded-full border shadow-sm cursor-pointer ${theme.btnStyle}`}
+                        href={tagHref(group.tag)}
+                        className={`hidden sm:inline-flex text-xs font-semibold items-center gap-1.5 transition-colors px-4 py-2 rounded-full border shadow-sm cursor-pointer ${theme.btnStyle}`}
                       >
-                        Shop Collection <ArrowRight className="w-3.5 h-3.5" />
+                        View All <ArrowRight className="w-3.5 h-3.5" />
                       </Link>
                     </div>
                   </div>
 
-                  <div className="relative flex gap-4 sm:gap-5 overflow-x-auto pb-4 scrollbar-none snap-x justify-start sm:justify-center md:justify-start">
-                    {group.items.map((prod) => (
-                      <div key={prod.id} className="w-48 sm:w-56 lg:w-64 shrink-0 snap-start">
+                  {/* Mobile: 2-col vertical grid (max 15 rows). Desktop: horizontal scroll row */}
+                  <AutoScrollRow className="relative grid grid-cols-2 gap-3 sm:flex sm:gap-5 sm:overflow-x-auto pb-2 sm:pb-4 scrollbar-none sm:snap-x sm:justify-start">
+                    {group.items.map((prod, i) => (
+                      <div
+                        key={prod.id}
+                        className={`w-full sm:w-56 lg:w-64 sm:shrink-0 sm:snap-start ${i >= MOBILE_MAX_ITEMS ? 'hidden sm:block' : ''}`}
+                      >
                         <ProductCard product={prod} />
                       </div>
                     ))}
+                  </AutoScrollRow>
+
+                  {/* Mobile View All */}
+                  <div className="relative sm:hidden flex justify-center mt-4">
+                    <Link
+                      href={tagHref(group.tag)}
+                      className={`inline-flex items-center gap-1.5 text-xs font-semibold px-6 py-2.5 rounded-full border shadow-sm ${theme.btnStyle}`}
+                    >
+                      View All <ArrowRight className="w-3.5 h-3.5" />
+                    </Link>
                   </div>
                 </div>
               );
@@ -505,34 +563,39 @@ function CategoryContent({ slug }: { slug: string }) {
           </div>
         </section>
       )}
-      {/* 2.5.5 PRICE BUCKETS */}
-      <section className="w-full px-2 sm:px-3">
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          {[99, 499, 999].map((price) => (
-            <button
-              key={price}
-              onClick={() => {
-                setSelectedPriceRange(`under${price}`);
-                document.getElementById('catalog-section')?.scrollIntoView({ behavior: 'smooth' });
-              }}
-              className="relative w-full rounded-[1.5rem] sm:rounded-3xl overflow-hidden aspect-[3/1] sm:aspect-[2.5/1] shadow-md hover:shadow-xl transition-all hover:-translate-y-1 group border border-[#591420]/20"
-            >
-              <div
-                className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-105"
-                style={{ backgroundImage: "url('/greencover.jpg')" }}
-              />
-              <div className="absolute inset-0 bg-black/40 group-hover:bg-black/30 transition-colors duration-300" />
 
-              <div className="absolute inset-0 flex flex-col items-center justify-center p-4">
-                <span className="text-white/90 text-xs sm:text-sm font-semibold tracking-widest uppercase mb-0.5">
-                  Under
-                </span>
-                <span className="text-white font-bold text-3xl sm:text-4xl tracking-tight">
-                  ₹{price}
-                </span>
-              </div>
-            </button>
-          ))}
+      {/* 2.5.5 PRICE BUCKETS — navigate to /all-products/[slug] with the price filter applied */}
+      <section className="w-full px-2 sm:px-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
+          {[99, 499, 999].map((price, idx) => {
+            const isLast = idx === 2;
+            return (
+              <Link
+                key={price}
+                href={`/all-products/${categorySlug}?price=under${price}`}
+                className={`relative block rounded-[1.5rem] sm:rounded-3xl overflow-hidden aspect-[2/1] sm:aspect-[2.5/1] shadow-md hover:shadow-xl transition-all hover:-translate-y-1 group border border-[#591420]/20 ${
+                  isLast
+                    ? 'col-span-2 sm:col-span-1 w-[calc(50%-6px)] sm:w-full mx-auto justify-self-center sm:justify-self-auto'
+                    : 'w-full'
+                }`}
+              >
+                <div
+                  className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-105"
+                  style={{ backgroundImage: "url('/greencover.jpg')" }}
+                />
+                <div className="absolute inset-0 bg-black/40 group-hover:bg-black/30 transition-colors duration-300" />
+
+                <div className="absolute inset-0 flex flex-col items-center justify-center p-4">
+                  <span className="text-white/90 text-xs sm:text-sm font-semibold tracking-widest uppercase mb-0.5">
+                    Under
+                  </span>
+                  <span className="text-white font-bold text-2xl sm:text-4xl tracking-tight">
+                    ₹{price.toLocaleString('en-IN')}
+                  </span>
+                </div>
+              </Link>
+            );
+          })}
         </div>
       </section>
 
@@ -557,29 +620,41 @@ function CategoryContent({ slug }: { slug: string }) {
                 <span className="text-xs text-[#5A7469] font-semibold hidden md:inline-block">
                   {featuredProducts.length} {featuredProducts.length === 1 ? 'Piece' : 'Pieces'}
                 </span>
-                <button
-                  onClick={() => {
-                    document.getElementById('catalog-section')?.scrollIntoView({ behavior: 'smooth' });
-                  }}
-                  className="text-xs font-semibold text-[#0B241C] hover:text-[#0C3B2E] inline-flex items-center gap-1.5 transition-colors bg-white hover:bg-white/90 px-4 py-2 rounded-full border border-[#E2E5EA] shadow-sm cursor-pointer"
+                <Link
+                  href={`/all-products/${categorySlug}?featured=1`}
+                  className="hidden sm:inline-flex text-xs font-semibold text-[#0B241C] hover:text-[#0C3B2E] items-center gap-1.5 transition-colors bg-white hover:bg-white/90 px-4 py-2 rounded-full border border-[#E2E5EA] shadow-sm cursor-pointer"
                 >
-                  Shop All <ArrowRight className="w-3.5 h-3.5" />
-                </button>
+                  View All <ArrowRight className="w-3.5 h-3.5" />
+                </Link>
               </div>
             </div>
 
-            <div className="relative flex gap-4 sm:gap-5 overflow-x-auto pb-4 scrollbar-none snap-x justify-start sm:justify-center md:justify-start">
-              {featuredProducts.map((prod) => (
-                <div key={prod.id} className="w-48 sm:w-56 lg:w-64 shrink-0 snap-start">
+            {/* Mobile: 2-col vertical grid (max 15 rows). Desktop: horizontal scroll row */}
+            <AutoScrollRow className="relative grid grid-cols-2 gap-3 sm:flex sm:gap-5 sm:overflow-x-auto pb-2 sm:pb-4 scrollbar-none sm:snap-x sm:justify-start">
+              {featuredProducts.map((prod: any, i: number) => (
+                <div
+                  key={prod.id}
+                  className={`w-full sm:w-56 lg:w-64 sm:shrink-0 sm:snap-start ${i >= MOBILE_MAX_ITEMS ? 'hidden sm:block' : ''}`}
+                >
                   <ProductCard product={prod} />
                 </div>
               ))}
+            </AutoScrollRow>
+
+            {/* Mobile View All */}
+            <div className="relative sm:hidden flex justify-center mt-4">
+              <Link
+                href={`/all-products/${categorySlug}?featured=1`}
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#0B241C] bg-white px-6 py-2.5 rounded-full border border-[#E2E5EA] shadow-sm"
+              >
+                View All <ArrowRight className="w-3.5 h-3.5" />
+              </Link>
             </div>
           </div>
         </section>
       )}
 
-      {/* 2.5.5 FIVE WORLDS, ONE PURNYA */}
+      {/* 2.5.6 FIVE WORLDS, ONE PURNYA */}
       <section className="w-full px-2 sm:px-3">
         <div className="relative rounded-3xl overflow-hidden bg-[#FAF8F5] border border-[#E2DBD0] px-5 py-10 sm:px-10 sm:py-14">
           <div className="text-center max-w-2xl mx-auto space-y-2 mb-10">
@@ -596,13 +671,18 @@ function CategoryContent({ slug }: { slug: string }) {
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 sm:gap-5">
-            {categories.map((cat) => {
+            {categories.map((cat, idx) => {
               const Icon = getCategoryIcon(cat);
+              const isLastOdd = idx === categories.length - 1 && categories.length % 2 !== 0;
               return (
                 <Link
                   key={cat.id}
                   href={`/category/${cat.slug}`}
-                  className="group relative flex flex-col items-center text-center gap-3 p-5 rounded-2xl bg-white border border-[#E2DBD0] hover:border-[#C5A059] hover:shadow-lg transition-all"
+                  className={`group relative flex flex-col items-center text-center gap-3 p-5 rounded-2xl bg-white border border-[#E2DBD0] hover:border-[#C5A059] hover:shadow-lg transition-all ${
+                    isLastOdd
+                      ? 'col-span-2 sm:col-span-1 w-[calc(50%-8px)] sm:w-full mx-auto sm:mx-0 justify-self-center sm:justify-self-auto'
+                      : ''
+                  }`}
                 >
                   <div className="w-14 h-14 rounded-2xl bg-[#EBF3EF] flex items-center justify-center text-[#0C3B2E] group-hover:bg-[#0C3B2E] group-hover:text-[#D4AF37] transition-colors shadow-inner">
                     <Icon className="w-6 h-6" />
@@ -626,157 +706,116 @@ function CategoryContent({ slug }: { slug: string }) {
         </div>
       </section>
 
-      {/* 3. MAIN PRODUCT CATALOG WITH FILTERS & SORT */}
-      <section id="catalog-section" className="w-full px-2 sm:px-3 space-y-8 pt-8">
-        {/* Catalog Header Toolbar */}
-        <div className="flex flex-col items-center justify-center gap-5 pb-5 border-b border-[#E2DBD0] text-center relative">
-          {selectedLifestyleTag !== 'all' && (
-            <button
-              onClick={() => setSelectedLifestyleTag('all')}
-              className="absolute top-0 right-0 sm:right-4 text-xs font-bold text-[#C5A059] hover:text-[#0C3B2E] transition-colors bg-[#FAF8F5] px-3 py-1.5 rounded-full border border-[#E2DBD0]"
+      {/* 2.5.7 SHOP BY GENDER — opens all-products with the gender filter */}
+      <section className="w-full px-2 sm:px-4 lg:px-6">
+        <div className="text-center max-w-2xl mx-auto space-y-2 mb-8 sm:mb-10">
+          <p className="text-xs font-bold uppercase tracking-[0.25em] text-[#C5A059]">
+            Shop by Gender
+          </p>
+          <h2 className="font-serif-title text-3xl sm:text-4xl font-bold text-[#0B241C]">
+            Who Are You Shopping For?
+          </h2>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 lg:gap-8 max-w-7xl mx-auto">
+          {[
+            {
+              value: 'men',
+              buttonText: 'SHOP FOR HIM',
+              image: '/images/gender/shop-for-him.jpg',
+              imagePosition: 'object-[center_16%]',
+            },
+            {
+              value: 'women',
+              buttonText: 'SHOP FOR HER',
+              image: '/images/gender/shop-for-her.png',
+              imagePosition: 'object-[center_20%]',
+            },
+            {
+              value: 'unisex',
+              buttonText: 'SHOP UNISEX',
+              image: '/images/gender/shop-unisex.jpg',
+              imagePosition: 'object-[center_26%]',
+            },
+          ].map(({ value, buttonText, image, imagePosition }) => (
+            <Link
+              key={value}
+              href={`/all-products/${categorySlug}?gender=${value}`}
+              className="group relative block w-full rounded-[40px] sm:rounded-[52px] lg:rounded-full overflow-hidden bg-[#FCE5D6] aspect-[16/9] sm:aspect-[7/4] md:aspect-[16/10] lg:aspect-[16/9] shadow-sm hover:shadow-xl transition-all duration-300 ring-1 ring-[#E2DBD0]/60 hover:ring-2 hover:ring-[#C5A059]/60"
             >
-              ✕ Clear Lifestyle Filter
-            </button>
-          )}
+              <img
+                src={image}
+                alt={buttonText}
+                className={`w-full h-full object-cover ${imagePosition} group-hover:scale-105 transition-transform duration-700 ease-out`}
+              />
+              {/* Soft overlay */}
+              <div className="absolute inset-0 bg-black/5 group-hover:bg-black/10 transition-colors duration-300" />
+              {/* Centered Green Pill Button */}
+              <div className="absolute inset-0 flex items-center justify-center p-3 pointer-events-none">
+                <span className="px-5 sm:px-6 py-2 sm:py-2.5 rounded-full bg-[#056828] text-white text-xs sm:text-sm font-serif font-bold uppercase tracking-wider shadow-md group-hover:bg-[#03521E] group-hover:scale-105 group-hover:shadow-xl transition-all duration-300 flex items-center gap-1.5 sm:gap-2">
+                  <span>{buttonText}</span>
+                  <span className="text-[9px] sm:text-[10px] leading-none">▶</span>
+                </span>
+              </div>
+            </Link>
+          ))}
+        </div>
+      </section>
+
+      {/* 3. MAIN PRODUCT CATALOG — limited to 6 rows, then "Show All Products" */}
+      <section id="catalog-section" className="w-full px-2 sm:px-3 space-y-8 pt-8">
+        {/* Catalog Header (Refine Filters + Sort removed) */}
+        <div className="flex flex-col items-center justify-center gap-5 pb-5 border-b border-[#E2DBD0] text-center relative">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#C5A059]">
-              {selectedLifestyleTag !== 'all' ? 'Lifestyle Collection' : (selectedSubcategory === 'All' ? 'Curated Collection' : 'Selected Collection')}
+              {selectedSubcategory === 'All' ? 'Curated Collection' : 'Selected Collection'}
             </p>
             <h2 className="font-serif-title text-2xl sm:text-3xl font-bold text-[#0B241C] mt-1">
-              {selectedLifestyleTag !== 'all'
-                ? `${selectedLifestyleTag} Edit`
-                : (selectedSubcategory === 'All'
-                  ? `Complete ${currentCategory.title} Collection`
-                  : `${selectedSubcategory} Collection`)}
+              {selectedSubcategory === 'All'
+                ? `Complete ${currentCategory.title} Collection`
+                : `${selectedSubcategory} Collection`}
             </h2>
             <p className="text-xs text-[#5A7469] mt-1.5">
-              Showing <strong className="text-[#0B241C]">{filteredProducts.length}</strong> handcrafted pieces
+              <strong className="text-[#0B241C]">{filteredProducts.length}</strong> handcrafted pieces
             </p>
-          </div>
-
-          <div className="flex flex-wrap items-center justify-center gap-3">
-            {/* Filter Toggle */}
-            <button
-              onClick={() => setShowFilterDrawer(!showFilterDrawer)}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white border border-[#E2DBD0] text-xs font-semibold text-[#2C4A3E] hover:border-[#0C3B2E] shadow-xs transition-all cursor-pointer"
-            >
-              <SlidersHorizontal className="w-3.5 h-3.5 text-[#C5A059]" />
-              <span>Refine Filters</span>
-              {(selectedPriceRange !== 'all' || selectedBadge !== 'all') && (
-                <span className="w-2 h-2 rounded-full bg-[#0C3B2E]" />
-              )}
-            </button>
-
-            {/* Sorting Dropdown */}
-            <div className="relative">
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value)}
-                className="appearance-none bg-white border border-[#E2DBD0] rounded-xl px-4 py-2.5 pr-8 text-xs font-semibold text-[#2C4A3E] focus:outline-none focus:border-[#0C3B2E] shadow-xs cursor-pointer"
-              >
-                <option value="featured">Sort: Featured</option>
-                <option value="priceLow">Price: Low to High</option>
-                <option value="priceHigh">Price: High to Low</option>
-                <option value="rating">Highest Customer Rated</option>
-              </select>
-              <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[#5A7469]">
-                ▾
-              </div>
-            </div>
           </div>
         </div>
 
-        {/* Filter Drawer */}
-        {showFilterDrawer && (
-          <div className="bg-white p-6 rounded-2xl border border-[#E2DBD0] shadow-sm space-y-4 animate-in fade-in">
-            <div className="flex items-center justify-between pb-3 border-b border-[#EFEBE3]">
-              <span className="text-xs font-bold uppercase tracking-wider text-[#0B241C] flex items-center gap-2">
-                <Filter className="w-4 h-4 text-[#C5A059]" /> Refine By Price &amp; Collections
-              </span>
-              <button
-                onClick={() => {
-                  setSelectedPriceRange('all');
-                  setSelectedBadge('all');
-                  setSelectedSubcategory('All');
-                  setSelectedLifestyleTag('all');
-                }}
-                className="text-xs text-[#0C3B2E] font-bold hover:underline"
-              >
-                Reset All Filters
-              </button>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-2">
-              {/* Price filter */}
-              <div>
-                <p className="text-xs font-bold text-[#2C4A3E] mb-2 uppercase tracking-wider">Price Range</p>
-                <div className="flex flex-wrap gap-2">
-                  {[
-                    { label: 'All Prices', val: 'all' },
-                    { label: 'Under ₹99', val: 'under99' },
-                    { label: 'Under ₹499', val: 'under499' },
-                    { label: 'Under ₹999', val: 'under999' },
-                    { label: 'Under ₹1,000', val: 'under1000' },
-                    { label: '₹1,000 - ₹2,500', val: '1000to2500' },
-                    { label: 'Above ₹2,500', val: 'above2500' },
-                  ].map((pr) => (
-                    <button
-                      key={pr.val}
-                      onClick={() => setSelectedPriceRange(pr.val)}
-                      className={`px-3 py-1.5 rounded-lg text-xs transition-all cursor-pointer ${selectedPriceRange === pr.val
-                        ? 'bg-[#0C3B2E] text-white font-semibold shadow-xs'
-                        : 'bg-[#FAF8F5] text-[#2C4A3E] hover:bg-[#EBF3EF]'
-                        }`}
-                    >
-                      {pr.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Badges filter */}
-              <div>
-                <p className="text-xs font-bold text-[#2C4A3E] mb-2 uppercase tracking-wider">Collections &amp; Highlights</p>
-                <div className="flex flex-wrap gap-2">
-                  {['all', 'Best Seller', 'New', 'Trending', 'Premium', 'Organic'].map((badge) => (
-                    <button
-                      key={badge}
-                      onClick={() => setSelectedBadge(badge)}
-                      className={`px-3 py-1.5 rounded-lg text-xs transition-all cursor-pointer ${selectedBadge === badge
-                        ? 'bg-[#0C3B2E] text-white font-semibold shadow-xs'
-                        : 'bg-[#FAF8F5] text-[#2C4A3E] hover:bg-[#EBF3EF]'
-                        }`}
-                    >
-                      {badge === 'all' ? 'All Pieces' : badge}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Products Grid */}
+        {/* Products Grid — 6 rows max (12 on mobile, 18 on tablet, 24 on desktop) */}
         {filteredProducts.length > 0 ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
-            {filteredProducts.map((product) => (
-              <ProductCard key={product.id} product={product} />
-            ))}
-          </div>
+          <>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
+              {catalogProducts.map((product, i) => (
+                <div
+                  key={product.id}
+                  className={i >= 18 ? 'hidden lg:block' : i >= 12 ? 'hidden sm:block' : ''}
+                >
+                  <ProductCard product={product} />
+                </div>
+              ))}
+            </div>
+
+            {/* Show All Products → /all-products/[slug] */}
+            <div className="flex justify-center pt-2">
+              <Link
+                href={allProductsHref}
+                className="inline-flex items-center gap-2 px-8 py-3 rounded-full bg-[#0C3B2E] text-white text-xs font-semibold uppercase tracking-wider shadow-md hover:bg-[#08281F] hover:shadow-lg transition-all"
+              >
+                Show All Products
+                <ArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
+          </>
         ) : (
           <div className="text-center py-20 bg-white rounded-3xl border border-[#E2DBD0] p-8 space-y-4">
             <h3 className="font-serif-title text-xl font-bold text-[#0B241C]">
-              No products found in this filter selection
+              No products found in this selection
             </h3>
             <p className="text-xs text-[#2C4A3E] max-w-sm mx-auto">
-              Try adjusting your collection or price filters to explore more of our {currentCategory.title} catalog.
+              Try another collection to explore more of our {currentCategory.title} catalog.
             </p>
             <button
-              onClick={() => {
-                setSelectedSubcategory('All');
-                setSelectedPriceRange('all');
-                setSelectedBadge('all');
-              }}
+              onClick={() => setSelectedSubcategory('All')}
               className="px-6 py-2.5 rounded-full bg-[#0C3B2E] text-white text-xs font-semibold uppercase tracking-wider shadow-sm cursor-pointer"
             >
               Show All {currentCategory.title}
@@ -785,11 +824,10 @@ function CategoryContent({ slug }: { slug: string }) {
         )}
       </section>
 
-      {/* INSTAGRAM VIDEOS FEED (MOVED TO BOTTOM) */}
+      {/* INSTAGRAM VIDEOS FEED */}
       {instagramVideos.length > 0 && (
         <section className="w-full px-2 sm:px-3 mb-10">
           <div className="bg-[#08281F] rounded-[1.75rem] border border-[#144234] p-6 sm:p-8 lg:p-10 shadow-sm relative overflow-hidden">
-            {/* Elegant dark background blobs */}
             <div className="absolute top-0 right-0 w-96 h-96 bg-[#C5A059]/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3" />
             <div className="absolute bottom-0 left-0 w-64 h-64 bg-[#D4AF37]/5 rounded-full blur-3xl translate-y-1/3 -translate-x-1/4" />
 
@@ -818,7 +856,6 @@ function CategoryContent({ slug }: { slug: string }) {
                     onClick={() => setSelectedVideoUrl(embedUrl)}
                     className="aspect-square w-full bg-[#EBF3EF] overflow-hidden relative group cursor-pointer rounded-lg sm:rounded-2xl"
                   >
-                    {/* The cropped iframe to perfectly center the IG play button and hide everything else */}
                     <div className="absolute inset-0 pointer-events-none overflow-hidden bg-black">
                       <iframe
                         src={embedUrl}
@@ -834,8 +871,6 @@ function CategoryContent({ slug }: { slug: string }) {
                         scrolling="no"
                       />
                     </div>
-
-                    {/* Invisible overlay to intercept clicks and trigger the modal */}
                     <div className="absolute inset-0 z-20 bg-transparent group-hover:bg-black/10 transition-colors duration-300" />
                   </button>
                 );
@@ -857,7 +892,6 @@ function CategoryContent({ slug }: { slug: string }) {
               <X className="w-5 h-5" />
             </button>
             <div className="w-full h-[80vh] sm:h-[85vh] max-h-[850px] relative bg-black flex items-center justify-center">
-              {/* Show the standard IG embed but sized nicely for mobile popup */}
               <iframe
                 src={selectedVideoUrl}
                 className="w-full h-full border-none"

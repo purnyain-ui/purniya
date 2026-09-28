@@ -26,10 +26,12 @@ export interface Product {
   careInstructions?: string[];
   stock: number;
   status: ProductStatus;
+  is_active?: boolean;
   rating?: number;
   reviewsCount?: number;
   variants?: ProductVariant[];
   featured?: boolean;
+  targetGender?: string;
   createdAt?: string;
 }
 

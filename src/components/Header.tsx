@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
 import {
@@ -27,6 +27,8 @@ import {
 } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import { signInWithSupabase, signUpWithSupabase, isSupabaseConfigured, sendPasswordResetEmail } from '../lib/supabase';
+import { isAdminEmail } from '../lib/adminPermissions';
+
 
 function HeaderContent() {
   const pathname = usePathname();
@@ -64,6 +66,13 @@ function HeaderContent() {
   const [authLoading, setAuthLoading] = useState(false);
   const [authError, setAuthError] = useState('');
   const [authForgotSent, setAuthForgotSent] = useState(false);
+
+  // A patron is strictly an authenticated store customer, never an administrator
+  const isCustomerLoggedIn = Boolean(
+    mounted &&
+    user?.email &&
+    !isAdminEmail(user.email)
+  );
 
   const isAdminRoute = pathname?.startsWith('/admin');
 
@@ -121,13 +130,14 @@ function HeaderContent() {
 
   // Handle Profile click
   const handleProfileClick = () => {
-    if (!user?.email) {
+    if (!isCustomerLoggedIn) {
       setAuthError('');
       setAuthModalOpen(true);
     } else {
       setProfileDropdownOpen((prev) => !prev);
     }
   };
+
 
   // Auth Modal Login Submit
   const handleAuthSubmit = async (e: React.FormEvent) => {
@@ -224,12 +234,42 @@ function HeaderContent() {
     showToast('Signed Out', 'You have been safely signed out. See you soon!');
   };
 
-  // Detect if user is on a dedicated category website
-  const isCategoryRoute = pathname?.startsWith('/category/');
-  const currentCategorySlug = isCategoryRoute ? pathname.split('/')[2] : null;
-  const currentCategory = categories.find(
-    (c) => c.slug.trim().toLowerCase() === currentCategorySlug?.trim().toLowerCase()
-  );
+  // Track active category across pages (e.g. /wishlist, /product/123, /cart)
+  const [activeCategorySlug, setActiveCategorySlug] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (pathname === '/') {
+      try {
+        sessionStorage.removeItem('purnya_active_category');
+      } catch (e) {}
+      setActiveCategorySlug(null);
+    } else if (pathname?.startsWith('/category/') || pathname?.startsWith('/all-products/')) {
+      const parts = pathname.split('/');
+      const slug = parts[2]?.trim()?.toLowerCase();
+      if (slug) {
+        try {
+          sessionStorage.setItem('purnya_active_category', slug);
+        } catch (e) {}
+        setActiveCategorySlug(slug);
+      }
+    } else {
+      try {
+        const saved = sessionStorage.getItem('purnya_active_category');
+        if (saved) {
+          setActiveCategorySlug(saved);
+        }
+      } catch (e) {}
+    }
+  }, [pathname]);
+
+  const currentCategory = useMemo(() => {
+    if (!activeCategorySlug) return null;
+    return (
+      categories.find(
+        (c) => (c.slug || '').trim().toLowerCase() === activeCategorySlug.trim().toLowerCase()
+      ) || null
+    );
+  }, [categories, activeCategorySlug]);
 
   // Dynamic navigation links directly from Supabase categories
   const navLinks = sortedCategories.map((cat) => ({
@@ -243,381 +283,384 @@ function HeaderContent() {
     <>
       <div className="sticky top-0 z-50 w-full flex flex-col">
         {/* Emerald & Gold Announcement Bar */}
-        <div className="relative z-50 overflow-hidden border-b border-[#144234] bg-[#08281F] py-2.5 text-[11px] font-medium uppercase text-[#FAF8F5] sm:text-xs">
+        <div className="relative z-50 overflow-hidden border-b border-[#144234] bg-[#08281F] py-1.5 text-[10px] font-medium uppercase text-[#FAF8F5] sm:py-2.5 sm:text-xs">
           <span className="sr-only">{announcement}</span>
 
-  <div className="announcement-track flex w-max" aria-hidden="true">
-    {[0, 1].map((group) => (
-      <div key={group} className="flex shrink-0">
-        {[0, 1].map((item) => (
-          <span
-            key={item}
-            className="flex shrink-0 items-center gap-12 whitespace-nowrap px-6 font-semibold tracking-[0.15em]"
-          >
-            {announcement}
-            <span className="text-[#D4AF37]">✦</span>
-          </span>
-        ))}
-      </div>
-    ))}
-  </div>
-</div>     
+          <div className="announcement-track flex w-max" aria-hidden="true">
+            {[0, 1].map((group) => (
+              <div key={group} className="flex shrink-0">
+                {[0, 1].map((item) => (
+                  <span
+                    key={item}
+                    className="flex shrink-0 items-center gap-12 whitespace-nowrap px-6 font-semibold tracking-[0.15em]"
+                  >
+                    {announcement}
+                    <span className="text-[#D4AF37]">✦</span>
+                  </span>
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
 
 
         {/* Main Header */}
         <header className="relative z-40 bg-white/95 backdrop-blur-md border-b border-[#E2DBD0] transition-all shadow-xs">
-          <div className="relative w-full max-w-[1480px] mx-auto px-4 sm:px-6 lg:px-6 xl:px-8 h-20 sm:h-22 flex items-center justify-between">
-          {/* 1. LEFT ZONE: Logo with Emblem & Brand Name (kept neatly to the left) */}
-          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-            {/* Mobile Menu Button */}
-            <button
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="lg:hidden p-2 text-[#0C3B2E] hover:text-[#C5A059] transition-colors"
-              aria-label="Toggle Menu"
-            >
-              {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-            </button>
+          <div className="relative w-full max-w-[1480px] mx-auto px-3 sm:px-6 lg:px-6 xl:px-8 h-16 sm:h-20 flex items-center justify-between gap-1">
+            {/* 1. LEFT ZONE: Logo with Emblem & Brand Name (kept neatly to the left) */}
+            <div className="flex items-center gap-0.5 sm:gap-3 min-w-0">
+              {/* Mobile Menu Button */}
+              <button
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                className="lg:hidden shrink-0 p-1.5 sm:p-2 text-[#0C3B2E] hover:text-[#C5A059] transition-colors"
+                aria-label="Toggle Menu"
+              >
+                {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+              </button>
 
-            <Link
-              href={currentCategory ? `/category/${(currentCategory.slug || '').trim()}` : '/'}
-              className="flex items-center gap-2 sm:gap-2.5 group shrink-0"
-              title={currentCategory ? `${(currentCategory.title || '').trim()} Storefront` : 'Purnya Official Store'}
-            >
-              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full overflow-hidden flex items-center justify-center p-0.5 bg-[#FAF8F5] border border-[#C5A059]/40 shadow-xs group-hover:scale-105 transition-transform duration-300">
-                <img
-                  src="/logoicon.png"
-                  alt="Purnya Emblem"
-                  className="w-full h-full object-contain"
-                />
-              </div>
-              <div className="flex flex-col items-start">
-                <div className="flex items-center gap-1.5">
-                  <span className="font-serif-title text-2xl sm:text-3xl font-bold tracking-[0.16em] text-[#0C3B2E] group-hover:text-[#164E3D] transition-colors leading-none">
-                    PURNYA
+              <Link
+                href={currentCategory ? `/category/${(currentCategory.slug || '').trim()}` : '/'}
+                className="flex items-center gap-1.5 sm:gap-2.5 group min-w-0"
+                title={currentCategory ? `${(currentCategory.title || '').trim()} Storefront` : 'Purnya Official Store'}
+              >
+                <div className="w-8 h-8 sm:w-12 sm:h-12 shrink-0 rounded-full overflow-hidden flex items-center justify-center p-0.5 bg-[#FAF8F5] border border-[#C5A059]/40 shadow-xs group-hover:scale-105 transition-transform duration-300">
+                  <img
+                    src="/logoicon.png"
+                    alt="Purnya Emblem"
+                    className="w-full h-full object-contain"
+                  />
+                </div>
+                <div className="flex flex-col items-start min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-serif-title text-lg sm:text-3xl font-bold tracking-[0.1em] sm:tracking-[0.16em] text-[#0C3B2E] group-hover:text-[#164E3D] transition-colors leading-none">
+                      PURNYA
+                    </span>
+                  </div>
+                  <span className="block max-w-[110px] truncate sm:max-w-none text-[8px] sm:text-[10px] uppercase tracking-[0.14em] sm:tracking-[0.22em] text-[#C5A059] font-bold mt-0.5">
+                    {currentCategory ? (currentCategory.title || '').trim() : 'Life · Lifestyle · You'}
                   </span>
                 </div>
-                <span className="text-[9px] sm:text-[10px] uppercase tracking-[0.22em] text-[#C5A059] font-bold mt-0.5">
-                  {currentCategory ? (currentCategory.title || '').trim() : 'Life · Lifestyle · You'}
-                </span>
-              </div>
-            </Link>
-          </div>
+              </Link>
+            </div>
 
-          {/* 2. CENTER ZONE: Desktop Navigation Links (Anchored in dead center - ZERO shift or gaps when logging in!) */}
-          <nav className="hidden lg:flex items-center gap-4 xl:gap-6 text-xs font-semibold tracking-wider uppercase text-[#2C4A3E] whitespace-nowrap absolute left-1/2 -translate-x-1/2">
-            {currentCategory ? (
-              // Dedicated Category Storefront Navigation (Includes Home + Subcategories)
-              <>
-                <Link
-                  href={`/category/${(currentCategory.slug || '').trim()}`}
-                  className={`py-2 relative transition-colors duration-200 hover:text-[#0C3B2E] ${pathname === `/category/${(currentCategory.slug || '').trim()}` && currentSub === 'All'
+            {/* 2. CENTER ZONE: Desktop Navigation Links (Anchored in dead center - ZERO shift or gaps when logging in!) */}
+            <nav className="hidden lg:flex items-center gap-4 xl:gap-6 text-xs font-semibold tracking-wider uppercase text-[#2C4A3E] whitespace-nowrap absolute left-1/2 -translate-x-1/2">
+              {currentCategory ? (
+                // Dedicated Category Storefront Navigation (Includes Home + Subcategories)
+                <>
+                  <Link
+                    href={`/category/${(currentCategory.slug || '').trim()}`}
+                    className={`py-2 relative transition-colors duration-200 hover:text-[#0C3B2E] ${pathname === `/category/${(currentCategory.slug || '').trim()}` && currentSub === 'All'
                       ? 'text-[#0C3B2E] font-bold'
                       : ''
-                    }`}
-                >
-                  Home
-                  {pathname === `/category/${(currentCategory.slug || '').trim()}` && currentSub === 'All' && (
-                    <span className="absolute bottom-0 left-0 right-0 h-[2.5px] bg-[#0C3B2E] rounded-full" />
-                  )}
-                </Link>
-
-                {currentCategory.subcategories
-                  .filter((s) => (s || '').trim() !== 'All')
-                  .slice(0, 4)
-                  .map((sub) => {
-                    const cleanSub = (sub || '').trim();
-                    return (
-                      <Link
-                        key={cleanSub}
-                        href={`/category/${(currentCategory.slug || '').trim()}/${encodeURIComponent(cleanSub)}`}
-                        className={`py-2 relative transition-colors duration-200 hover:text-[#0C3B2E]`}
-                      >
-                        {cleanSub}
-                      </Link>
-                    );
-                  })}
-
-                {/* Dropdown to open any of the other category websites in a new tab */}
-                <div
-                  className="relative"
-                  onMouseEnter={() => setOtherBoutiquesOpen(true)}
-                  onMouseLeave={() => setOtherBoutiquesOpen(false)}
-                >
-                  <button
-                    type="button"
-                    onClick={() => setOtherBoutiquesOpen(!otherBoutiquesOpen)}
-                    className="py-2 inline-flex items-center gap-1 transition-colors hover:text-[#0C3B2E] text-xs font-semibold uppercase tracking-wider text-[#2C4A3E] cursor-pointer"
+                      }`}
                   >
-                    <span>Other Boutiques</span>
-                    <ChevronDown className="w-3.5 h-3.5 text-[#C5A059]" />
-                  </button>
-
-                  {otherBoutiquesOpen && (
-                    <div className="absolute left-0 top-full pt-1 w-64 z-50">
-                      <div className="bg-white rounded-2xl shadow-xl border border-[#E2DBD0] py-2 overflow-hidden">
-                        <div className="px-3.5 py-1.5 border-b border-[#F0ECE4] text-[10px] uppercase tracking-wider text-[#5A7469] font-bold">
-                          Open in Separate Tab ↗
-                        </div>
-                        {sortedCategories
-                          .filter((c) => (c.slug || '').trim() !== (currentCategory.slug || '').trim())
-                          .map((otherCat) => (
-                            <Link
-                              key={otherCat.id}
-                              href={`/category/${(otherCat.slug || '').trim()}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              onClick={() => setOtherBoutiquesOpen(false)}
-                              className="flex items-center justify-between px-3.5 py-2.5 text-xs text-[#0B241C] hover:bg-[#EBF3EF] hover:text-[#0C3B2E] transition-colors"
-                            >
-                              <div className="flex items-center gap-2.5">
-                                <div className="w-7 h-7 rounded-full overflow-hidden shrink-0 border border-[#C5A059]/40 bg-[#EBF3EF]">
-                                  <img
-                                    src={otherCat.bannerImage || otherCat.heroImage}
-                                    alt=""
-                                    className="w-full h-full object-cover"
-                                  />
-                                </div>
-                                <span className="font-semibold text-[#0B241C]">{(otherCat.title || '').trim()}</span>
-                              </div>
-                              <ArrowUpRight className="w-3.5 h-3.5 text-[#C5A059]" />
-                            </Link>
-                          ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Switcher back to Main Purnya Portal */}
-                <Link
-                  href="/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="ml-1 inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-[#FAF8F5] hover:bg-[#EBF3EF] border border-[#C5A059]/40 text-[#0C3B2E] text-[11px] font-bold normal-case tracking-normal transition-all shadow-xs"
-                  title="Open Main Purnya Worlds Portal in new tab"
-                >
-                  <span>Main Portal</span>
-                  <ArrowUpRight className="w-3.5 h-3.5 text-[#C5A059]" />
-                </Link>
-              </>
-            ) : (
-              // Main Multi-Category Portal Navigation (Opens boutique in new tab)
-              navLinks.map((link) => {
-                const isActive = pathname === link.href;
-                return (
-                  <Link
-                    key={link.href}
-                    href={link.href}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={`py-2 relative transition-colors duration-200 hover:text-[#0C3B2E] inline-flex items-center gap-1 ${
-                      isActive ? 'text-[#0C3B2E] font-bold' : ''
-                    }`}
-                    title={`Open ${link.name} Boutique in new tab`}
-                  >
-                    <span>{link.name}</span>
-                    <ArrowUpRight className="w-3.5 h-3.5 text-[#C5A059]" />
-                    {isActive && (
+                    Home
+                    {pathname === `/category/${(currentCategory.slug || '').trim()}` && currentSub === 'All' && (
                       <span className="absolute bottom-0 left-0 right-0 h-[2.5px] bg-[#0C3B2E] rounded-full" />
                     )}
                   </Link>
-                );
-              })
-            )}
-          </nav>
 
-          {/* 3. RIGHT ZONE: Action Icons (Wishlist & Cart ONLY show after login as requested!) */}
-          <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0 justify-end z-10">
-            {/* Search Trigger */}
-            <button
-              onClick={() => setIsSearchOpen(true)}
-              className="p-2.5 text-[#2C4A3E] hover:text-[#0C3B2E] hover:bg-[#EBF3EF] rounded-full transition-all cursor-pointer"
-              aria-label="Search"
-              title="Search catalog"
-            >
-              <Search className="w-5 h-5" />
-            </button>
+                  {currentCategory.subcategories
+                    .filter((s: string) => (s || '').trim() !== 'All')
+                    .slice(0, 4)
+                    .map((sub: string) => {
+                      const cleanSub = (sub || '').trim();
+                      return (
+                        <Link
+                          key={cleanSub}
+                          href={`/category/${(currentCategory.slug || '').trim()}/${encodeURIComponent(cleanSub)}`}
+                          className={`py-2 relative transition-colors duration-200 hover:text-[#0C3B2E]`}
+                        >
+                          {cleanSub}
+                        </Link>
+                      );
+                    })}
 
-            {/* Wishlist with Badge (APPEARS ONLY AFTER LOGIN) */}
-            {mounted && user?.email && (
-              <Link
-                href="/wishlist"
-                className="p-2.5 text-[#2C4A3E] hover:text-[#0C3B2E] hover:bg-[#EBF3EF] rounded-full transition-all relative animate-in fade-in"
-                aria-label="Wishlist"
-                title="Wishlist"
-              >
-                <Heart className="w-5 h-5" />
-                {wishlistCount > 0 && (
-                  <span className="absolute top-1 right-1 w-4 h-4 rounded-full bg-[#C5A059] text-white text-[10px] font-bold flex items-center justify-center shadow-xs">
-                    {wishlistCount}
-                  </span>
-                )}
-              </Link>
-            )}
+                  {/* Dropdown to open any of the other category websites in a new tab */}
+                  <div
+                    className="relative"
+                    onMouseEnter={() => setOtherBoutiquesOpen(true)}
+                    onMouseLeave={() => setOtherBoutiquesOpen(false)}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => setOtherBoutiquesOpen(!otherBoutiquesOpen)}
+                      className="py-2 inline-flex items-center gap-1 transition-colors hover:text-[#0C3B2E] text-xs font-semibold uppercase tracking-wider text-[#2C4A3E] cursor-pointer"
+                    >
+                      <span>Other Boutiques</span>
+                      <ChevronDown className="w-3.5 h-3.5 text-[#C5A059]" />
+                    </button>
 
-            {/* Cart with Badge (APPEARS ONLY AFTER LOGIN) */}
-            {mounted && user?.email && (
-              <Link
-                href="/cart"
-                className="p-2.5 text-[#2C4A3E] hover:text-[#0C3B2E] hover:bg-[#EBF3EF] rounded-full transition-all relative animate-in fade-in"
-                aria-label="Cart"
-                title="Shopping Cart"
-              >
-                <ShoppingCart className="w-5 h-5" />
-                {cartCount > 0 && (
-                  <span className="absolute top-1 right-1 w-4 h-4 rounded-full bg-[#0C3B2E] text-[#FAF8F5] text-[10px] font-bold flex items-center justify-center shadow-xs animate-pulse">
-                    {cartCount}
-                  </span>
-                )}
-              </Link>
-            )}
+                    {otherBoutiquesOpen && (
+                      <div className="absolute left-0 top-full pt-1 w-64 z-50">
+                        <div className="bg-white rounded-2xl shadow-xl border border-[#E2DBD0] py-2 overflow-hidden">
+                          <div className="px-3.5 py-1.5 border-b border-[#F0ECE4] text-[10px] uppercase tracking-wider text-[#5A7469] font-bold">
+                            Switch Boutique
+                          </div>
+                          {sortedCategories
+                            .filter((c) => (c.slug || '').trim() !== (currentCategory.slug || '').trim())
+                            .map((otherCat) => (
+                              <Link
+                                key={otherCat.id}
+                                href={`/category/${(otherCat.slug || '').trim()}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={() => setOtherBoutiquesOpen(false)}
+                                className="flex items-center justify-between px-3.5 py-2.5 text-xs text-[#0B241C] hover:bg-[#EBF3EF] hover:text-[#0C3B2E] transition-colors"
+                              >
+                                <div className="flex items-center gap-2.5">
+                                  <div className="w-7 h-7 rounded-full overflow-hidden shrink-0 border border-[#C5A059]/40 bg-[#EBF3EF]">
+                                    <img
+                                      src={otherCat.bannerImage || otherCat.heroImage}
+                                      alt=""
+                                      className="w-full h-full object-cover"
+                                    />
+                                  </div>
+                                  <span className="font-semibold text-[#0B241C]">{(otherCat.title || '').trim()}</span>
+                                </div>
+                                <ArrowUpRight className="w-3.5 h-3.5 text-[#C5A059]" />
+                              </Link>
+                            ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
 
-            {/* Profile Button with Popover / Modal Trigger */}
-            <div className="relative" ref={profileDropdownRef}>
+                  {/* Switcher back to Main Purnya Portal */}
+                  <Link
+                    href="/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => {
+                      try { sessionStorage.removeItem('purnya_active_category'); } catch(e) {}
+                      setActiveCategorySlug(null);
+                    }}
+                    className="ml-1 inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-[#FAF8F5] hover:bg-[#EBF3EF] border border-[#C5A059]/40 text-[#0C3B2E] text-[11px] font-bold normal-case tracking-normal transition-all shadow-xs"
+                    title="Go to Main Purnya Portal in new tab"
+                  >
+                    <span>Main Portal</span>
+                    <ArrowUpRight className="w-3.5 h-3.5 text-[#C5A059]" />
+                  </Link>
+                </>
+              ) : (
+                // Main Multi-Category Portal Navigation (Opens in new tab)
+                navLinks.map((link) => {
+                  const isActive = pathname === link.href;
+                  return (
+                    <Link
+                      key={link.href}
+                      href={link.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={`py-2 relative transition-colors duration-200 hover:text-[#0C3B2E] inline-flex items-center gap-1 ${isActive ? 'text-[#0C3B2E] font-bold' : ''
+                        }`}
+                      title={link.name}
+                    >
+                      <span>{link.name}</span>
+                      <ArrowUpRight className="w-3.5 h-3.5 text-[#C5A059]" />
+                      {isActive && (
+                        <span className="absolute bottom-0 left-0 right-0 h-[2.5px] bg-[#0C3B2E] rounded-full" />
+                      )}
+                    </Link>
+                  );
+                })
+              )}
+            </nav>
+
+            {/* 3. RIGHT ZONE: Action Icons (Wishlist & Cart ONLY show after login as requested!) */}
+            <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0 justify-end z-10">
+              {/* Search Trigger */}
               <button
-                type="button"
-                onClick={handleProfileClick}
-                className="flex flex-col items-center justify-center group py-1 px-1.5 rounded-xl hover:bg-[#EBF3EF] transition-all cursor-pointer focus:outline-hidden"
-                aria-label={mounted && user?.email ? 'Customer Account Menu' : 'Sign In'}
-                title={mounted && user?.email ? `Account Options (${user.name || user.email})` : 'Sign In / Register'}
+                onClick={() => setIsSearchOpen(true)}
+                className="p-2 sm:p-2.5 text-[#2C4A3E] hover:text-[#0C3B2E] hover:bg-[#EBF3EF] rounded-full transition-all cursor-pointer"
+                aria-label="Search"
+                title="Search catalog"
               >
-                {mounted && user?.email ? (
-                  // CUTE LOGGED-IN AVATAR WITH NAME DIRECTLY UNDER IT
-                  <div className="flex flex-col items-center">
-                    <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-gradient-to-br from-[#0C3B2E] to-[#08281F] text-[#FAF8F5] font-bold text-[11px] sm:text-xs flex items-center justify-center border border-[#C5A059] shadow-xs group-hover:scale-105 transition-transform">
-                      {(user.name || user.email || 'U').charAt(0).toUpperCase()}
-                    </div>
-                    <span className="text-[10px] font-bold text-[#0C3B2E] max-w-[70px] truncate text-center leading-tight mt-0.5 tracking-tight group-hover:text-[#C5A059] transition-colors">
-                      {user.name ? user.name.split(' ')[0] : 'Member'}
-                    </span>
-                  </div>
-                ) : (
-                  // GUEST ICON
-                  <div className="p-2 text-[#2C4A3E] group-hover:text-[#0C3B2E] transition-colors">
-                    <User className="w-5 h-5" />
-                  </div>
-                )}
+                <Search className="w-5 h-5" />
               </button>
 
-              {/* LOGGED-IN PROFILE DROPDOWN MENU (Does not redirect immediately; user clicks Orders to navigate!) */}
-              {mounted && user?.email && profileDropdownOpen && (
-                <div className="absolute right-0 top-full mt-2 w-72 bg-white rounded-3xl shadow-2xl border border-[#E2DBD0] p-4 z-50 animate-in fade-in zoom-in-95 duration-150">
-                  {/* User Header Summary */}
-                  <div className="flex items-center gap-3 pb-3.5 border-b border-[#F0ECE4]">
-                    <div className="w-10 h-10 rounded-2xl bg-[#08281F] text-[#D4AF37] font-bold text-sm flex items-center justify-center border border-[#C5A059]/50 shadow-inner shrink-0">
-                      {(user.name || user.email || 'U').charAt(0).toUpperCase()}
-                    </div>
-                    <div className="flex flex-col min-w-0 flex-1">
-                      <span className="font-serif-title font-bold text-sm text-[#0B241C] truncate">
-                        {user.name || 'Purnya Patron'}
-                      </span>
-                      <span className="text-[11px] text-[#5A7469] truncate">
-                        {user.email}
-                      </span>
-                      <span className="inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider text-[#C5A059] mt-0.5">
-                        <Sparkles className="w-2.5 h-2.5" />
-                        <span>Purnya Circle Member</span>
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Menu Options */}
-                  <div className="py-2 space-y-1">
-                    {/* Orders Option - Navigates only when clicked! */}
-                    <Link
-                      href="/account?tab=orders"
-                      onClick={() => setProfileDropdownOpen(false)}
-                      className="flex items-center justify-between p-2.5 rounded-2xl hover:bg-[#EBF3EF] transition-colors group cursor-pointer"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-xl bg-[#FAF8F5] group-hover:bg-white flex items-center justify-center text-[#0C3B2E] border border-[#E2DBD0]">
-                          <Package className="w-4 h-4 text-[#C5A059]" />
-                        </div>
-                        <div className="text-left">
-                          <p className="text-xs font-bold text-[#0B241C] group-hover:text-[#0C3B2E]">
-                            My Orders &amp; Tracking
-                          </p>
-                          <p className="text-[10px] text-[#5A7469]">View order status &amp; history</p>
-                        </div>
-                      </div>
-                      <ChevronRight className="w-4 h-4 text-[#C5A059] group-hover:translate-x-0.5 transition-transform" />
-                    </Link>
-
-                    {/* Wishlist Option */}
-                    <Link
-                      href="/wishlist"
-                      onClick={() => setProfileDropdownOpen(false)}
-                      className="flex items-center justify-between p-2.5 rounded-2xl hover:bg-[#EBF3EF] transition-colors group cursor-pointer"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-xl bg-[#FAF8F5] group-hover:bg-white flex items-center justify-center text-[#0C3B2E] border border-[#E2DBD0]">
-                          <Heart className="w-4 h-4 text-[#C5A059]" />
-                        </div>
-                        <div className="text-left">
-                          <p className="text-xs font-bold text-[#0B241C] group-hover:text-[#0C3B2E]">
-                            My Wishlist
-                          </p>
-                          <p className="text-[10px] text-[#5A7469]">{wishlistCount} cherished pieces</p>
-                        </div>
-                      </div>
-                      <ChevronRight className="w-4 h-4 text-[#C5A059] group-hover:translate-x-0.5 transition-transform" />
-                    </Link>
-
-                    {/* Cart Option */}
-                    <Link
-                      href="/cart"
-                      onClick={() => setProfileDropdownOpen(false)}
-                      className="flex items-center justify-between p-2.5 rounded-2xl hover:bg-[#EBF3EF] transition-colors group cursor-pointer"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-xl bg-[#FAF8F5] group-hover:bg-white flex items-center justify-center text-[#0C3B2E] border border-[#E2DBD0]">
-                          <ShoppingCart className="w-4 h-4 text-[#C5A059]" />
-                        </div>
-                        <div className="text-left">
-                          <p className="text-xs font-bold text-[#0B241C] group-hover:text-[#0C3B2E]">
-                            Shopping Cart
-                          </p>
-                          <p className="text-[10px] text-[#5A7469]">{cartCount} items selected</p>
-                        </div>
-                      </div>
-                      <ChevronRight className="w-4 h-4 text-[#C5A059] group-hover:translate-x-0.5 transition-transform" />
-                    </Link>
-
-                    {/* Account Settings Option */}
-                    <Link
-                      href="/account"
-                      onClick={() => setProfileDropdownOpen(false)}
-                      className="flex items-center justify-between p-2.5 rounded-2xl hover:bg-[#EBF3EF] transition-colors group cursor-pointer"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-xl bg-[#FAF8F5] group-hover:bg-white flex items-center justify-center text-[#0C3B2E] border border-[#E2DBD0]">
-                          <User className="w-4 h-4 text-[#C5A059]" />
-                        </div>
-                        <div className="text-left">
-                          <p className="text-xs font-bold text-[#0B241C] group-hover:text-[#0C3B2E]">
-                            Profile &amp; Addresses
-                          </p>
-                          <p className="text-[10px] text-[#5A7469]">Manage personal details</p>
-                        </div>
-                      </div>
-                      <ChevronRight className="w-4 h-4 text-[#C5A059] group-hover:translate-x-0.5 transition-transform" />
-                    </Link>
-                  </div>
-
-                  {/* Sign Out Button */}
-                  <div className="pt-2 border-t border-[#F0ECE4]">
-                    <button
-                      onClick={handleSignOut}
-                      className="w-full flex items-center justify-center gap-2 p-2.5 rounded-xl text-xs font-bold text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
-                    >
-                      <LogOut className="w-4 h-4" />
-                      <span>Sign Out from Circle</span>
-                    </button>
-                  </div>
-                </div>
+              {/* Wishlist with Badge (APPEARS ONLY AFTER PATRON CUSTOMER LOGIN) */}
+              {isCustomerLoggedIn && (
+                <Link
+                  href="/wishlist"
+                  className="p-2 sm:p-2.5 text-[#2C4A3E] hover:text-[#0C3B2E] hover:bg-[#EBF3EF] rounded-full transition-all relative animate-in fade-in"
+                  aria-label="Wishlist"
+                  title="Wishlist"
+                >
+                  <Heart className="w-5 h-5" />
+                  {wishlistCount > 0 && (
+                    <span className="absolute top-1 right-1 w-4 h-4 rounded-full bg-[#C5A059] text-white text-[10px] font-bold flex items-center justify-center shadow-xs">
+                      {wishlistCount}
+                    </span>
+                  )}
+                </Link>
               )}
+
+              {/* Cart with Badge (APPEARS ONLY AFTER PATRON CUSTOMER LOGIN) */}
+              {isCustomerLoggedIn && (
+                <Link
+                  href="/cart"
+                  className="p-2 sm:p-2.5 text-[#2C4A3E] hover:text-[#0C3B2E] hover:bg-[#EBF3EF] rounded-full transition-all relative animate-in fade-in"
+                  aria-label="Cart"
+                  title="Shopping Cart"
+                >
+                  <ShoppingCart className="w-5 h-5" />
+                  {cartCount > 0 && (
+                    <span className="absolute top-1 right-1 w-4 h-4 rounded-full bg-[#0C3B2E] text-[#FAF8F5] text-[10px] font-bold flex items-center justify-center shadow-xs animate-pulse">
+                      {cartCount}
+                    </span>
+                  )}
+                </Link>
+              )}
+
+              {/* Profile Button with Popover / Modal Trigger */}
+              <div className="relative" ref={profileDropdownRef}>
+                <button
+                  type="button"
+                  onClick={handleProfileClick}
+                  className="flex flex-col items-center justify-center group py-1 px-0.5 sm:px-1.5 rounded-xl hover:bg-[#EBF3EF] transition-all cursor-pointer focus:outline-hidden"
+                  aria-label={isCustomerLoggedIn ? 'Customer Account Menu' : 'Sign In'}
+                  title={isCustomerLoggedIn ? `Account Options (${user.name || user.email})` : 'Sign In / Register'}
+                >
+                  {isCustomerLoggedIn ? (
+                    // CUTE LOGGED-IN AVATAR WITH NAME DIRECTLY UNDER IT
+                    <div className="flex flex-col items-center">
+                      <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-gradient-to-br from-[#0C3B2E] to-[#08281F] text-[#FAF8F5] font-bold text-[11px] sm:text-xs flex items-center justify-center border border-[#C5A059] shadow-xs group-hover:scale-105 transition-transform">
+                        {(user.name || user.email || 'U').charAt(0).toUpperCase()}
+                      </div>
+                      <span className="text-[10px] font-bold text-[#0C3B2E] max-w-[52px] sm:max-w-[70px] truncate text-center leading-tight mt-0.5 tracking-tight group-hover:text-[#C5A059] transition-colors">
+                        {user.name ? user.name.split(' ')[0] : 'Member'}
+                      </span>
+                    </div>
+                  ) : (
+                    // GUEST ICON
+                    <div className="p-2 text-[#2C4A3E] group-hover:text-[#0C3B2E] transition-colors">
+                      <User className="w-5 h-5" />
+                    </div>
+                  )}
+                </button>
+
+                {/* LOGGED-IN PROFILE DROPDOWN MENU (Does not redirect immediately; user clicks Orders to navigate!) */}
+                {isCustomerLoggedIn && profileDropdownOpen && (
+                  <div className="absolute right-0 top-full mt-2 w-[min(18rem,calc(100vw-1.5rem))] bg-white rounded-3xl shadow-2xl border border-[#E2DBD0] p-4 z-50 animate-in fade-in zoom-in-95 duration-150">
+                    {/* User Header Summary */}
+                    <div className="flex items-center gap-3 pb-3.5 border-b border-[#F0ECE4]">
+                      <div className="w-10 h-10 rounded-2xl bg-[#08281F] text-[#D4AF37] font-bold text-sm flex items-center justify-center border border-[#C5A059]/50 shadow-inner shrink-0">
+                        {(user.name || user.email || 'U').charAt(0).toUpperCase()}
+                      </div>
+                      <div className="flex flex-col min-w-0 flex-1">
+                        <span className="font-serif-title font-bold text-sm text-[#0B241C] truncate">
+                          {user.name || 'Purnya Patron'}
+                        </span>
+                        <span className="text-[11px] text-[#5A7469] truncate">
+                          {user.email}
+                        </span>
+                        <span className="inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider text-[#C5A059] mt-0.5">
+                          <Sparkles className="w-2.5 h-2.5" />
+                          <span>Purnya Circle Member</span>
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Menu Options */}
+                    <div className="py-2 space-y-1">
+                      {/* Orders Option - Navigates only when clicked! */}
+                      <Link
+                        href="/account?tab=orders"
+                        onClick={() => setProfileDropdownOpen(false)}
+                        className="flex items-center justify-between p-2.5 rounded-2xl hover:bg-[#EBF3EF] transition-colors group cursor-pointer"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-xl bg-[#FAF8F5] group-hover:bg-white flex items-center justify-center text-[#0C3B2E] border border-[#E2DBD0]">
+                            <Package className="w-4 h-4 text-[#C5A059]" />
+                          </div>
+                          <div className="text-left">
+                            <p className="text-xs font-bold text-[#0B241C] group-hover:text-[#0C3B2E]">
+                              My Orders &amp; Tracking
+                            </p>
+                            <p className="text-[10px] text-[#5A7469]">View order status &amp; history</p>
+                          </div>
+                        </div>
+                        <ChevronRight className="w-4 h-4 text-[#C5A059] group-hover:translate-x-0.5 transition-transform" />
+                      </Link>
+
+                      {/* Wishlist Option */}
+                      <Link
+                        href="/wishlist"
+                        onClick={() => setProfileDropdownOpen(false)}
+                        className="flex items-center justify-between p-2.5 rounded-2xl hover:bg-[#EBF3EF] transition-colors group cursor-pointer"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-xl bg-[#FAF8F5] group-hover:bg-white flex items-center justify-center text-[#0C3B2E] border border-[#E2DBD0]">
+                            <Heart className="w-4 h-4 text-[#C5A059]" />
+                          </div>
+                          <div className="text-left">
+                            <p className="text-xs font-bold text-[#0B241C] group-hover:text-[#0C3B2E]">
+                              My Wishlist
+                            </p>
+                            <p className="text-[10px] text-[#5A7469]">{wishlistCount} cherished pieces</p>
+                          </div>
+                        </div>
+                        <ChevronRight className="w-4 h-4 text-[#C5A059] group-hover:translate-x-0.5 transition-transform" />
+                      </Link>
+
+                      {/* Cart Option */}
+                      <Link
+                        href="/cart"
+                        onClick={() => setProfileDropdownOpen(false)}
+                        className="flex items-center justify-between p-2.5 rounded-2xl hover:bg-[#EBF3EF] transition-colors group cursor-pointer"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-xl bg-[#FAF8F5] group-hover:bg-white flex items-center justify-center text-[#0C3B2E] border border-[#E2DBD0]">
+                            <ShoppingCart className="w-4 h-4 text-[#C5A059]" />
+                          </div>
+                          <div className="text-left">
+                            <p className="text-xs font-bold text-[#0B241C] group-hover:text-[#0C3B2E]">
+                              Shopping Cart
+                            </p>
+                            <p className="text-[10px] text-[#5A7469]">{cartCount} items selected</p>
+                          </div>
+                        </div>
+                        <ChevronRight className="w-4 h-4 text-[#C5A059] group-hover:translate-x-0.5 transition-transform" />
+                      </Link>
+
+                      {/* Account Settings Option */}
+                      <Link
+                        href="/account"
+                        onClick={() => setProfileDropdownOpen(false)}
+                        className="flex items-center justify-between p-2.5 rounded-2xl hover:bg-[#EBF3EF] transition-colors group cursor-pointer"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-xl bg-[#FAF8F5] group-hover:bg-white flex items-center justify-center text-[#0C3B2E] border border-[#E2DBD0]">
+                            <User className="w-4 h-4 text-[#C5A059]" />
+                          </div>
+                          <div className="text-left">
+                            <p className="text-xs font-bold text-[#0B241C] group-hover:text-[#0C3B2E]">
+                              Profile &amp; Addresses
+                            </p>
+                            <p className="text-[10px] text-[#5A7469]">Manage personal details</p>
+                          </div>
+                        </div>
+                        <ChevronRight className="w-4 h-4 text-[#C5A059] group-hover:translate-x-0.5 transition-transform" />
+                      </Link>
+                    </div>
+
+                    {/* Sign Out Button */}
+                    <div className="pt-2 border-t border-[#F0ECE4]">
+                      <button
+                        onClick={handleSignOut}
+                        className="w-full flex items-center justify-center gap-2 p-2.5 rounded-xl text-xs font-bold text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                      >
+                        <LogOut className="w-4 h-4" />
+                        <span>Sign Out from Circle</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
-        </div>
 
         </header>
       </div>
@@ -665,7 +708,7 @@ function HeaderContent() {
 
             {/* Patron Profile Banner */}
             <div className="p-4 bg-[#08281F] text-[#FAF8F5] shrink-0 border-b border-[#144234]">
-              {mounted && user?.email ? (
+              {isCustomerLoggedIn ? (
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className="w-9 h-9 rounded-full bg-[#164E3D] text-[#D4AF37] border border-[#C5A059] font-bold text-xs flex items-center justify-center">
@@ -710,8 +753,8 @@ function HeaderContent() {
 
             {/* Scrollable Navigation Body */}
             <div className="flex-1 overflow-y-auto overscroll-contain p-4 space-y-5">
-              {/* If Logged In: Quick Actions */}
-              {mounted && user?.email && (
+              {/* If Patron Customer Logged In: Quick Actions */}
+              {isCustomerLoggedIn && (
                 <div className="grid grid-cols-3 gap-2 pb-1">
                   <Link
                     href="/account?tab=orders"
@@ -758,18 +801,17 @@ function HeaderContent() {
                 <div className="space-y-2">
                   {sortedCategories.map((cat) => {
                     const catSlug = (cat.slug || '').trim();
-                    const isCurrent = currentCategorySlug?.toLowerCase() === catSlug.toLowerCase();
+                    const isCurrent = activeCategorySlug?.toLowerCase() === catSlug.toLowerCase();
                     const isExpanded = expandedMobileCategory === catSlug;
                     const cleanSubs = (cat.subcategories || []).filter((s) => (s || '').trim() !== 'All');
 
                     return (
                       <div
                         key={cat.id || catSlug}
-                        className={`rounded-2xl border transition-all overflow-hidden ${
-                          isCurrent
-                            ? 'bg-[#EBF3EF] border-[#C5A059]/60 shadow-xs'
-                            : 'bg-white border-[#E2DBD0]'
-                        }`}
+                        className={`rounded-2xl border transition-all overflow-hidden ${isCurrent
+                          ? 'bg-[#EBF3EF] border-[#C5A059]/60 shadow-xs'
+                          : 'bg-white border-[#E2DBD0]'
+                          }`}
                       >
                         <div className="flex items-center justify-between p-3">
                           <Link
@@ -800,9 +842,8 @@ function HeaderContent() {
                               aria-label={`Toggle ${(cat.title || '').trim()} subcategories`}
                             >
                               <ChevronDown
-                                className={`w-4 h-4 text-[#C5A059] transition-transform duration-200 ${
-                                  isExpanded ? 'rotate-180' : ''
-                                }`}
+                                className={`w-4 h-4 text-[#C5A059] transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''
+                                  }`}
                               />
                             </button>
                           )}
@@ -816,7 +857,7 @@ function HeaderContent() {
                               target="_blank"
                               rel="noopener noreferrer"
                               onClick={() => setMobileMenuOpen(false)}
-                              className="flex items-center justify-between py-1.5 px-2.5 text-[11px] font-bold text-[#0C3B2E] hover:bg-white rounded-lg transition-colors"
+                              className="flex items-center justify-between py-1.5 px-2.5 text-[11px] font-bold text-[#0C3B2E] hover:bg-[#FAF8F5] rounded-lg transition-colors"
                             >
                               <span>All {(cat.title || '').trim()}</span>
                               <ArrowUpRight className="w-3 h-3 text-[#C5A059]" />
@@ -920,11 +961,11 @@ function HeaderContent() {
                     Privacy Policy
                   </Link>
                   <span>·</span>
-                  <Link   href="/return-policy#shipping" onClick={() => setMobileMenuOpen(false)} className="hover:text-[#0C3B2E]">
+                  <Link href="/return-policy#shipping" onClick={() => setMobileMenuOpen(false)} className="hover:text-[#0C3B2E]">
                     Shipping
                   </Link>
                   <span>·</span>
-                  <Link  href="/return-policy#returns" onClick={() => setMobileMenuOpen(false)} className="hover:text-[#0C3B2E]">
+                  <Link href="/return-policy#returns" onClick={() => setMobileMenuOpen(false)} className="hover:text-[#0C3B2E]">
                     Returns
                   </Link>
                 </div>
@@ -945,7 +986,7 @@ function HeaderContent() {
       )}
 
       {/* 4. AUTHENTICATION POP-UP MODAL (Appears on clicking profile instead of redirecting to page!) */}
-      {authModalOpen && !user?.email && (
+      {authModalOpen && !isCustomerLoggedIn && (
         <div
           className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-200"
           role="dialog"
@@ -1004,8 +1045,8 @@ function HeaderContent() {
                     setAuthError('');
                   }}
                   className={`flex-1 py-2 text-xs font-bold uppercase tracking-wider rounded-xl transition-all cursor-pointer ${authMode === 'login'
-                      ? 'bg-[#08281F] text-white shadow-sm'
-                      : 'text-[#5A7469] hover:text-[#0B241C]'
+                    ? 'bg-[#08281F] text-white shadow-sm'
+                    : 'text-[#5A7469] hover:text-[#0B241C]'
                     }`}
                 >
                   Sign In
@@ -1017,8 +1058,8 @@ function HeaderContent() {
                     setAuthError('');
                   }}
                   className={`flex-1 py-2 text-xs font-bold uppercase tracking-wider rounded-xl transition-all cursor-pointer ${authMode === 'signup'
-                      ? 'bg-[#08281F] text-white shadow-sm'
-                      : 'text-[#5A7469] hover:text-[#0B241C]'
+                    ? 'bg-[#08281F] text-white shadow-sm'
+                    : 'text-[#5A7469] hover:text-[#0B241C]'
                     }`}
                 >
                   Create Account
@@ -1255,7 +1296,7 @@ function HeaderContent() {
         </div>
       )}
 
-      
+
     </>
   );
 }

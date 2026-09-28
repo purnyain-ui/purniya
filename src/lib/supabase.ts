@@ -256,10 +256,12 @@ export async function getProductsFromSupabase(): Promise<Product[] | null> {
         reviewsCount: p.reviewsCount || p.reviews_count || 12,
         description,
         stock: p.stock !== undefined ? Number(p.stock) : 50,
-        status: isActive ? 'Active' : (p.stock === 0 ? 'Out of Stock' : 'Draft'),
+        status: isActive ? 'Active' : 'Inactive',
+        is_active: isActive,
         badge: (originalPrice && originalPrice > finalPrice) ? 'Sale' : (p.badge || undefined),
         lifestyleTag,
         featured: Boolean(p.is_featured ?? p.featured),
+        targetGender: p.target_gender || p.targetGender || p.gender || 'unisex',
         variants: resolvedVariants,
         features: dbFeatures,
         createdAt: p.created_at || p.createdAt,
@@ -416,7 +418,7 @@ export async function upsertProductToSupabase(product: Product): Promise<boolean
         reviews_count: product.reviewsCount || 0,
         description: product.description || '',
         stock: product.stock,
-        status: product.status,
+        is_active: product.is_active !== undefined ? product.is_active : product.status === 'Active',
         badge: product.badge || null,
         lifestyle_tag: product.lifestyleTag || null,
         featured: Boolean(product.featured),
@@ -510,7 +512,7 @@ export async function seedCatalogToSupabase(
           reviews_count: p.reviewsCount || 0,
           description: p.description || '',
           stock: p.stock,
-          status: p.status,
+          is_active: p.is_active !== undefined ? p.is_active : p.status === 'Active',
           badge: p.badge || null,
           lifestyle_tag: p.lifestyleTag || null,
           featured: Boolean(p.featured),
@@ -1311,6 +1313,31 @@ export async function verifyAdminSession(): Promise<{
     return { authenticated: false, error: err?.message || 'Admin verification failed' };
   }
 }
+
+/**
+ * Checks whether an email belongs to an administrator (in admin_users table or known admin)
+ */
+export async function checkIsAdmin(email: string | null | undefined): Promise<boolean> {
+  if (!email) return false;
+  const clean = email.trim().toLowerCase();
+  if (clean === 'admin@purnya.com') return true;
+  if (!isSupabaseConfigured || !supabase) return false;
+  try {
+    const { data, error } = await supabase
+      .from('admin_users')
+      .select('id, email, is_active')
+      .eq('email', clean)
+      .maybeSingle();
+
+    if (!error && data && data.is_active !== false) {
+      return true;
+    }
+  } catch (err) {
+    console.warn('checkIsAdmin exception:', err);
+  }
+  return false;
+}
+
 
 export interface CustomerRecord {
   id: string;

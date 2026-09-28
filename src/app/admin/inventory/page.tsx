@@ -18,6 +18,7 @@ import {
 } from 'lucide-react'
 
 import { supabase } from '@/lib/supabaseClient'
+import { readAdminSession, getInventoryAccess, AdminSession } from '@/lib/adminPermissions'
 
 // ---------------------------------------------------------------
 // Design tokens (shared with the rest of the admin panel)
@@ -40,6 +41,7 @@ const LOW_STOCK_THRESHOLD = 5
 type Category = {
   id: string
   title: string
+  priority?: number
 }
 
 type Subcategory = {
@@ -306,6 +308,14 @@ export default function AdminInventoryPage() {
   const [products, setProducts] = useState<AssembledProduct[]>([])
   const [categories, setCategories] = useState<Category[]>([])
 
+  const [adminSession, setAdminSession] = useState<AdminSession | null>(null)
+
+  useEffect(() => {
+    setAdminSession(readAdminSession())
+  }, [])
+
+  const inventoryAccess = useMemo(() => getInventoryAccess(adminSession), [adminSession])
+
   const [search, setSearch] = useState('')
   // Holds a category id (matches the sidebar's ?category=<id> links),
   // not a title. '' means "All categories".
@@ -313,6 +323,12 @@ export default function AdminInventoryPage() {
   const [stockFilter, setStockFilter] = useState<StockFilter>('all')
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const [savingIds, setSavingIds] = useState<Set<string>>(new Set())
+
+  // Categories visible to this admin/subadmin
+  const visibleCategories = useMemo(() => {
+    if (inventoryAccess.all) return categories
+    return categories.filter((c) => inventoryAccess.categoryIds.includes(c.id))
+  }, [categories, inventoryAccess])
 
   // ---------------------------------------------------------------
   // Keep the active category in sync with the URL's ?category= param,
@@ -335,6 +351,15 @@ export default function AdminInventoryPage() {
     [router]
   )
 
+  // If restricted staff lands on inventory without category or with disallowed category, auto-select
+  useEffect(() => {
+    if (!inventoryAccess.all && inventoryAccess.categoryIds.length > 0) {
+      if (!categoryFilter || !inventoryAccess.categoryIds.includes(categoryFilter)) {
+        handleCategorySelect(inventoryAccess.categoryIds[0])
+      }
+    }
+  }, [inventoryAccess, categoryFilter, handleCategorySelect])
+
   useEffect(() => {
     loadInventory()
   }, [])
@@ -353,7 +378,11 @@ export default function AdminInventoryPage() {
         productImagesResponse,
         variantImagesResponse,
       ] = await Promise.all([
-        supabase.from('categories').select('id,title'),
+        supabase
+          .from('categories')
+          .select('id,title,priority')
+          .order('priority', { ascending: true })
+          .order('title', { ascending: true }),
         supabase.from('subcategories').select('id,category_id,name'),
         supabase
           .from('products')
@@ -683,13 +712,15 @@ export default function AdminInventoryPage() {
               {stats.totalProducts}
             </span>
           </div>
-          <button
-            type="button"
-            onClick={() => handleCategorySelect('')}
-            className="text-[11px] font-bold text-[#C5A059] hover:underline cursor-pointer shrink-0"
-          >
-            View All Categories
-          </button>
+          {inventoryAccess.all && (
+            <button
+              type="button"
+              onClick={() => handleCategorySelect('')}
+              className="text-[11px] font-bold text-[#C5A059] hover:underline cursor-pointer shrink-0"
+            >
+              View All Categories
+            </button>
+          )}
         </div>
       )}
 
@@ -705,19 +736,17 @@ export default function AdminInventoryPage() {
           />
         </div>
 
-        {/* Category dropdown only shows when NOT locked to a single
-            category — once locked, other categories aren't selectable
-            from this page; use "View All Categories" above to leave. */}
-        {!categoryFilter && (
+        {/* Category dropdown — allows switching between permitted categories */}
+        {(inventoryAccess.all || visibleCategories.length > 1) && (
           <select
             value={categoryFilter}
             onChange={(event) => handleCategorySelect(event.target.value)}
             className="px-3.5 py-2.5 bg-[#FAF8F5] border border-[#E2DBD0] rounded-xl font-semibold text-[#0B241C] focus:outline-none focus:border-[#C5A059]"
           >
-            <option value="">All categories</option>
-            {categories.map((category) => (
+            {inventoryAccess.all && <option value="">All categories</option>}
+            {visibleCategories.map((category) => (
               <option key={category.id} value={category.id}>
-                {category.title}
+                {category.title.trim()}
               </option>
             ))}
           </select>

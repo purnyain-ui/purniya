@@ -22,7 +22,9 @@ import {
   AdminPermissionKey,
   ALL_ADMIN_PERMISSIONS,
   writeAdminSession,
+  isAdminEmail,
 } from '../../../lib/adminPermissions';
+
 
 // Shape of a row in public.admin_users
 interface AdminUserRow {
@@ -90,12 +92,23 @@ export default function AdminLoginPage() {
 
   const completeLogin = (session: AdminSession) => {
     writeAdminSession(session);
+    // Explicitly ensure the storefront customer session does not carry the admin email
+    try {
+      const saved = localStorage.getItem('purnya_user');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed?.email?.toLowerCase() === session.email.toLowerCase() || isAdminEmail(parsed?.email)) {
+          localStorage.removeItem('purnya_user');
+        }
+      }
+    } catch { }
     setIsSuccess(true);
     showToast('Admin Authenticated', `Welcome back, ${session.fullName || session.email}.`);
     setTimeout(() => {
       router.push('/admin');
     }, 500);
   };
+
 
   const handleAdminLogin = async (e: React.FormEvent) => {
     e.preventDefault();

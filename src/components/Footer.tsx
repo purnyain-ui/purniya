@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Mail, Phone, MapPin, ArrowUpRight } from 'lucide-react';
@@ -9,6 +9,32 @@ import { useStore } from '../context/StoreContext';
 export default function Footer() {
   const pathname = usePathname();
   const { categories } = useStore();
+
+  // Detect the active category across category pages and subpages (/wishlist, /product/123, /cart, etc.)
+  const activeCategorySlug = useMemo(() => {
+    if (typeof window === 'undefined') return null;
+    if (pathname === '/') return null;
+
+    const match = pathname?.match(/^\/(?:category|all-products)\/([^/]+)/);
+    if (match) {
+      const slug = decodeURIComponent(match[1]).trim().toLowerCase();
+      try {
+        sessionStorage.setItem('purnya_active_category', slug);
+      } catch (e) {}
+      return slug;
+    }
+
+    try {
+      return sessionStorage.getItem('purnya_active_category');
+    } catch (e) {
+      return null;
+    }
+  }, [pathname]);
+
+  const currentCategory = useMemo(() => {
+    if (!activeCategorySlug) return null;
+    return categories.find((c) => (c.slug || '').trim().toLowerCase() === activeCategorySlug.trim().toLowerCase()) || null;
+  }, [activeCategorySlug, categories]);
 
   if (pathname?.startsWith('/admin')) return null;
 
@@ -114,6 +140,20 @@ export default function Footer() {
                   FAQs
                 </Link>
               </li>
+              {currentCategory && (
+                <li className="pt-2 border-t border-[#144234] mt-2">
+                  <Link
+                    href={`/all-products/${currentCategory.slug}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="hover:text-[#D4AF37] transition-colors text-[#FAF8F5] font-bold flex items-center justify-between group"
+                    title={`All ${currentCategory.title}`}
+                  >
+                    <span>All {currentCategory.title}</span>
+                    <ArrowUpRight className="w-3.5 h-3.5 text-[#D4AF37]" />
+                  </Link>
+                </li>
+              )}
             </ul>
           </div>
 

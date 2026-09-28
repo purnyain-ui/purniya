@@ -16,12 +16,15 @@ import {
   Tag,
   ArrowLeft,
   Save,
+  CheckCircle2,
 } from 'lucide-react'
+
 
 import {
   supabase,
   PRODUCT_IMAGES_BUCKET,
 } from '../../../../lib/supabaseClient'
+import { readAdminSession, getProductAccess } from '@/lib/adminPermissions'
 
 // ---------------------------------------------------------------
 // Design tokens (shared with the Categories admin page)
@@ -259,8 +262,10 @@ function AdminAddProductPage() {
   const [categoryId, setCategoryId] = useState('')
   const [subcategoryId, setSubcategoryId] = useState('')
   const [lifestyleTagId, setLifestyleTagId] = useState('')
+  const [targetGender, setTargetGender] = useState<string>('unisex')
 
   const [featured, setFeatured] = useState(false)
+  const [isActive, setIsActive] = useState<boolean>(true)
   const [hasVariants, setHasVariants] = useState(false)
 
   // NO VARIANT PRODUCT
@@ -336,7 +341,11 @@ function AdminAddProductPage() {
         colorsResponse,
         sizesResponse,
       ] = await Promise.all([
-        supabase.from('categories').select('id,title,slug').order('title'),
+        supabase
+          .from('categories')
+          .select('id,title,slug,priority')
+          .order('priority', { ascending: true })
+          .order('title', { ascending: true }),
         supabase
           .from('subcategories')
           .select('id,category_id,name')
@@ -364,7 +373,14 @@ function AdminAddProductPage() {
       if (colorsResponse.error) throw colorsResponse.error
       if (sizesResponse.error) throw sizesResponse.error
 
-      setCategories(categoriesResponse.data || [])
+      const session = readAdminSession()
+      const productAccess = getProductAccess(session)
+      const rawCategories = categoriesResponse.data || []
+      const allowedCategories = productAccess.all
+        ? rawCategories
+        : rawCategories.filter((c: any) => productAccess.categoryIds.includes(c.id))
+
+      setCategories(allowedCategories)
       setSubcategories(subcategoriesResponse.data || [])
       setLifestyleTags(lifestyleResponse.data || [])
       setAllColors(colorsResponse.data || [])
@@ -373,6 +389,17 @@ function AdminAddProductPage() {
       // If editing, load the product data
       if (editId) {
         await loadProductForEdit(editId)
+      } else {
+        const catParam = searchParams.get('categoryId') || searchParams.get('category')
+        if (catParam && allowedCategories.some((c: any) => c.id === catParam)) {
+          setCategoryId(catParam)
+        } else if (!productAccess.all && allowedCategories.length > 0) {
+          setCategoryId(allowedCategories[0].id)
+        }
+        const subParam = searchParams.get('subcategoryId') || searchParams.get('sub')
+        if (subParam) {
+          setSubcategoryId(subParam)
+        }
       }
     } catch (error) {
       console.error('Error loading product data:', error)
@@ -401,7 +428,9 @@ function AdminAddProductPage() {
       setCategoryId(product.category_id || '')
       setSubcategoryId(product.subcategory_id || '')
       setLifestyleTagId(product.lifestyle_tag_id || '')
+      setTargetGender(product.target_gender || product.gender || 'unisex')
       setFeatured(product.is_featured || false)
+      setIsActive(product.is_active !== undefined ? Boolean(product.is_active) : true)
       setHasVariants(product.has_variants || false)
       setPrice(product.price != null ? String(product.price) : '')
       setSellingPrice(product.selling_price != null ? String(product.selling_price) : '')
@@ -632,8 +661,10 @@ function AdminAddProductPage() {
     setCategoryId('')
     setSubcategoryId('')
     setLifestyleTagId('')
+    setTargetGender('unisex')
 
     setFeatured(false)
+    setIsActive(true)
     setHasVariants(false)
 
     setPrice('')
@@ -699,7 +730,9 @@ function AdminAddProductPage() {
             category_id: categoryId,
             subcategory_id: subcategoryId || null,
             lifestyle_tag_id: lifestyleTagId || null,
+            target_gender: targetGender,
             is_featured: featured,
+            is_active: isActive,
             has_variants: hasVariants,
             price: hasVariants ? null : Number(price),
             selling_price: hasVariants ? null : Number(sellingPrice),
@@ -842,12 +875,13 @@ function AdminAddProductPage() {
             category_id: categoryId,
             subcategory_id: subcategoryId || null,
             lifestyle_tag_id: lifestyleTagId || null,
+            target_gender: targetGender,
             is_featured: featured,
             has_variants: hasVariants,
             price: hasVariants ? null : Number(price),
             selling_price: hasVariants ? null : Number(sellingPrice),
             stock: hasVariants ? 0 : Number(stock),
-            is_active: true,
+            is_active: isActive,
           })
           .select()
           .single()
@@ -1538,8 +1572,93 @@ function AdminAddProductPage() {
                 </select>
               </div>
 
+              {/* TARGET GENDER RADIO BUTTONS */}
+              <div>
+                <label className="block font-bold text-[#0B241C] mb-2">
+                  Target Gender / Audience
+                </label>
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { id: 'men', label: 'Men' },
+                    { id: 'women', label: 'Women' },
+                    { id: 'unisex', label: 'Unisex' },
+                  ].map((g) => {
+                    const isSelected = targetGender.toLowerCase() === g.id
+                    return (
+                      <label
+                        key={g.id}
+                        className={`flex items-center justify-center gap-2 p-2.5 rounded-xl border-2 font-bold cursor-pointer transition-all text-xs ${
+                          isSelected
+                            ? 'border-[#0B241C] bg-[#0B241C] text-white shadow-sm'
+                            : 'border-[#E2DBD0] bg-[#FAF8F5] text-[#0B241C] hover:border-[#C5A059]'
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="targetGender"
+                          value={g.id}
+                          checked={isSelected}
+                          onChange={(e) => setTargetGender(e.target.value)}
+                          className="sr-only"
+                        />
+                        <span>{g.label}</span>
+                      </label>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {/* Product Status: Active / Inactive */}
+              <div className="pt-3 border-t border-[#EFEBE3]">
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block font-bold text-[#0B241C]">
+                    Product Status
+                  </label>
+                  <span
+                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                      isActive
+                        ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                        : 'bg-rose-100 text-rose-800 border-rose-300'
+                    }`}
+                  >
+                    {isActive ? 'Active (Live)' : 'Inactive (Hidden)'}
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsActive(true)}
+                    className={`flex items-center justify-center gap-2 p-2.5 rounded-xl border-2 font-bold cursor-pointer transition-all text-xs ${
+                      isActive
+                        ? 'border-emerald-600 bg-emerald-50 text-emerald-900 shadow-xs'
+                        : 'border-[#E2DBD0] bg-[#FAF8F5] text-[#5A7469] hover:border-[#C5A059]'
+                    }`}
+                  >
+                    <CheckCircle2 className={`w-3.5 h-3.5 ${isActive ? 'text-emerald-600' : 'text-[#8A9A92]'}`} />
+                    <span>Active</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsActive(false)}
+                    className={`flex items-center justify-center gap-2 p-2.5 rounded-xl border-2 font-bold cursor-pointer transition-all text-xs ${
+                      !isActive
+                        ? 'border-rose-500 bg-rose-50 text-rose-900 shadow-xs'
+                        : 'border-[#E2DBD0] bg-[#FAF8F5] text-[#5A7469] hover:border-[#C5A059]'
+                    }`}
+                  >
+                    <X className={`w-3.5 h-3.5 ${!isActive ? 'text-rose-500' : 'text-[#8A9A92]'}`} />
+                    <span>Inactive</span>
+                  </button>
+                </div>
+                <p className="text-[10px] text-[#5A7469] mt-1.5 leading-relaxed">
+                  {isActive
+                    ? 'Active products are immediately visible to shoppers on the storefront.'
+                    : 'Inactive products are hidden from the storefront, catalog, and search.'}
+                </p>
+              </div>
+
               {/* Featured toggle */}
-              <div className="flex items-center gap-3 pt-2">
+              <div className="flex items-center gap-3 pt-3 border-t border-[#EFEBE3]">
                 <button
                   type="button"
                   onClick={() => setFeatured(!featured)}
@@ -1572,6 +1691,20 @@ function AdminAddProductPage() {
               </div>
 
               <div className="flex justify-between items-center pb-3 border-b border-white/10">
+                <span className="text-white/60">Status</span>
+                <span
+                  className={`font-semibold px-2 py-0.5 rounded text-[10px] ${
+                    isActive
+                      ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                      : 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
+                  }`}
+                >
+                  {isActive ? 'Active (Live)' : 'Inactive (Hidden)'}
+                </span>
+              </div>
+
+
+              <div className="flex justify-between items-center pb-3 border-b border-white/10">
                 <span className="text-white/60">Product Type</span>
                 <span className="font-semibold">
                   {hasVariants ? 'With Variants' : 'Simple Product'}
@@ -1582,6 +1715,13 @@ function AdminAddProductPage() {
                 <span className="text-white/60">Variants</span>
                 <span className="font-semibold">
                   {hasVariants ? variants.length : '—'}
+                </span>
+              </div>
+
+              <div className="flex justify-between items-center pb-3 border-b border-white/10">
+                <span className="text-white/60">Target Gender</span>
+                <span className="font-semibold capitalize">
+                  {targetGender}
                 </span>
               </div>
 

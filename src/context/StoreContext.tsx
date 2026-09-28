@@ -47,8 +47,11 @@ import {
   toggleCouponInSupabase,
   deleteCouponFromSupabase,
   signOutFromSupabase,
+  checkIsAdmin,
   supabase,
 } from '../lib/supabase';
+import { isAdminEmail, readAdminSession } from '../lib/adminPermissions';
+
 
 interface ToastState {
   id: string;
@@ -324,11 +327,29 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     // Real-time Supabase Auth state listener & sync
     if (supabase) {
-      supabase.auth.getSession().then(({ data: { session } }) => {
+      supabase.auth.getSession().then(async ({ data: { session } }) => {
         if (session?.user) {
           const u = session.user;
+          const currentEmail = (u.email || '').trim().toLowerCase();
+
+          // Check if this Supabase authenticated user is an administrator
+          const isUserAdmin = isAdminEmail(currentEmail) || await checkIsAdmin(currentEmail);
+          if (isUserAdmin) {
+            // Admin user is authenticated for the admin portal: DO NOT show on customer storefront!
+            try {
+              const savedUser = localStorage.getItem('purnya_user');
+              if (savedUser) {
+                const parsed = JSON.parse(savedUser);
+                if (parsed?.email?.trim().toLowerCase() === currentEmail || isAdminEmail(parsed?.email)) {
+                  localStorage.removeItem('purnya_user');
+                }
+              }
+            } catch { }
+            setIsAuthLoading(false);
+            return;
+          }
+
           const meta = u.user_metadata || {};
-          const currentEmail = u.email || '';
           const currentName = meta.name || meta.full_name || currentEmail.split('@')[0] || 'Patron';
           const currentPhone = meta.phone || '';
           const activeUser: UserProfile = {
@@ -384,8 +405,26 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
         if ((event === 'SIGNED_IN' || event === 'USER_UPDATED') && session?.user) {
           const u = session.user;
+          const currentEmail = (u.email || '').trim().toLowerCase();
+
+          // Check if this Supabase authenticated user is an administrator
+          const isUserAdmin = isAdminEmail(currentEmail) || await checkIsAdmin(currentEmail);
+          if (isUserAdmin) {
+            // Admin user signed in: Ensure customer storefront state remains clean
+            try {
+              const savedUser = localStorage.getItem('purnya_user');
+              if (savedUser) {
+                const parsed = JSON.parse(savedUser);
+                if (parsed?.email?.trim().toLowerCase() === currentEmail || isAdminEmail(parsed?.email)) {
+                  localStorage.removeItem('purnya_user');
+                }
+              }
+            } catch { }
+            setIsAuthLoading(false);
+            return;
+          }
+
           const meta = u.user_metadata || {};
-          const currentEmail = u.email || '';
           const currentName = meta.name || meta.full_name || currentEmail.split('@')[0] || 'Patron';
           const currentPhone = meta.phone || '';
           const activeUser: UserProfile = {
@@ -430,6 +469,14 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             });
           }
         } else if (event === 'SIGNED_OUT') {
+          // If customer signed out (and not an active admin session), clear storefront patron
+          if (!readAdminSession()) {
+            setUser({ id: undefined, name: '', email: '', phone: '' });
+            try {
+              localStorage.removeItem('purnya_user');
+              localStorage.removeItem('purnya_addresses');
+            } catch { }
+          }
           setIsAuthLoading(false);
         }
       });
@@ -503,7 +550,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (savedUser) {
         try {
           const parsedUser = JSON.parse(savedUser);
-          if (parsedUser && (parsedUser.email || parsedUser.name)) {
+          const savedEmail = parsedUser?.email?.trim().toLowerCase();
+          if (savedEmail && (isAdminEmail(savedEmail) || savedEmail === 'admin@purnya.com')) {
+            localStorage.removeItem('purnya_user');
+          } else if (parsedUser && (parsedUser.email || parsedUser.name)) {
             setUser(parsedUser);
           }
         } catch { }
@@ -1128,6 +1178,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const loginUser = (profile: UserProfile) => {
+    if (profile.email && isAdminEmail(profile.email)) {
+      showToast('Admin Account Detected', 'Please sign in via the Admin Portal to access administrative functions.', 'info');
+      return;
+    }
     setUser(profile);
     try {
       localStorage.setItem('purnya_user', JSON.stringify(profile));
@@ -1166,9 +1220,14 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       localStorage.removeItem('purnya_user');
       localStorage.removeItem('purnya_addresses');
     } catch { }
-    signOutFromSupabase().catch(() => { });
+    // Only sign out from Supabase if the user does NOT have an active admin session,
+    // so customer sign-out does not invalidate the admin dashboard session
+    if (!readAdminSession()) {
+      signOutFromSupabase().catch(() => { });
+    }
     showToast('Signed Out', 'You have been safely signed out.', 'info');
   };
+
 
   const addAddress = (address: Omit<Address, 'id'>) => {
     const id = `addr-${Date.now()}`;

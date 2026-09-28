@@ -249,6 +249,8 @@ export default function HomePage() {
           {categories.map((cat, idx) => {
             const catProducts = products
               .filter((p) => {
+                const isActive = (p.is_active !== undefined ? p.is_active : p.status === 'Active') && p.status !== 'Inactive';
+                if (!isActive) return false;
                 const pSlug = (p.categorySlug || '').trim().toLowerCase();
                 const cSlug = (cat.slug || '').trim().toLowerCase();
                 const pCat = (p.category || '').trim().toLowerCase();
@@ -263,7 +265,7 @@ export default function HomePage() {
                   (cSlug === 'wellness' && (pSlug === 'wellness' || pCat.includes('wellness') || pCat.includes('organic')))
                 );
               })
-              .slice(0, 5);
+              .slice(0, 10);
 
             const validSubcats = (
               (cat.subcatImages && cat.subcatImages.length > 0)
@@ -329,12 +331,11 @@ export default function HomePage() {
                         <span className="w-1.5 h-1.5 rounded-full bg-[#C5A059]" />
                       </div>
 
-                      <div 
-                        className={`grid gap-2.5 sm:gap-3 ${
-                          validSubcats.length === 4 ? 'grid-cols-2 sm:grid-cols-4' :
+                      <div
+                        className={`grid gap-2.5 sm:gap-3 ${validSubcats.length === 4 ? 'grid-cols-2 sm:grid-cols-4' :
                           validSubcats.length === 5 ? 'grid-cols-3 sm:grid-cols-5' :
-                          'grid-cols-3 sm:grid-cols-4 lg:grid-cols-6'
-                        }`}
+                            'grid-cols-3 sm:grid-cols-4 lg:grid-cols-6'
+                          }`}
                       >
                         {validSubcats.map((sub) => (
                           <Link
@@ -373,7 +374,7 @@ export default function HomePage() {
                       <span className="w-1.5 h-1.5 rounded-full bg-[#0C3B2E]" />
                     </div>
                     {catProducts.length > 0 ? (
-                      <div className="grid grid-cols-3 sm:grid-cols-5 lg:grid-cols-5 gap-2 sm:gap-3">
+                      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 sm:gap-3">
                         {catProducts.map((prod) => (
                           <ProductCard key={prod.id} product={prod} compact hidePrice showVariants={false} />
                         ))}
@@ -409,13 +410,18 @@ export default function HomePage() {
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 sm:gap-5">
-            {categories.map((cat) => {
+            {categories.map((cat, idx) => {
               const Icon = getCategoryIcon(cat);
+              const isLastOdd = idx === categories.length - 1 && categories.length % 2 !== 0;
               return (
                 <Link
                   key={cat.id}
                   href={`/category/${cat.slug}`}
-                  className="group relative flex flex-col items-center text-center gap-3 p-5 rounded-2xl bg-white border border-[#E2DBD0] hover:border-[#C5A059] hover:shadow-lg transition-all"
+                  className={`group relative flex flex-col items-center text-center gap-3 p-5 rounded-2xl bg-white border border-[#E2DBD0] hover:border-[#C5A059] hover:shadow-lg transition-all ${
+                    isLastOdd
+                      ? 'col-span-2 sm:col-span-1 w-[calc(50%-8px)] sm:w-full mx-auto sm:mx-0 justify-self-center sm:justify-self-auto'
+                      : ''
+                  }`}
                 >
                   <div className="w-14 h-14 rounded-2xl bg-[#EBF3EF] flex items-center justify-center text-[#0C3B2E] group-hover:bg-[#0C3B2E] group-hover:text-[#D4AF37] transition-colors shadow-inner">
                     <Icon className="w-6 h-6" />
@@ -531,6 +537,8 @@ export default function HomePage() {
                 {activeMiddle.secondaryButtonText && (
                   <Link
                     href={activeMiddle.secondaryButtonLink || '/worlds'}
+                    target="_blank"
+                    rel="noopener noreferrer"
                     className="inline-flex items-center gap-2 px-5 py-3 rounded-full border border-white/30 text-white font-semibold text-[11px] uppercase tracking-widest hover:bg-white/10 transition-all"
                   >
                     <span>{activeMiddle.secondaryButtonText}</span>

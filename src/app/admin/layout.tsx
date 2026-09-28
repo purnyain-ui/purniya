@@ -37,6 +37,8 @@ import {
   permissionKeyForPath,
   readAdminSession,
   clearAdminSession,
+  getProductAccess,
+  getInventoryAccess,
 } from '../../lib/adminPermissions';
 
 interface NavItem {
@@ -49,34 +51,12 @@ interface NavItem {
 
 type CategoryLite = { id: string; slug: string; title: string };
 
-// Accept both a JSON array and a JSON-encoded array from the saved session.
-function normalizePermissions(value: unknown): string[] {
-  if (typeof value === 'string') {
-    try {
-      return normalizePermissions(JSON.parse(value));
-    } catch {
-      return [];
-    }
-  }
-  return Array.isArray(value)
-    ? value.filter((item): item is string => typeof item === 'string')
-        .map((item) => item.trim()).filter(Boolean)
-    : [];
-}
-
-function getProductAccess(session: AdminSession | null) {
-  const permissions = normalizePermissions(session?.permissions);
-  // A scoped permission must never grant access to every category.
-  const all = Boolean(session && isSuperAdmin(session.role)) || permissions.includes('products');
-  const categoryIds = Array.from(new Set(permissions
-    .filter((permission) => permission.startsWith('products:'))
-    .map((permission) => permission.slice('products:'.length).trim())
-    .filter(Boolean)));
-  return { all, categoryIds, visible: all || categoryIds.length > 0 };
-}
-
 function isProductsPath(path: string) {
   return path === '/admin/products' || path.startsWith('/admin/products/');
+}
+
+function isInventoryPath(path: string) {
+  return path === '/admin/inventory' || path.startsWith('/admin/inventory/');
 }
 
 function AdminLayoutContent({ children }: { children: React.ReactNode }) {
@@ -166,21 +146,35 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
   }, [pathname]);
 
   const productAccess = useMemo(() => getProductAccess(adminSession), [adminSession]);
+  const inventoryAccess = useMemo(() => getInventoryAccess(adminSession), [adminSession]);
   const activeCategoryParam = searchParams.get('category');
   const visibleProductCategories = productAccess.all
     ? productCategories
     : productCategories.filter((category) => productAccess.categoryIds.includes(category.id));
+  const visibleInventoryCategories = inventoryAccess.all
+    ? productCategories
+    : productCategories.filter((category) => inventoryAccess.categoryIds.includes(category.id));
 
   // Resolve access before rendering children, so redirects do not flash a disallowed page.
   const requiredKey = permissionKeyForPath(pathname);
-  const productRouteAllowed = productAccess.all || (
-    productAccess.visible && Boolean(activeCategoryParam) &&
-    productAccess.categoryIds.includes(activeCategoryParam || '')
-  );
+  const productRouteAllowed =
+    productAccess.all ||
+    (productAccess.visible && (
+      pathname.startsWith('/admin/products/') ||
+      (Boolean(activeCategoryParam) && productAccess.categoryIds.includes(activeCategoryParam || ''))
+    ));
+  const inventoryRouteAllowed =
+    inventoryAccess.all ||
+    (inventoryAccess.visible && (
+      pathname.startsWith('/admin/inventory/') ||
+      (Boolean(activeCategoryParam) && inventoryAccess.categoryIds.includes(activeCategoryParam || ''))
+    ));
   const routeAllowed = Boolean(adminSession) && (
     isProductsPath(pathname)
       ? productRouteAllowed
-      : !requiredKey || hasPermission(adminSession, requiredKey)
+      : isInventoryPath(pathname)
+        ? inventoryRouteAllowed
+        : !requiredKey || hasPermission(adminSession, requiredKey)
   );
 
   useEffect(() => {
@@ -188,8 +182,17 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
     if (routeAllowed) return;
 
     if (isProductsPath(pathname) && productAccess.visible && !productAccess.all) {
-      router.replace(`/admin/products?category=${encodeURIComponent(productAccess.categoryIds[0])}`);
-      return;
+      if (productAccess.categoryIds.length > 0) {
+        router.replace(`/admin/products?category=${encodeURIComponent(productAccess.categoryIds[0])}`);
+        return;
+      }
+    }
+
+    if (isInventoryPath(pathname) && inventoryAccess.visible && !inventoryAccess.all) {
+      if (inventoryAccess.categoryIds.length > 0) {
+        router.replace(`/admin/inventory?category=${encodeURIComponent(inventoryAccess.categoryIds[0])}`);
+        return;
+      }
     }
 
     // Avoid a redirect loop for staff who do not have dashboard access.
@@ -198,10 +201,18 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
       : productAccess.visible
         ? productAccess.all
           ? '/admin/products'
-          : `/admin/products?category=${encodeURIComponent(productAccess.categoryIds[0])}`
-        : null;
+          : productAccess.categoryIds.length > 0
+            ? `/admin/products?category=${encodeURIComponent(productAccess.categoryIds[0])}`
+            : null
+        : inventoryAccess.visible
+          ? inventoryAccess.all
+            ? '/admin/inventory'
+            : inventoryAccess.categoryIds.length > 0
+              ? `/admin/inventory?category=${encodeURIComponent(inventoryAccess.categoryIds[0])}`
+              : null
+          : null;
     if (fallback && fallback !== pathname) router.replace(fallback);
-  }, [pathname, activeCategoryParam, isAuthenticated, adminSession, routeAllowed, productAccess, router]);
+  }, [pathname, activeCategoryParam, isAuthenticated, adminSession, routeAllowed, productAccess, inventoryAccess, router]);
 
   // Load categories for the Products Catalog / Inventory dropdowns once the admin is authenticated.
   useEffect(() => {
@@ -215,15 +226,15 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
       .select('id, slug, title')
       .order('priority', { ascending: true })
       .order('title', { ascending: true })
-      .then(({ data, error }) => {
+      .then(({ data: catData, error: catError }) => {
         if (isCancelled) return;
         setCategoriesLoading(false);
-        if (error) {
+        if (catError) {
           setProductCategories([]);
           setCategoriesError('Unable to load categories. Check category read access.');
           return;
         }
-        setProductCategories(data || []);
+        setProductCategories(catData || []);
       });
 
     return () => {
@@ -291,7 +302,7 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
   // and rendered as their own dropdowns (see below); everything else keeps
   // its normal permission-filtered order.
   const canSeeProducts = productAccess.visible;
-  const canSeeInventory = hasPermission(adminSession, 'inventory');
+  const canSeeInventory = inventoryAccess.visible;
   const canSeeHome = hasPermission(adminSession, 'home');
   const canSeeDashboard = hasPermission(adminSession, 'dashboard');
 
@@ -304,7 +315,8 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
         hasPermission(adminSession, item.key)
     );
 
-  const isProductsRootActive = pathname === '/admin/products' && !activeCategoryParam;
+  const isProductsRootActive =
+    pathname === '/admin/products' && !activeCategoryParam;
   const isInventoryRootActive = pathname === '/admin/inventory' && !activeCategoryParam;
 
   return (
@@ -408,22 +420,23 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
                 {productsCatalogOpen && (
                   <div className="pl-6 pr-1 py-1 space-y-1 border-l-2 border-[#144234] ml-4">
                     {productAccess.all && (
-                    <Link
-                      href="/admin/products"
-                      onClick={() => setSidebarOpen(false)}
-                      className={`flex items-center justify-between px-3 py-2 rounded-lg text-[11px] transition-all ${
-                        isProductsRootActive
-                          ? 'bg-[#C5A059] text-[#1E130D] font-bold shadow-sm'
-                          : 'text-[#A3B8B0] hover:text-white hover:bg-white/5'
-                      }`}
-                    >
-                      <span className="truncate">All Products</span>
-                    </Link>
+                      <Link
+                        href="/admin/products"
+                        onClick={() => setSidebarOpen(false)}
+                        className={`flex items-center justify-between px-3 py-2 rounded-lg text-[11px] transition-all ${
+                          isProductsRootActive
+                            ? 'bg-[#C5A059] text-[#1E130D] font-bold shadow-sm'
+                            : 'text-[#A3B8B0] hover:text-white hover:bg-white/5'
+                        }`}
+                      >
+                        <span className="truncate">All Products</span>
+                      </Link>
                     )}
 
                     {visibleProductCategories.map((cat) => {
                       const isCatActive =
                         pathname === '/admin/products' && activeCategoryParam === cat.id;
+
                       return (
                         <Link
                           key={cat.id}
@@ -434,8 +447,9 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
                               ? 'bg-[#C5A059] text-[#1E130D] font-bold shadow-sm'
                               : 'text-[#A3B8B0] hover:text-white hover:bg-white/5'
                           }`}
+                          title={cat.title.trim()}
                         >
-                          <span className="truncate">{cat.title}</span>
+                          <span className="truncate">{cat.title.trim()}</span>
                         </Link>
                       );
                     })}
@@ -481,19 +495,21 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
 
                 {inventoryCatalogOpen && (
                   <div className="pl-6 pr-1 py-1 space-y-1 border-l-2 border-[#144234] ml-4">
-                    <Link
-                      href="/admin/inventory"
-                      onClick={() => setSidebarOpen(false)}
-                      className={`flex items-center justify-between px-3 py-2 rounded-lg text-[11px] transition-all ${
-                        isInventoryRootActive
-                          ? 'bg-[#C5A059] text-[#1E130D] font-bold shadow-sm'
-                          : 'text-[#A3B8B0] hover:text-white hover:bg-white/5'
-                      }`}
-                    >
-                      <span className="truncate">All Inventory</span>
-                    </Link>
+                    {inventoryAccess.all && (
+                      <Link
+                        href="/admin/inventory"
+                        onClick={() => setSidebarOpen(false)}
+                        className={`flex items-center justify-between px-3 py-2 rounded-lg text-[11px] transition-all ${
+                          isInventoryRootActive
+                            ? 'bg-[#C5A059] text-[#1E130D] font-bold shadow-sm'
+                            : 'text-[#A3B8B0] hover:text-white hover:bg-white/5'
+                        }`}
+                      >
+                        <span className="truncate">All Inventory</span>
+                      </Link>
+                    )}
 
-                    {productCategories.map((cat) => {
+                    {visibleInventoryCategories.map((cat) => {
                       const isCatActive =
                         pathname === '/admin/inventory' && activeCategoryParam === cat.id;
                       return (
@@ -506,14 +522,21 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
                               ? 'bg-[#C5A059] text-[#1E130D] font-bold shadow-sm'
                               : 'text-[#A3B8B0] hover:text-white hover:bg-white/5'
                           }`}
+                          title={cat.title.trim()}
                         >
-                          <span className="truncate">{cat.title}</span>
+                          <span className="truncate">{cat.title.trim()}</span>
                         </Link>
                       );
                     })}
 
-                    {productCategories.length === 0 && (
-                      <p className="px-3 py-1.5 text-[10px] text-[#5A7469]">No categories yet.</p>
+                    {categoriesLoading && (
+                      <p className="px-3 py-1.5 text-[10px] text-[#8BAAA0]">Loading categories...</p>
+                    )}
+                    {categoriesError && (
+                      <p role="alert" className="px-3 py-1.5 text-[10px] text-rose-300">{categoriesError}</p>
+                    )}
+                    {!categoriesLoading && !categoriesError && visibleInventoryCategories.length === 0 && (
+                      <p className="px-3 py-1.5 text-[10px] text-[#5A7469]">No assigned categories found.</p>
                     )}
                   </div>
                 )}

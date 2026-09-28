@@ -33,14 +33,21 @@ export default function SearchModal() {
     'Gold Ring',
   ];
 
+  const activeProducts = useMemo(() => {
+    return products.filter(
+      (p) => (p.is_active !== undefined ? p.is_active : p.status === 'Active') && p.status !== 'Inactive'
+    );
+  }, [products]);
+
   const filteredResults = useMemo(() => {
     if (!query.trim() && selectedCategory === 'All') return [];
-    return products.filter(p => {
+    return activeProducts.filter(p => {
       const matchesQuery =
         !query.trim() ||
         p.name.toLowerCase().includes(query.toLowerCase()) ||
         p.subcategory.toLowerCase().includes(query.toLowerCase()) ||
-        p.category.toLowerCase().includes(query.toLowerCase());
+        p.category.toLowerCase().includes(query.toLowerCase()) ||
+        p.id.toLowerCase().includes(query.toLowerCase());
 
       const pSlug = (p.categorySlug || '').trim().toLowerCase();
       const pCat = (p.category || '').trim().toLowerCase();
@@ -58,7 +65,7 @@ export default function SearchModal() {
 
       return matchesQuery && matchesCat;
     }).slice(0, 8);
-  }, [products, query, selectedCategory]);
+  }, [activeProducts, query, selectedCategory]);
 
   if (!isSearchOpen) return null;
 
@@ -150,7 +157,7 @@ export default function SearchModal() {
                   Featured Recommendations
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {products.slice(0, 4).map(p => (
+                  {activeProducts.slice(0, 4).map(p => (
                     <Link
                       key={p.id}
                       href={`/product/${p.id}`}
@@ -163,9 +170,14 @@ export default function SearchModal() {
                         className="w-12 h-12 object-cover rounded-lg bg-[#EBF3EF] shrink-0"
                       />
                       <div className="min-w-0 flex-1">
-                        <p className="text-xs font-semibold text-[#0B241C] truncate group-hover:text-[#0C3B2E]">
-                          {p.name}
-                        </p>
+                        <div className="flex items-center justify-between gap-1">
+                          <p className="text-xs font-semibold text-[#0B241C] truncate group-hover:text-[#0C3B2E]">
+                            {p.name}
+                          </p>
+                          <span className="text-[9px] font-mono text-[#7A6B5C] bg-[#FAF8F5] px-1 py-0.5 rounded border border-[#E2DBD0] shrink-0">
+                            ID: {p.id}
+                          </span>
+                        </div>
                         <p className="text-xs text-[#5A7469]">{p.subcategory} · ₹{p.price.toLocaleString('en-IN')}</p>
                       </div>
                       <ArrowRight className="w-4 h-4 text-[#5A7469] group-hover:text-[#0C3B2E] group-hover:translate-x-0.5 transition-all shrink-0" />
@@ -193,9 +205,14 @@ export default function SearchModal() {
                       className="w-14 h-14 object-cover rounded-lg bg-[#EBF3EF] shrink-0"
                     />
                     <div className="min-w-0 flex-1">
-                      <span className="text-[10px] uppercase tracking-wider font-semibold text-[#C5A059]">
-                        {p.subcategory}
-                      </span>
+                      <div className="flex items-center justify-between gap-1">
+                        <span className="text-[10px] uppercase tracking-wider font-semibold text-[#C5A059] truncate">
+                          {p.subcategory}
+                        </span>
+                        <span className="text-[9px] font-mono text-[#7A6B5C] bg-[#FAF8F5] px-1 py-0.5 rounded border border-[#E2DBD0] shrink-0">
+                          ID: {p.id}
+                        </span>
+                      </div>
                       <p className="text-xs sm:text-sm font-semibold text-[#0B241C] truncate group-hover:text-[#0C3B2E]">
                         {p.name}
                       </p>

@@ -7,7 +7,11 @@ import ProductCard from '../../components/ProductCard';
 
 export default function OffersPage() {
   const { products, coupons, showToast } = useStore();
-  const discountedItems = products.filter((p) => p.originalPrice && p.originalPrice > p.price);
+  const discountedItems = products.filter(
+    (p) =>
+      ((p.is_active !== undefined ? p.is_active : p.status === 'Active') && p.status !== 'Inactive') &&
+      Boolean(p.originalPrice && p.originalPrice > p.price)
+  );
 
   const copyCode = (code: string) => {
     navigator.clipboard.writeText(code);
