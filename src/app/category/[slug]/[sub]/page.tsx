@@ -102,7 +102,7 @@ function SubcategoryContent({ slug, sub }: { slug: string; sub: string }) {
       {/* 1. SUBCATEGORY HERO BANNER */}
       <section className="relative w-full min-h-[340px] sm:min-h-[400px] lg:min-h-[440px] bg-[#08281F] overflow-hidden flex items-center">
         <img
-          src={bannerImage}
+          src={bannerImage || 'https://images.unsplash.com/photo-1515562141589-67f0d0953a8e?w=1920&fit=crop&auto=format'}
           alt={subcategoryName}
           className="w-full h-full object-cover object-center absolute inset-0 opacity-40 scale-105"
         />
@@ -146,21 +146,6 @@ function SubcategoryContent({ slug, sub }: { slug: string; sub: string }) {
               Each piece is handpicked for quality and artisanal craftsmanship.
             </p>
 
-            {/* Feature Pills */}
-            <div className="pt-2 flex flex-wrap gap-2.5 text-xs text-[#FAF8F5]">
-              <span className="px-3 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center gap-1.5">
-                <CheckCircle2 className="w-3.5 h-3.5 text-[#D4AF37]" />
-                <span>100% Artisanal Quality</span>
-              </span>
-              <span className="px-3 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center gap-1.5">
-                <CheckCircle2 className="w-3.5 h-3.5 text-[#D4AF37]" />
-                <span>Free Express Shipping &gt; ₹999</span>
-              </span>
-              <span className="px-3 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center gap-1.5">
-                <CheckCircle2 className="w-3.5 h-3.5 text-[#D4AF37]" />
-                <span>7-Day Return Policy</span>
-              </span>
-            </div>
           </div>
         </div>
       </section>
@@ -197,7 +182,7 @@ function SubcategoryContent({ slug, sub }: { slug: string; sub: string }) {
                 className="group relative aspect-square rounded-2xl overflow-hidden border shadow-sm hover:shadow-lg transition-all duration-300 border-[#E2DBD0] hover:border-[#C5A059]"
               >
                 <img
-                  src={currentCategory.bannerImage || currentCategory.heroImage}
+                  src={currentCategory.bannerImage || currentCategory.heroImage || 'https://images.unsplash.com/photo-1515562141589-67f0d0953a8e?w=600&fit=crop&auto=format'}
                   alt="All Pieces"
                   className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                 />
@@ -220,7 +205,7 @@ function SubcategoryContent({ slug, sub }: { slug: string; sub: string }) {
                     className="group relative aspect-square rounded-2xl overflow-hidden border shadow-sm hover:shadow-lg transition-all duration-300 border-[#E2DBD0] hover:border-[#C5A059]"
                   >
                     <img
-                      src={otherImage?.image || currentCategory.bannerImage || currentCategory.heroImage}
+                      src={otherImage?.image || currentCategory.bannerImage || currentCategory.heroImage || 'https://images.unsplash.com/photo-1515562141589-67f0d0953a8e?w=600&fit=crop&auto=format'}
                       alt={otherSub.trim()}
                       className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                     />

@@ -306,18 +306,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           getBannersFromSupabase().then((dbBanners) => {
             if (dbBanners && dbBanners.length > 0) {
               setBanners(dbBanners);
-              try {
-                localStorage.setItem('purnya_banners', JSON.stringify(dbBanners));
-              } catch (e) {
-                console.warn('LocalStorage save error:', e);
-              }
+              safeSaveToLocalStorage('purnya_banners', dbBanners);
             } else if (dbBanners && dbBanners.length === 0) {
               // Auto-seed default luxury banners if table is empty
               seedBannersToSupabase(initialHeroSlides).then(() => {
                 setBanners(initialHeroSlides);
-                try {
-                  localStorage.setItem('purnya_banners', JSON.stringify(initialHeroSlides));
-                } catch { }
+                safeSaveToLocalStorage('purnya_banners', initialHeroSlides);
               });
             }
           });
@@ -646,23 +640,46 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return () => window.removeEventListener('storage', handleStorageSync);
   }, []);
 
+  // Safe localStorage saver that catches QuotaExceededErrors and strips base64 data URLs
+  const safeSaveToLocalStorage = (key: string, data: any) => {
+    if (typeof window === 'undefined') return;
+    try {
+      let toStore = data;
+      if (typeof data !== 'string') {
+        if (Array.isArray(data)) {
+          toStore = data.map((item: any) => {
+            if (!item || typeof item !== 'object') return item;
+            const copy = { ...item };
+            if (typeof copy.image === 'string' && copy.image.startsWith('data:')) {
+              copy.image = '';
+            }
+            if (Array.isArray(copy.images)) {
+              copy.images = copy.images.filter((img: any) => typeof img === 'string' && !img.startsWith('data:'));
+            }
+            return copy;
+          });
+        }
+        toStore = JSON.stringify(toStore);
+      }
+      localStorage.setItem(key, toStore);
+    } catch {
+      // Silently catch quota exceeded errors
+    }
+  };
+
   // Save to localStorage when state changes
   useEffect(() => {
     if (!mounted) return;
-    try {
-      localStorage.setItem('purnya_products', JSON.stringify(products));
-      localStorage.setItem('purnya_categories', JSON.stringify(categories));
-      localStorage.setItem('purnya_cart', JSON.stringify(cart));
-      localStorage.setItem('purnya_wishlist', JSON.stringify(wishlist));
-      localStorage.setItem('purnya_orders', JSON.stringify(orders));
-      localStorage.setItem('purnya_coupons', JSON.stringify(coupons));
-      localStorage.setItem('purnya_banners', JSON.stringify(banners));
-      localStorage.setItem('purnya_announcement', announcement);
-      localStorage.setItem('purnya_addresses', JSON.stringify(addresses));
-      localStorage.setItem('purnya_user', JSON.stringify(user));
-    } catch (e) {
-      console.warn('LocalStorage save error', e);
-    }
+    safeSaveToLocalStorage('purnya_products', products);
+    safeSaveToLocalStorage('purnya_categories', categories);
+    safeSaveToLocalStorage('purnya_cart', cart);
+    safeSaveToLocalStorage('purnya_wishlist', wishlist);
+    safeSaveToLocalStorage('purnya_orders', orders);
+    safeSaveToLocalStorage('purnya_coupons', coupons);
+    safeSaveToLocalStorage('purnya_banners', banners);
+    safeSaveToLocalStorage('purnya_announcement', announcement);
+    safeSaveToLocalStorage('purnya_addresses', addresses);
+    safeSaveToLocalStorage('purnya_user', user);
   }, [mounted, products, categories, cart, wishlist, orders, coupons, banners, announcement, addresses, user]);
 
   // Toast helper

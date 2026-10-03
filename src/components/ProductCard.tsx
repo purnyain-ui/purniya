@@ -64,15 +64,16 @@ export default function ProductCard({
   return (
     <div className="group relative bg-white rounded-2xl border border-[#E2DBD0] overflow-hidden flex flex-col transition-all duration-300 hover:shadow-xl hover:border-[#0C3B2E]/60 hover:-translate-y-1">
       {/* Image Container */}
-      <div className="relative aspect-square w-full overflow-hidden bg-[#EBF3EF]/40">
-        <Link href={`/product/${product.id}`} className="block w-full h-full">
+      <div className="relative aspect-square w-full overflow-hidden bg-[#FAF8F5] border-b border-[#E2DBD0]/60">
+        <Link href={`/product/${product.id}`} className="block w-full h-full relative bg-[#FAF8F5]">
           <img
             src={displayImg}
             alt={product.name}
-            className={`w-full h-full object-cover object-center transition-all duration-700 ease-out group-hover:scale-105 ${
+            decoding="async"
+            loading="lazy"
+            className={`w-full h-full min-w-full min-h-full object-cover object-center transition-all duration-700 ease-out group-hover:scale-105 ${
               hoveredIdx === null && secondImg ? 'group-hover:opacity-0' : 'opacity-100'
             }`}
-            loading="lazy"
             onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
               const target = e.currentTarget;
               target.src = 'https://images.unsplash.com/photo-1515562141589-67f0d0953a8e?w=600&fit=crop&auto=format';
@@ -82,7 +83,9 @@ export default function ProductCard({
             <img
               src={secondImg}
               alt={product.name + ' alternate view'}
-              className="absolute inset-0 w-full h-full object-cover object-center transition-all duration-700 ease-out opacity-0 group-hover:opacity-100 group-hover:scale-105 pointer-events-none"
+              decoding="async"
+              loading="lazy"
+              className="absolute inset-0 w-full h-full min-w-full min-h-full object-cover object-center transition-all duration-700 ease-out opacity-0 group-hover:opacity-100 group-hover:scale-105 pointer-events-none"
             />
           )}
         </Link>

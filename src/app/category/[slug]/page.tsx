@@ -270,12 +270,13 @@ function CategoryContent({ slug }: { slug: string }) {
   }, []);
 
   const subcatList = useMemo(() => {
+    const fallbackImg = currentCategory?.bannerImage || currentCategory?.heroImage || 'https://images.unsplash.com/photo-1515562141589-67f0d0953a8e?w=600&fit=crop&auto=format';
     return (
       (currentCategory?.subcatImages && currentCategory.subcatImages.length > 0)
         ? currentCategory.subcatImages
         : (currentCategory?.subcategories || []).filter((s) => s !== 'All').map((s) => ({
           name: s,
-          image: currentCategory?.bannerImage || currentCategory?.heroImage || '',
+          image: fallbackImg,
         }))
     );
   }, [currentCategory]);
@@ -341,10 +342,6 @@ function CategoryContent({ slug }: { slug: string }) {
           </div>
 
           <div className="max-w-3xl space-y-4 sm:space-y-5">
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/10 backdrop-blur-md text-[#D4AF37] text-xs font-bold uppercase tracking-[0.25em] border border-[#D4AF37]/30 shadow-sm">
-              <span>Official Flagship Storefront</span>
-            </div>
-
             <h1 className="font-serif-title text-4xl sm:text-6xl lg:text-7xl font-bold text-white tracking-tight leading-[1.08]">
               {currentCategory.title}
             </h1>
@@ -352,22 +349,6 @@ function CategoryContent({ slug }: { slug: string }) {
               text={currentCategory.subtitle}
               className="text-sm sm:text-lg text-[#E8F0EC]/90 leading-relaxed font-normal max-w-2xl"
             />
-
-            {/* Feature Pills */}
-            <div className="pt-2 flex flex-wrap gap-2.5 text-xs text-[#FAF8F5]">
-              <span className="px-3 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center gap-1.5">
-                <CheckCircle2 className="w-3.5 h-3.5 text-[#D4AF37]" />
-                <span>100% Artisanal Quality</span>
-              </span>
-              <span className="px-3 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center gap-1.5">
-                <CheckCircle2 className="w-3.5 h-3.5 text-[#D4AF37]" />
-                <span>Free Express Shipping &gt; ₹999</span>
-              </span>
-              <span className="px-3 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center gap-1.5">
-                <CheckCircle2 className="w-3.5 h-3.5 text-[#D4AF37]" />
-                <span>7-Day Return Policy</span>
-              </span>
-            </div>
           </div>
         </div>
       </section>

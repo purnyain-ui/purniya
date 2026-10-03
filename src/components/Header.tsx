@@ -306,167 +306,169 @@ function HeaderContent() {
 
         {/* Main Header */}
         <header className="relative z-40 bg-white/95 backdrop-blur-md border-b border-[#E2DBD0] transition-all shadow-xs">
-          <div className="relative w-full max-w-[1480px] mx-auto px-3 sm:px-6 lg:px-6 xl:px-8 h-16 sm:h-20 flex items-center justify-between gap-1">
-            {/* 1. LEFT ZONE: Logo with Emblem & Brand Name (kept neatly to the left) */}
-            <div className="flex items-center gap-0.5 sm:gap-3 min-w-0">
-              {/* Mobile Menu Button */}
-              <button
-                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="lg:hidden shrink-0 p-1.5 sm:p-2 text-[#0C3B2E] hover:text-[#C5A059] transition-colors"
-                aria-label="Toggle Menu"
-              >
-                {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-              </button>
+          <div className="relative w-full max-w-[1480px] mx-auto px-3 sm:px-6 lg:px-6 xl:px-8 h-16 sm:h-20 flex items-center justify-between gap-4">
+            {/* 1. LEFT & CENTER ZONE: Logo with Emblem & Desktop Navigation Links */}
+            <div className="flex items-center gap-6 xl:gap-10 min-w-0">
+              {/* Mobile Menu Button & Logo */}
+              <div className="flex items-center gap-1 sm:gap-3 shrink-0">
+                <button
+                  onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                  className="lg:hidden shrink-0 p-1.5 sm:p-2 text-[#0C3B2E] hover:text-[#C5A059] transition-colors"
+                  aria-label="Toggle Menu"
+                >
+                  {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+                </button>
 
-              <Link
-                href={currentCategory ? `/category/${(currentCategory.slug || '').trim()}` : '/'}
-                className="flex items-center gap-1.5 sm:gap-2.5 group min-w-0"
-                title={currentCategory ? `${(currentCategory.title || '').trim()} Storefront` : 'Purnya Official Store'}
-              >
-                <div className="w-8 h-8 sm:w-12 sm:h-12 shrink-0 rounded-full overflow-hidden flex items-center justify-center p-0.5 bg-[#FAF8F5] border border-[#C5A059]/40 shadow-xs group-hover:scale-105 transition-transform duration-300">
-                  <img
-                    src="/logoicon.png"
-                    alt="Purnya Emblem"
-                    className="w-full h-full object-contain"
-                  />
-                </div>
-                <div className="flex flex-col items-start min-w-0">
-                  <div className="flex items-center gap-1.5">
-                    <span className="font-serif-title text-lg sm:text-3xl font-bold tracking-[0.1em] sm:tracking-[0.16em] text-[#0C3B2E] group-hover:text-[#164E3D] transition-colors leading-none">
-                      PURNYA
+                <Link
+                  href={currentCategory ? `/category/${(currentCategory.slug || '').trim()}` : '/'}
+                  className="flex items-center gap-1.5 sm:gap-2.5 group shrink-0"
+                  title={currentCategory ? `${(currentCategory.title || '').trim()} Storefront` : 'Purnya Official Store'}
+                >
+                  <div className="w-8 h-8 sm:w-12 sm:h-12 shrink-0 rounded-full overflow-hidden flex items-center justify-center p-0.5 bg-[#FAF8F5] border border-[#C5A059]/40 shadow-xs group-hover:scale-105 transition-transform duration-300">
+                    <img
+                      src="/logoicon.png"
+                      alt="Purnya Emblem"
+                      className="w-full h-full object-contain"
+                    />
+                  </div>
+                  <div className="flex flex-col items-start min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-serif-title text-lg sm:text-3xl font-bold tracking-[0.1em] sm:tracking-[0.16em] text-[#0C3B2E] group-hover:text-[#164E3D] transition-colors leading-none">
+                        PURNYA
+                      </span>
+                    </div>
+                    <span className="block max-w-[110px] truncate sm:max-w-none text-[8px] sm:text-[10px] uppercase tracking-[0.14em] sm:tracking-[0.22em] text-[#C5A059] font-bold mt-0.5">
+                      {currentCategory ? (currentCategory.title || '').trim() : 'Life · Lifestyle · You'}
                     </span>
                   </div>
-                  <span className="block max-w-[110px] truncate sm:max-w-none text-[8px] sm:text-[10px] uppercase tracking-[0.14em] sm:tracking-[0.22em] text-[#C5A059] font-bold mt-0.5">
-                    {currentCategory ? (currentCategory.title || '').trim() : 'Life · Lifestyle · You'}
-                  </span>
-                </div>
-              </Link>
-            </div>
+                </Link>
+              </div>
 
-            {/* 2. CENTER ZONE: Desktop Navigation Links (Anchored in dead center - ZERO shift or gaps when logging in!) */}
-            <nav className="hidden lg:flex items-center gap-4 xl:gap-6 text-xs font-semibold tracking-wider uppercase text-[#2C4A3E] whitespace-nowrap absolute left-1/2 -translate-x-1/2">
-              {currentCategory ? (
-                // Dedicated Category Storefront Navigation (Includes Home + Subcategories)
-                <>
-                  <Link
-                    href={`/category/${(currentCategory.slug || '').trim()}`}
-                    className={`py-2 relative transition-colors duration-200 hover:text-[#0C3B2E] ${pathname === `/category/${(currentCategory.slug || '').trim()}` && currentSub === 'All'
-                      ? 'text-[#0C3B2E] font-bold'
-                      : ''
-                      }`}
-                  >
-                    Home
-                    {pathname === `/category/${(currentCategory.slug || '').trim()}` && currentSub === 'All' && (
-                      <span className="absolute bottom-0 left-0 right-0 h-[2.5px] bg-[#0C3B2E] rounded-full" />
-                    )}
-                  </Link>
-
-                  {currentCategory.subcategories
-                    .filter((s: string) => (s || '').trim() !== 'All')
-                    .slice(0, 4)
-                    .map((sub: string) => {
-                      const cleanSub = (sub || '').trim();
-                      return (
-                        <Link
-                          key={cleanSub}
-                          href={`/category/${(currentCategory.slug || '').trim()}/${encodeURIComponent(cleanSub)}`}
-                          className={`py-2 relative transition-colors duration-200 hover:text-[#0C3B2E]`}
-                        >
-                          {cleanSub}
-                        </Link>
-                      );
-                    })}
-
-                  {/* Dropdown to open any of the other category websites in a new tab */}
-                  <div
-                    className="relative"
-                    onMouseEnter={() => setOtherBoutiquesOpen(true)}
-                    onMouseLeave={() => setOtherBoutiquesOpen(false)}
-                  >
-                    <button
-                      type="button"
-                      onClick={() => setOtherBoutiquesOpen(!otherBoutiquesOpen)}
-                      className="py-2 inline-flex items-center gap-1 transition-colors hover:text-[#0C3B2E] text-xs font-semibold uppercase tracking-wider text-[#2C4A3E] cursor-pointer"
-                    >
-                      <span>Other Boutiques</span>
-                      <ChevronDown className="w-3.5 h-3.5 text-[#C5A059]" />
-                    </button>
-
-                    {otherBoutiquesOpen && (
-                      <div className="absolute left-0 top-full pt-1 w-64 z-50">
-                        <div className="bg-white rounded-2xl shadow-xl border border-[#E2DBD0] py-2 overflow-hidden">
-                          <div className="px-3.5 py-1.5 border-b border-[#F0ECE4] text-[10px] uppercase tracking-wider text-[#5A7469] font-bold">
-                            Switch Boutique
-                          </div>
-                          {sortedCategories
-                            .filter((c) => (c.slug || '').trim() !== (currentCategory.slug || '').trim())
-                            .map((otherCat) => (
-                              <Link
-                                key={otherCat.id}
-                                href={`/category/${(otherCat.slug || '').trim()}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                onClick={() => setOtherBoutiquesOpen(false)}
-                                className="flex items-center justify-between px-3.5 py-2.5 text-xs text-[#0B241C] hover:bg-[#EBF3EF] hover:text-[#0C3B2E] transition-colors"
-                              >
-                                <div className="flex items-center gap-2.5">
-                                  <div className="w-7 h-7 rounded-full overflow-hidden shrink-0 border border-[#C5A059]/40 bg-[#EBF3EF]">
-                                    <img
-                                      src={otherCat.bannerImage || otherCat.heroImage}
-                                      alt=""
-                                      className="w-full h-full object-cover"
-                                    />
-                                  </div>
-                                  <span className="font-semibold text-[#0B241C]">{(otherCat.title || '').trim()}</span>
-                                </div>
-                                <ArrowUpRight className="w-3.5 h-3.5 text-[#C5A059]" />
-                              </Link>
-                            ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Switcher back to Main Purnya Portal */}
-                  <Link
-                    href="/"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={() => {
-                      try { sessionStorage.removeItem('purnya_active_category'); } catch(e) {}
-                      setActiveCategorySlug(null);
-                    }}
-                    className="ml-1 inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-[#FAF8F5] hover:bg-[#EBF3EF] border border-[#C5A059]/40 text-[#0C3B2E] text-[11px] font-bold normal-case tracking-normal transition-all shadow-xs"
-                    title="Go to Main Purnya Portal in new tab"
-                  >
-                    <span>Main Portal</span>
-                    <ArrowUpRight className="w-3.5 h-3.5 text-[#C5A059]" />
-                  </Link>
-                </>
-              ) : (
-                // Main Multi-Category Portal Navigation (Opens in new tab)
-                navLinks.map((link) => {
-                  const isActive = pathname === link.href;
-                  return (
+              {/* Desktop Navigation Links (Positioned with exact generous spacing next to logo) */}
+              <nav className="hidden lg:flex items-center gap-4 xl:gap-6 text-xs font-semibold tracking-wider uppercase text-[#2C4A3E] whitespace-nowrap">
+                {currentCategory ? (
+                  // Dedicated Category Storefront Navigation (Includes Home + Subcategories)
+                  <>
                     <Link
-                      key={link.href}
-                      href={link.href}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className={`py-2 relative transition-colors duration-200 hover:text-[#0C3B2E] inline-flex items-center gap-1 ${isActive ? 'text-[#0C3B2E] font-bold' : ''
+                      href={`/category/${(currentCategory.slug || '').trim()}`}
+                      className={`py-2 relative transition-colors duration-200 hover:text-[#0C3B2E] ${pathname === `/category/${(currentCategory.slug || '').trim()}` && currentSub === 'All'
+                        ? 'text-[#0C3B2E] font-bold'
+                        : ''
                         }`}
-                      title={link.name}
                     >
-                      <span>{link.name}</span>
-                      <ArrowUpRight className="w-3.5 h-3.5 text-[#C5A059]" />
-                      {isActive && (
+                      Home
+                      {pathname === `/category/${(currentCategory.slug || '').trim()}` && currentSub === 'All' && (
                         <span className="absolute bottom-0 left-0 right-0 h-[2.5px] bg-[#0C3B2E] rounded-full" />
                       )}
                     </Link>
-                  );
-                })
-              )}
-            </nav>
+
+                    {currentCategory.subcategories
+                      .filter((s: string) => (s || '').trim() !== 'All')
+                      .slice(0, 4)
+                      .map((sub: string) => {
+                        const cleanSub = (sub || '').trim();
+                        return (
+                          <Link
+                            key={cleanSub}
+                            href={`/category/${(currentCategory.slug || '').trim()}/${encodeURIComponent(cleanSub)}`}
+                            className={`py-2 relative transition-colors duration-200 hover:text-[#0C3B2E]`}
+                          >
+                            {cleanSub}
+                          </Link>
+                        );
+                      })}
+
+                    {/* Dropdown to open any of the other category websites in a new tab */}
+                    <div
+                      className="relative"
+                      onMouseEnter={() => setOtherBoutiquesOpen(true)}
+                      onMouseLeave={() => setOtherBoutiquesOpen(false)}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => setOtherBoutiquesOpen(!otherBoutiquesOpen)}
+                        className="py-2 inline-flex items-center gap-1 transition-colors hover:text-[#0C3B2E] text-xs font-semibold uppercase tracking-wider text-[#2C4A3E] cursor-pointer"
+                      >
+                        <span>Other Boutiques</span>
+                        <ChevronDown className="w-3.5 h-3.5 text-[#C5A059]" />
+                      </button>
+
+                      {otherBoutiquesOpen && (
+                        <div className="absolute left-0 top-full pt-1 w-64 z-50">
+                          <div className="bg-white rounded-2xl shadow-xl border border-[#E2DBD0] py-2 overflow-hidden">
+                            <div className="px-3.5 py-1.5 border-b border-[#F0ECE4] text-[10px] uppercase tracking-wider text-[#5A7469] font-bold">
+                              Switch Boutique
+                            </div>
+                            {sortedCategories
+                              .filter((c) => (c.slug || '').trim() !== (currentCategory.slug || '').trim())
+                              .map((otherCat) => (
+                                <Link
+                                  key={otherCat.id}
+                                  href={`/category/${(otherCat.slug || '').trim()}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  onClick={() => setOtherBoutiquesOpen(false)}
+                                  className="flex items-center justify-between px-3.5 py-2.5 text-xs text-[#0B241C] hover:bg-[#EBF3EF] hover:text-[#0C3B2E] transition-colors"
+                                >
+                                  <div className="flex items-center gap-2.5">
+                                    <div className="w-7 h-7 rounded-full overflow-hidden shrink-0 border border-[#C5A059]/40 bg-[#EBF3EF]">
+                                      <img
+                                        src={otherCat.bannerImage || otherCat.heroImage}
+                                        alt=""
+                                        className="w-full h-full object-cover"
+                                      />
+                                    </div>
+                                    <span className="font-semibold text-[#0B241C]">{(otherCat.title || '').trim()}</span>
+                                  </div>
+                                  <ArrowUpRight className="w-3.5 h-3.5 text-[#C5A059]" />
+                                </Link>
+                              ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Switcher back to Main Purnya Portal */}
+                    <Link
+                      href="/"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={() => {
+                        try { sessionStorage.removeItem('purnya_active_category'); } catch(e) {}
+                        setActiveCategorySlug(null);
+                      }}
+                      className="ml-1 inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-[#FAF8F5] hover:bg-[#EBF3EF] border border-[#C5A059]/40 text-[#0C3B2E] text-[11px] font-bold normal-case tracking-normal transition-all shadow-xs"
+                      title="Go to Main Purnya Portal in new tab"
+                    >
+                      <span>Main Portal</span>
+                      <ArrowUpRight className="w-3.5 h-3.5 text-[#C5A059]" />
+                    </Link>
+                  </>
+                ) : (
+                  // Main Multi-Category Portal Navigation (Opens in new tab)
+                  navLinks.map((link) => {
+                    const isActive = pathname === link.href;
+                    return (
+                      <Link
+                        key={link.href}
+                        href={link.href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={`py-2 relative transition-colors duration-200 hover:text-[#0C3B2E] inline-flex items-center gap-1 ${isActive ? 'text-[#0C3B2E] font-bold' : ''
+                          }`}
+                        title={link.name}
+                      >
+                        <span>{link.name}</span>
+                        <ArrowUpRight className="w-3.5 h-3.5 text-[#C5A059]" />
+                        {isActive && (
+                          <span className="absolute bottom-0 left-0 right-0 h-[2.5px] bg-[#0C3B2E] rounded-full" />
+                        )}
+                      </Link>
+                    );
+                  })
+                )}
+              </nav>
+            </div>
 
             {/* 3. RIGHT ZONE: Action Icons (Wishlist & Cart ONLY show after login as requested!) */}
             <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0 justify-end z-10">

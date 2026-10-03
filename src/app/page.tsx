@@ -143,42 +143,44 @@ export default function HomePage() {
     <div className="space-y-6 sm:space-y-10 pb-12">
 {/* 1. HERO BANNER SECTION (SOW 5.A) */}
 <section className="relative w-full h-[520px] sm:h-[620px] lg:h-[680px] overflow-hidden bg-[#08281F]">
-  {displayedBanners.map((slide, idx) => (
-    <div
-      key={slide.id}
-      className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${
-        idx === activeSlide ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'
-      }`}
-    >
-      <img
-        src={slide.image}
-        alt={slide.title}
-        className="w-full h-full object-cover object-center scale-105 transition-transform duration-10000 ease-out opacity-90"
-      />
+  {displayedBanners.map((slide, idx) => {
+    const heroImage = slide.image || 'https://images.unsplash.com/photo-1515562141589-67f0d0953a8e?w=1920&fit=crop&auto=format';
+    return (
+      <div
+        key={slide.id}
+        className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${
+          idx === activeSlide ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'
+        }`}
+      >
+        <img
+          src={heroImage}
+          alt={slide.title}
+          className="w-full h-full object-cover object-center scale-105 transition-transform duration-10000 ease-out opacity-90"
+        />
       {/* Emerald Deep Atmospheric Gradient Overlay */}
       <div className="absolute inset-0 bg-gradient-to-r from-[#08281F]/90 via-[#0C3B2E]/60 to-black/30" />
       <div className="absolute inset-0 bg-gradient-to-t from-[#08281F]/80 via-transparent to-transparent" />
 
-      {/* pb-20 / sm:pb-24 keeps text clear of the bottom controls */}
-      <div className="absolute inset-0 flex items-center pb-20 sm:pb-24">
-        <div className="w-full px-3 sm:px-4">
-          <div className="max-w-2xl text-[#FAF8F5] space-y-4 sm:space-y-6">
+      {/* pb-24 / sm:pb-28 keeps text clear of bottom controls */}
+      <div className="absolute inset-0 flex items-center pb-24 sm:pb-28">
+        <div className="w-full px-3 sm:px-6">
+          <div className="max-w-2xl text-[#FAF8F5] space-y-3.5 sm:space-y-6">
             {slide.pretitle && (
               <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/10 backdrop-blur-md text-[#D4AF37] text-xs font-semibold uppercase tracking-[0.25em] border border-[#D4AF37]/30">
                 <span>{slide.pretitle}</span>
               </div>
             )}
-            <h1 className="font-serif-title text-4xl sm:text-6xl lg:text-7xl font-bold tracking-tight text-white leading-[1.06]">
+            <h1 className="font-serif-title text-3xl sm:text-6xl lg:text-7xl font-bold tracking-tight text-white leading-[1.06]">
               {slide.title}
             </h1>
-           <ClampedText
-  text={slide.subtitle}
-  className="text-base sm:text-lg text-[#E8F0EC] font-normal leading-relaxed max-w-lg"
-/>
-            <div className="pt-2 flex flex-wrap gap-4">
+            <ClampedText
+              text={slide.subtitle}
+              className="text-xs sm:text-lg text-[#E8F0EC] font-normal leading-relaxed max-w-lg"
+            />
+            <div className="pt-2 flex flex-wrap gap-2.5 sm:gap-4">
               <Link
                 href={slide.ctaLink}
-                className="px-8 py-3.5 rounded-full bg-gradient-to-r from-[#D4AF37] to-[#C5A059] hover:from-[#E6C25B] hover:to-[#D4AF37] text-[#08281F] font-bold text-xs sm:text-sm uppercase tracking-widest shadow-xl transition-all hover:scale-105 flex items-center gap-2"
+                className="px-6 sm:px-8 py-2.5 sm:py-3.5 rounded-full bg-gradient-to-r from-[#D4AF37] to-[#C5A059] hover:from-[#E6C25B] hover:to-[#D4AF37] text-[#08281F] font-bold text-xs sm:text-sm uppercase tracking-widest shadow-xl transition-all hover:scale-105 flex items-center gap-2"
               >
                 <span>{slide.ctaText}</span>
                 <ArrowRight className="w-4 h-4" />
@@ -188,7 +190,7 @@ export default function HomePage() {
                   href={`/category/${categories[0].slug}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="px-8 py-3.5 rounded-full bg-white/10 hover:bg-white/20 text-white font-semibold text-xs sm:text-sm uppercase tracking-widest backdrop-blur-md border border-white/25 transition-all"
+                  className="px-6 sm:px-8 py-2.5 sm:py-3.5 rounded-full bg-white/10 hover:bg-white/20 text-white font-semibold text-xs sm:text-sm uppercase tracking-widest backdrop-blur-md border border-white/25 transition-all"
                 >
                   Explore {categories[0].title} ↗
                 </Link>
@@ -198,43 +200,44 @@ export default function HomePage() {
         </div>
       </div>
     </div>
-  ))}
+  );
+})}
 
   {/* Hero Navigation Controls — bottom row: dots (left) + arrows (bottom-right corner) */}
   {displayedBanners.length > 1 && (
-    <div className="absolute bottom-4 sm:bottom-8 inset-x-3 sm:inset-x-8 z-20 flex items-center justify-between">
-      {/* Dots */}
-      <div className="flex gap-2.5">
+    <>
+      {/* Slide Indicator Dots (Bottom-Left) */}
+      <div className="absolute bottom-3 left-3 sm:bottom-6 sm:left-6 z-30 flex items-center gap-2 sm:gap-2.5">
         {displayedBanners.map((_, i) => (
           <button
             key={i}
             onClick={() => setActiveSlide(i)}
             className={`h-2 rounded-full transition-all duration-300 ${
-              i === activeSlide ? 'w-8 bg-[#D4AF37]' : 'w-2 bg-white/40 hover:bg-white/70'
+              i === activeSlide ? 'w-7 sm:w-8 bg-[#D4AF37]' : 'w-2 bg-white/40 hover:bg-white/70'
             }`}
             aria-label={`Slide ${i + 1}`}
           />
         ))}
       </div>
 
-      {/* Arrows — bottom-right corner */}
-      <div className="flex items-center gap-2 sm:gap-3">
+      {/* Navigation Arrows (Bottom-Right Corner) */}
+      <div className="absolute bottom-3 right-3 sm:bottom-6 sm:right-6 z-30 flex items-center gap-2 sm:gap-3">
         <button
           onClick={prevSlide}
           aria-label="Previous Slide"
-          className="w-9 h-9 sm:w-11 sm:h-11 rounded-full bg-black/30 hover:bg-[#0C3B2E] text-white flex items-center justify-center backdrop-blur-md border border-white/20 transition-all hover:scale-110 shadow-lg"
+          className="w-9 h-9 sm:w-11 sm:h-11 rounded-full bg-black/40 hover:bg-[#0C3B2E] text-white flex items-center justify-center backdrop-blur-md border border-white/30 transition-all hover:scale-110 active:scale-95 shadow-xl"
         >
           <ChevronLeft className="w-5 h-5 sm:w-6 sm:h-6" />
         </button>
         <button
           onClick={nextSlide}
           aria-label="Next Slide"
-          className="w-9 h-9 sm:w-11 sm:h-11 rounded-full bg-black/30 hover:bg-[#0C3B2E] text-white flex items-center justify-center backdrop-blur-md border border-white/20 transition-all hover:scale-110 shadow-lg"
+          className="w-9 h-9 sm:w-11 sm:h-11 rounded-full bg-black/40 hover:bg-[#0C3B2E] text-white flex items-center justify-center backdrop-blur-md border border-white/30 transition-all hover:scale-110 active:scale-95 shadow-xl"
         >
           <ChevronRight className="w-5 h-5 sm:w-6 sm:h-6" />
         </button>
       </div>
-    </div>
+    </>
   )}
 </section>
 
