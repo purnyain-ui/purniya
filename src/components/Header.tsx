@@ -26,6 +26,7 @@ import {
   Leaf,
 } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
+import { initialCategories } from '../data/mockData';
 import { signInWithSupabase, signUpWithSupabase, isSupabaseConfigured, sendPasswordResetEmail } from '../lib/supabase';
 import { isAdminEmail } from '../lib/adminPermissions';
 
@@ -77,7 +78,8 @@ function HeaderContent() {
   const isAdminRoute = pathname?.startsWith('/admin');
 
   // Sort categories by priority so nav always follows admin-defined order
-  const sortedCategories = [...categories].sort(
+  const categoriesList = categories && categories.length > 0 ? categories : initialCategories;
+  const sortedCategories = [...categoriesList].sort(
     (a: any, b: any) => (a.priority ?? 1) - (b.priority ?? 1)
   );
 
@@ -238,28 +240,15 @@ function HeaderContent() {
   const [activeCategorySlug, setActiveCategorySlug] = useState<string | null>(null);
 
   useEffect(() => {
-    if (pathname === '/') {
-      try {
-        sessionStorage.removeItem('purnya_active_category');
-      } catch (e) {}
-      setActiveCategorySlug(null);
-    } else if (pathname?.startsWith('/category/') || pathname?.startsWith('/all-products/')) {
+    if (pathname?.startsWith('/category/')) {
       const parts = pathname.split('/');
       const slug = parts[2]?.trim()?.toLowerCase();
       if (slug) {
-        try {
-          sessionStorage.setItem('purnya_active_category', slug);
-        } catch (e) {}
         setActiveCategorySlug(slug);
+        return;
       }
-    } else {
-      try {
-        const saved = sessionStorage.getItem('purnya_active_category');
-        if (saved) {
-          setActiveCategorySlug(saved);
-        }
-      } catch (e) {}
     }
+    setActiveCategorySlug(null);
   }, [pathname]);
 
   const currentCategory = useMemo(() => {
@@ -307,45 +296,43 @@ function HeaderContent() {
         {/* Main Header */}
         <header className="relative z-40 bg-white/95 backdrop-blur-md border-b border-[#E2DBD0] transition-all shadow-xs">
           <div className="relative w-full max-w-[1480px] mx-auto px-3 sm:px-6 lg:px-6 xl:px-8 h-16 sm:h-20 flex items-center justify-between gap-4">
-            {/* 1. LEFT & CENTER ZONE: Logo with Emblem & Desktop Navigation Links */}
-            <div className="flex items-center gap-6 xl:gap-10 min-w-0">
-              {/* Mobile Menu Button & Logo */}
-              <div className="flex items-center gap-1 sm:gap-3 shrink-0">
-                <button
-                  onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                  className="lg:hidden shrink-0 p-1.5 sm:p-2 text-[#0C3B2E] hover:text-[#C5A059] transition-colors"
-                  aria-label="Toggle Menu"
-                >
-                  {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-                </button>
+            {/* Mobile Menu Button & Logo */}
+            <div className="flex items-center gap-1 sm:gap-3 shrink-0">
+              <button
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                className="lg:hidden shrink-0 p-1.5 sm:p-2 text-[#0C3B2E] hover:text-[#C5A059] transition-colors"
+                aria-label="Toggle Menu"
+              >
+                {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+              </button>
 
-                <Link
-                  href={currentCategory ? `/category/${(currentCategory.slug || '').trim()}` : '/'}
-                  className="flex items-center gap-1.5 sm:gap-2.5 group shrink-0"
-                  title={currentCategory ? `${(currentCategory.title || '').trim()} Storefront` : 'Purnya Official Store'}
-                >
-                  <div className="w-8 h-8 sm:w-12 sm:h-12 shrink-0 rounded-full overflow-hidden flex items-center justify-center p-0.5 bg-[#FAF8F5] border border-[#C5A059]/40 shadow-xs group-hover:scale-105 transition-transform duration-300">
-                    <img
-                      src="/logoicon.png"
-                      alt="Purnya Emblem"
-                      className="w-full h-full object-contain"
-                    />
-                  </div>
-                  <div className="flex flex-col items-start min-w-0">
-                    <div className="flex items-center gap-1.5">
-                      <span className="font-serif-title text-lg sm:text-3xl font-bold tracking-[0.1em] sm:tracking-[0.16em] text-[#0C3B2E] group-hover:text-[#164E3D] transition-colors leading-none">
-                        PURNYA
-                      </span>
-                    </div>
-                    <span className="block max-w-[110px] truncate sm:max-w-none text-[8px] sm:text-[10px] uppercase tracking-[0.14em] sm:tracking-[0.22em] text-[#C5A059] font-bold mt-0.5">
-                      {currentCategory ? (currentCategory.title || '').trim() : 'Life · Lifestyle · You'}
+              <Link
+                href={currentCategory ? `/category/${(currentCategory.slug || '').trim()}` : '/'}
+                className="flex items-center gap-1.5 sm:gap-2.5 group shrink-0"
+                title={currentCategory ? `${(currentCategory.title || '').trim()} Storefront` : 'Purnya Official Store'}
+              >
+                <div className="w-8 h-8 sm:w-12 sm:h-12 shrink-0 rounded-full overflow-hidden flex items-center justify-center p-0.5 bg-[#FAF8F5] border border-[#C5A059]/40 shadow-xs group-hover:scale-105 transition-transform duration-300">
+                  <img
+                    src="/logoicon.png"
+                    alt="Purnya Emblem"
+                    className="w-full h-full object-contain"
+                  />
+                </div>
+                <div className="flex flex-col items-start min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-serif-title text-lg sm:text-3xl font-bold tracking-[0.1em] sm:tracking-[0.16em] text-[#0C3B2E] group-hover:text-[#164E3D] transition-colors leading-none">
+                      PURNYA
                     </span>
                   </div>
-                </Link>
-              </div>
+                  <span className="block max-w-[110px] truncate sm:max-w-none text-[8px] sm:text-[10px] uppercase tracking-[0.14em] sm:tracking-[0.22em] text-[#C5A059] font-bold mt-0.5">
+                    {currentCategory ? (currentCategory.title || '').trim() : 'Life · Lifestyle · You'}
+                  </span>
+                </div>
+              </Link>
+            </div>
 
-              {/* Desktop Navigation Links (Positioned with exact generous spacing next to logo) */}
-              <nav className="hidden lg:flex items-center gap-4 xl:gap-6 text-xs font-semibold tracking-wider uppercase text-[#2C4A3E] whitespace-nowrap">
+            {/* Desktop Navigation Links (Centered in Header) */}
+            <nav className="hidden lg:flex items-center justify-center gap-4 xl:gap-6 text-xs font-semibold tracking-wider uppercase text-[#2C4A3E] whitespace-nowrap absolute left-1/2 -translate-x-1/2">
                 {currentCategory ? (
                   // Dedicated Category Storefront Navigation (Includes Home + Subcategories)
                   <>
@@ -468,7 +455,6 @@ function HeaderContent() {
                   })
                 )}
               </nav>
-            </div>
 
             {/* 3. RIGHT ZONE: Action Icons (Wishlist & Cart ONLY show after login as requested!) */}
             <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0 justify-end z-10">

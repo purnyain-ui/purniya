@@ -20,6 +20,7 @@ import {
   initialOrders,
   initialAddresses,
   initialUser,
+  getSubcategoryImage,
 } from '../data/mockData';
 import {
   checkSupabaseConnection,
@@ -155,6 +156,42 @@ interface StoreContextType {
   refreshCatalog: () => Promise<void>;
 }
 
+function enrichCategories(cats: CategoryMeta[]): CategoryMeta[] {
+  if (!cats || cats.length === 0) return initialCategories;
+  return cats.map((cat) => {
+    const initCat = initialCategories.find(
+      (ic) => ic.id === cat.id || (ic.slug || '').toLowerCase() === (cat.slug || '').toLowerCase()
+    );
+    const hero = cat.heroImage || cat.bannerImage || initCat?.heroImage || '';
+    const banner = cat.bannerImage || cat.heroImage || initCat?.bannerImage || '';
+    const subcatNames = (cat.subcategories && cat.subcategories.length > 0)
+      ? cat.subcategories
+      : (initCat?.subcategories || ['All']);
+    
+    const rawSubImgs = (cat.subcatImages && cat.subcatImages.length > 0)
+      ? cat.subcatImages
+      : (initCat?.subcatImages || []);
+
+    const enrichedSubImgs = subcatNames
+      .filter((s) => s !== 'All')
+      .map((sName) => {
+        const found = rawSubImgs.find((item) => item.name.trim().toLowerCase() === sName.trim().toLowerCase());
+        return {
+          name: sName,
+          image: getSubcategoryImage(sName, hero, found?.image),
+        };
+      });
+
+    return {
+      ...cat,
+      heroImage: hero,
+      bannerImage: banner,
+      subcategories: subcatNames,
+      subcatImages: enrichedSubImgs,
+    };
+  });
+}
+
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
 
 export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -163,7 +200,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [isAuthLoading, setIsAuthLoading] = useState(true);
 
   const [products, setProducts] = useState<Product[]>(initialProducts);
-  const [categories, setCategories] = useState<CategoryMeta[]>(initialCategories);
+  const [categories, setCategories] = useState<CategoryMeta[]>(() => enrichCategories(initialCategories));
   const [cart, setCart] = useState<CartItem[]>([]);
   const [wishlist, setWishlist] = useState<Product[]>([]);
   const [orders, setOrders] = useState<Order[]>(initialOrders);
@@ -178,6 +215,15 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [toast, setToast] = useState<ToastState | null>(null);
   const [authModal, setAuthModal] = useState<AuthModalState | null>(null);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isGlobalLoading, setIsGlobalLoading] = useState(true);
+
+  useEffect(() => {
+    // 3-second global loading screen when opening the site
+    const timer = setTimeout(() => {
+      setIsGlobalLoading(false);
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, []);
 
   const openAuthModal = (options?: {
     actionType?: 'order' | 'wishlist' | 'bag' | 'review';
@@ -214,9 +260,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     // Fetch real categories directly from Supabase immediately on mount
     getCategoriesFromSupabase().then((cats) => {
       if (cats && cats.length > 0) {
-        setCategories(cats);
+        const enriched = enrichCategories(cats);
+        setCategories(enriched);
         try {
-          localStorage.setItem('purnya_categories', JSON.stringify(cats));
+          localStorage.setItem('purnya_categories', JSON.stringify(enriched));
         } catch (e) {
           console.warn('LocalStorage save error:', e);
         }
@@ -267,9 +314,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (status.connected) {
         getCategoriesFromSupabase().then((cats) => {
           if (cats && cats.length > 0) {
-            setCategories(cats);
+            const enriched = enrichCategories(cats);
+            setCategories(enriched);
             try {
-              localStorage.setItem('purnya_categories', JSON.stringify(cats));
+              localStorage.setItem('purnya_categories', JSON.stringify(enriched));
             } catch (e) {
               console.warn('LocalStorage save error:', e);
             }
@@ -500,9 +548,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         } catch { }
       }
       if (cats && cats.length > 0) {
-        setCategories(cats);
+        const enriched = enrichCategories(cats);
+        setCategories(enriched);
         try {
-          localStorage.setItem('purnya_categories', JSON.stringify(cats));
+          localStorage.setItem('purnya_categories', JSON.stringify(enriched));
         } catch { }
       }
       if (dbBanners && dbBanners.length > 0) {
@@ -588,7 +637,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         try {
           const parsed = JSON.parse(savedCategories);
           if (Array.isArray(parsed) && parsed.length > 0) {
-            setCategories(parsed);
+            setCategories(enrichCategories(parsed));
           }
         } catch { }
       }
@@ -1376,6 +1425,49 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }}
     >
       {children}
+      {isGlobalLoading && (
+        <div className="fixed inset-0 z-[999999] bg-[#08281F] text-[#FAF8F5] flex flex-col items-center justify-center p-6 overflow-hidden select-none">
+          {/* Glowing atmospheric backdrop */}
+          <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-[#D4AF37]/15 rounded-full blur-[130px] pointer-events-none animate-pulse" />
+          <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-[#C5A059]/15 rounded-full blur-[130px] pointer-events-none animate-pulse" />
+
+          <div className="relative z-10 flex flex-col items-center text-center space-y-8 max-w-md mx-auto">
+            {/* Glowing Emblem Logo */}
+            <div className="relative">
+              <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-full bg-[#FAF8F5] p-1.5 border-2 border-[#D4AF37] shadow-[0_0_50px_rgba(212,175,55,0.4)] flex items-center justify-center animate-pulse">
+                <img
+                  src="/logoicon.png"
+                  alt="Punya Emblem"
+                  className="w-full h-full object-contain"
+                />
+              </div>
+              {/* Outer Golden Spinner Ring */}
+              <div className="absolute inset-0 -m-3 border-2 border-[#D4AF37] border-t-transparent border-b-transparent rounded-full animate-spin duration-3000" />
+            </div>
+
+            {/* Brand Identity */}
+            <div className="space-y-2">
+              <h1 className="font-serif-title text-4xl sm:text-5xl font-bold tracking-[0.25em] text-white leading-none">
+                PURNYA
+              </h1>
+              <p className="text-xs sm:text-sm font-bold uppercase tracking-[0.3em] text-[#D4AF37]">
+                Life · Lifestyle · You
+              </p>
+            </div>
+
+            {/* Progress Bar & Subtitle */}
+            <div className="space-y-4 pt-4 w-full">
+              <p className="text-xs sm:text-sm text-[#E8F0EC]/90 font-medium tracking-widest uppercase">
+                Opening Punya Luxury Sanctuary...
+              </p>
+
+              <div className="w-64 sm:w-80 h-1.5 bg-[#144234] rounded-full overflow-hidden mx-auto p-0.5 shadow-inner">
+                <div className="h-full bg-gradient-to-r from-[#C5A059] via-[#D4AF37] to-[#E6C25B] rounded-full animate-pulse w-full transition-all duration-1000" />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </StoreContext.Provider>
   );
 };

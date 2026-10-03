@@ -19,6 +19,7 @@ import {
 import { useStore } from '../../../context/StoreContext';
 import ProductCard from '../../../components/ProductCard';
 import { supabase } from '../../../lib/supabaseClient';
+import { initialCategories, getSubcategoryImage } from '../../../data/mockData';
 
 function getCategoryIcon(cat: { slug?: string; title?: string }) {
   const s = `${cat.slug || ''} ${cat.title || ''}`.toLowerCase();
@@ -28,6 +29,51 @@ function getCategoryIcon(cat: { slug?: string; title?: string }) {
   if (s.includes('wellness') || s.includes('organic')) return Leaf;
   if (s.includes('gift') || s.includes('stationery')) return Gift;
   return Sparkles;
+}
+
+function BoutiqueLoadingScreen({ title }: { title?: string }) {
+  return (
+    <div className="min-h-[70vh] w-full flex flex-col items-center justify-center relative overflow-hidden bg-[#08281F] text-[#FAF8F5] rounded-[2rem] my-6 shadow-xl border border-[#144234] px-4">
+      {/* Background radial glow */}
+      <div className="absolute -top-32 -left-32 w-96 h-96 bg-[#D4AF37]/10 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute -bottom-32 -right-32 w-96 h-96 bg-[#C5A059]/10 rounded-full blur-3xl pointer-events-none" />
+
+      <div className="relative z-10 flex flex-col items-center text-center space-y-6 max-w-md">
+        {/* Glowing Logo Emblem */}
+        <div className="relative">
+          <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-[#FAF8F5] p-1 border-2 border-[#D4AF37] shadow-2xl flex items-center justify-center animate-pulse">
+            <img
+              src="/logoicon.png"
+              alt="Purnya Emblem"
+              className="w-full h-full object-contain"
+            />
+          </div>
+          {/* Animated Gold Ring Spinner */}
+          <div className="absolute inset-0 -m-2.5 border-2 border-[#D4AF37] border-t-transparent rounded-full animate-spin" />
+        </div>
+
+        {/* Brand Text */}
+        <div className="space-y-1.5">
+          <h2 className="font-serif-title text-2xl sm:text-3xl font-bold tracking-[0.2em] text-white">
+            PURNYA
+          </h2>
+          <p className="text-[10px] sm:text-xs font-bold uppercase tracking-[0.25em] text-[#D4AF37]">
+            Life · Lifestyle · You
+          </p>
+        </div>
+
+        {/* Loading Message & Progress Bar */}
+        <div className="space-y-3 pt-2">
+          <p className="text-xs sm:text-sm text-[#E8F0EC] font-medium tracking-wide">
+            {title ? `Unveiling ${title} Collection...` : 'Curating Luxury Boutique...'}
+          </p>
+          <div className="w-48 sm:w-64 h-1.5 bg-[#144234] rounded-full overflow-hidden mx-auto p-0.5">
+            <div className="h-full bg-gradient-to-r from-[#C5A059] via-[#D4AF37] to-[#E6C25B] rounded-full animate-pulse w-full transition-all duration-1000" />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 // Catalog shows at most 6 rows. Grid is 2 cols (mobile) / 3 cols (sm) / 4 cols (lg),
@@ -143,19 +189,27 @@ function CategoryContent({ slug }: { slug: string }) {
 
   const currentCategory = useMemo(() => {
     const decodedSlug = decodeURIComponent(slug).trim().toLowerCase();
+    const list = (categories && categories.length > 0) ? categories : initialCategories;
+    
     return (
-      categories.find((c) => (c.slug || '').trim().toLowerCase() === decodedSlug) ||
-      categories.find((c) => {
+      list.find((c) => (c.slug || '').trim().toLowerCase() === decodedSlug) ||
+      list.find((c) => {
         const s = (c.slug || '').trim().toLowerCase();
         const t = (c.title || '').trim().toLowerCase();
         return (
           s.includes(decodedSlug) ||
           decodedSlug.includes(s) ||
           t.includes(decodedSlug) ||
-          decodedSlug.includes(t)
+          decodedSlug.includes(t) ||
+          (decodedSlug === 'apparel' && (s === 'jewellery' || s === 'jewelry' || t.includes('jewel') || t.includes('apparel'))) ||
+          (decodedSlug === 'fragrance' && (s === 'candles' || s === 'fragrance' || t.includes('candle') || t.includes('fragrance'))) ||
+          (decodedSlug === 'lifestyle' && (s === 'home-decor' || s === 'lifestyle' || t.includes('decor') || t.includes('lifestyle'))) ||
+          (decodedSlug === 'wellness' && (s === 'wellness' || t.includes('wellness') || t.includes('organic'))) ||
+          (decodedSlug === 'gift' && (s === 'stationery' || s === 'gift' || t.includes('gift') || t.includes('stationery')))
         );
       }) ||
-      null
+      initialCategories.find((c) => (c.slug || '').trim().toLowerCase() === decodedSlug) ||
+      initialCategories[0]
     );
   }, [categories, slug]);
 
@@ -277,26 +331,33 @@ function CategoryContent({ slug }: { slug: string }) {
   }, []);
 
   const subcatList = useMemo(() => {
-    const fallbackImg = currentCategory?.bannerImage || currentCategory?.heroImage || 'https://images.unsplash.com/photo-1515562141589-67f0d0953a8e?w=600&fit=crop&auto=format';
-    return (
+    const hero = currentCategory?.heroImage || currentCategory?.bannerImage || '';
+    const rawSubs = (
       (currentCategory?.subcatImages && currentCategory.subcatImages.length > 0)
         ? currentCategory.subcatImages
         : (currentCategory?.subcategories || []).filter((s) => s !== 'All').map((s) => ({
-          name: s,
-          image: fallbackImg,
-        }))
+            name: s,
+            image: hero,
+          }))
     );
+    return rawSubs.map((s) => ({
+      name: s.name,
+      image: getSubcategoryImage(s.name, hero, s.image),
+    }));
   }, [currentCategory]);
 
-  if (!currentCategory) {
-    return (
-      <div className="min-h-[60vh] flex flex-col items-center justify-center space-y-4">
-        <div className="w-10 h-10 border-2 border-[#C5A059] border-t-transparent rounded-full animate-spin" />
-        <p className="text-xs uppercase tracking-widest text-[#5A7469] font-semibold">
-          Loading Boutique Collection...
-        </p>
-      </div>
-    );
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    setLoading(true);
+    const timer = setTimeout(() => {
+      setLoading(false);
+    }, 2500);
+    return () => clearTimeout(timer);
+  }, [slug]);
+
+  if (loading || !currentCategory) {
+    return <BoutiqueLoadingScreen title={currentCategory?.title} />;
   }
 
   const categorySlug = (currentCategory.slug || '').trim();

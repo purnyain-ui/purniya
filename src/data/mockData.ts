@@ -1,7 +1,340 @@
 import { Product, CategoryMeta, Coupon, HeroSlide, Order, Address, UserProfile } from '../types';
 
-export const initialCategories: CategoryMeta[] = [];
-export const initialProducts: Product[] = [];
+export const initialCategories: CategoryMeta[] = [
+  {
+    id: 'cat-jewellery',
+    title: 'Jewellery & Accessories',
+    slug: 'apparel',
+    subtitle: 'Timeless handcrafted temple gold, polki, Kundan & artisanal heritage ornaments.',
+    heroImage: 'https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=1200&fit=crop&auto=format',
+    bannerImage: 'https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=1200&fit=crop&auto=format',
+    priority: 1,
+    subcategories: ['All', 'Necklaces', 'Earrings', 'Bangles & Bracelets', 'Rings', 'Pendants & Sets', 'Bridal & Heritage'],
+    subcatImages: [
+      { name: 'Necklaces', image: 'https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=600&fit=crop&auto=format' },
+      { name: 'Earrings', image: 'https://images.unsplash.com/photo-1630019852942-f89202989a59?w=600&fit=crop&auto=format' },
+      { name: 'Bangles & Bracelets', image: 'https://images.unsplash.com/photo-1611591475143-be232563e414?w=600&fit=crop&auto=format' },
+      { name: 'Rings', image: 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=600&fit=crop&auto=format' },
+      { name: 'Pendants & Sets', image: 'https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?w=600&fit=crop&auto=format' },
+      { name: 'Bridal & Heritage', image: 'https://images.unsplash.com/photo-1515562141589-67f0d0953a8e?w=600&fit=crop&auto=format' },
+    ],
+  },
+  {
+    id: 'cat-candles',
+    title: 'Candle & Home Fragrance',
+    slug: 'Fragrance',
+    subtitle: 'Hand-poured botanical soy wax candles, aromatic diffusers & soothing scents.',
+    heroImage: 'https://images.unsplash.com/photo-1603006905003-be475563bc59?w=1200&fit=crop&auto=format',
+    bannerImage: 'https://images.unsplash.com/photo-1603006905003-be475563bc59?w=1200&fit=crop&auto=format',
+    priority: 2,
+    subcategories: ['All', 'Soy Wax Candles', 'Reed Diffusers', 'Incense & Dhoop', 'Room Sprays'],
+    subcatImages: [
+      { name: 'Soy Wax Candles', image: 'https://images.unsplash.com/photo-1603006905003-be475563bc59?w=600&fit=crop&auto=format' },
+      { name: 'Reed Diffusers', image: 'https://images.unsplash.com/photo-1608571423902-eed4a5ad8108?w=600&fit=crop&auto=format' },
+      { name: 'Incense & Dhoop', image: 'https://images.unsplash.com/photo-1602928321679-560b4139c907?w=600&fit=crop&auto=format' },
+      { name: 'Room Sprays', image: 'https://images.unsplash.com/photo-1616949755610-8c9bbc08f138?w=600&fit=crop&auto=format' },
+    ],
+  },
+  {
+    id: 'cat-lifestyle',
+    title: 'Home Decor & Lifestyle',
+    slug: 'Lifestyle',
+    subtitle: 'Heritage brassware, handcrafted decor & mindful luxury living accents.',
+    heroImage: 'https://images.unsplash.com/photo-1616401784845-180882ba9ba8?w=1200&fit=crop&auto=format',
+    bannerImage: 'https://images.unsplash.com/photo-1616401784845-180882ba9ba8?w=1200&fit=crop&auto=format',
+    priority: 3,
+    subcategories: ['All', 'Brassware & Idols', 'Vases & Planters', 'Tabletop & Trays', 'Wall Art & Mirrors'],
+    subcatImages: [
+      { name: 'Brassware & Idols', image: 'https://images.unsplash.com/photo-1616401784845-180882ba9ba8?w=600&fit=crop&auto=format' },
+      { name: 'Vases & Planters', image: 'https://images.unsplash.com/photo-1581783342308-f792dbdd27c5?w=600&fit=crop&auto=format' },
+      { name: 'Tabletop & Trays', image: 'https://images.unsplash.com/photo-1578749556568-bc2c40e68b61?w=600&fit=crop&auto=format' },
+      { name: 'Wall Art & Mirrors', image: 'https://images.unsplash.com/photo-1513519245088-0e12902e35ca?w=600&fit=crop&auto=format' },
+    ],
+  },
+  {
+    id: 'cat-wellness',
+    title: 'Organic & Wellness',
+    slug: 'Wellness',
+    subtitle: 'Pure ayurvedic self-care, herbal elixirs, organic teas & holistic wellness.',
+    heroImage: 'https://images.unsplash.com/photo-1540555700478-4be289fbecef?w=1200&fit=crop&auto=format',
+    bannerImage: 'https://images.unsplash.com/photo-1540555700478-4be289fbecef?w=1200&fit=crop&auto=format',
+    priority: 4,
+    subcategories: ['All', 'Ayurvedic Oils & Skincare', 'Herbal Teas', 'Wellness Elixirs', 'Bath Salts'],
+    subcatImages: [
+      { name: 'Ayurvedic Oils & Skincare', image: 'https://images.unsplash.com/photo-1540555700478-4be289fbecef?w=600&fit=crop&auto=format' },
+      { name: 'Herbal Teas', image: 'https://images.unsplash.com/photo-1576092768241-dec231879fc3?w=600&fit=crop&auto=format' },
+      { name: 'Wellness Elixirs', image: 'https://images.unsplash.com/photo-1608571423902-eed4a5ad8108?w=600&fit=crop&auto=format' },
+      { name: 'Bath Salts', image: 'https://images.unsplash.com/photo-1512290900673-7002b5217615?w=600&fit=crop&auto=format' },
+    ],
+  },
+  {
+    id: 'cat-gift',
+    title: 'Gift & Stationery',
+    slug: 'Gift',
+    subtitle: 'Bespoke celebratory gift boxes, hand-bound journals & luxury stationery.',
+    heroImage: 'https://images.unsplash.com/photo-1513519245088-0e12902e35ca?w=1200&fit=crop&auto=format',
+    bannerImage: 'https://images.unsplash.com/photo-1513519245088-0e12902e35ca?w=1200&fit=crop&auto=format',
+    priority: 5,
+    subcategories: ['All', 'Bespoke Gift Boxes', 'Handmade Journals', 'Greeting Cards', 'Festive Hampers'],
+    subcatImages: [
+      { name: 'Bespoke Gift Boxes', image: 'https://images.unsplash.com/photo-1513519245088-0e12902e35ca?w=600&fit=crop&auto=format' },
+      { name: 'Handmade Journals', image: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=600&fit=crop&auto=format' },
+      { name: 'Greeting Cards', image: 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?w=600&fit=crop&auto=format' },
+      { name: 'Festive Hampers', image: 'https://images.unsplash.com/photo-1549465220-1a8b9238cd48?w=600&fit=crop&auto=format' },
+    ],
+  },
+];
+export const initialProducts: Product[] = [
+  // Jewellery & Accessories (apparel)
+  {
+    id: 'prod-kundan-necklace-1',
+    name: 'Royal Heritage Kundan & Pearl Choker Set',
+    price: 3499,
+    originalPrice: 4999,
+    category: 'Jewellery & Accessories',
+    categorySlug: 'apparel',
+    subcategory: 'Necklaces',
+    badge: 'Best Seller',
+    lifestyleTag: 'New Arrivals',
+    image: 'https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=800&fit=crop&auto=format',
+    images: ['https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=800&fit=crop&auto=format'],
+    description: 'Exquisite 22-karat gold-plated Kundan choker set adorned with fresh water pearls and hand-carved gemstones.',
+    stock: 25,
+    status: 'Active',
+    is_active: true,
+    rating: 4.9,
+    reviewsCount: 38,
+    featured: true,
+  },
+  {
+    id: 'prod-jhumka-earrings-1',
+    name: 'Antique Temple Gold Chandbali Jhumka Earrings',
+    price: 1899,
+    originalPrice: 2499,
+    category: 'Jewellery & Accessories',
+    categorySlug: 'apparel',
+    subcategory: 'Earrings',
+    badge: 'Trending',
+    lifestyleTag: 'New Arrivals',
+    image: 'https://images.unsplash.com/photo-1630019852942-f89202989a59?w=800&fit=crop&auto=format',
+    images: ['https://images.unsplash.com/photo-1630019852942-f89202989a59?w=800&fit=crop&auto=format'],
+    description: 'Generational temple gold jhumkas crafted with intricate filigree work and auspicious deity motifs.',
+    stock: 30,
+    status: 'Active',
+    is_active: true,
+    rating: 4.8,
+    reviewsCount: 24,
+    featured: true,
+  },
+  {
+    id: 'prod-bangles-1',
+    name: 'Artisanal Meenakari & Gold Kada Bangles',
+    price: 2299,
+    originalPrice: 2999,
+    category: 'Jewellery & Accessories',
+    categorySlug: 'apparel',
+    subcategory: 'Bangles & Bracelets',
+    badge: 'Premium',
+    lifestyleTag: 'Festive Luxury',
+    image: 'https://images.unsplash.com/photo-1611591475143-be232563e414?w=800&fit=crop&auto=format',
+    images: ['https://images.unsplash.com/photo-1611591475143-be232563e414?w=800&fit=crop&auto=format'],
+    description: 'Set of handcrafted royal enamel meenakari kadas with intricate gold floral work.',
+    stock: 20,
+    status: 'Active',
+    is_active: true,
+    rating: 4.9,
+    reviewsCount: 19,
+    featured: true,
+  },
+  {
+    id: 'prod-ring-1',
+    name: 'Uncut Polki Diamond Solitaire Cocktail Ring',
+    price: 1499,
+    originalPrice: 1999,
+    category: 'Jewellery & Accessories',
+    categorySlug: 'apparel',
+    subcategory: 'Rings',
+    badge: 'Trending',
+    lifestyleTag: 'New Arrivals',
+    image: 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=800&fit=crop&auto=format',
+    images: ['https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=800&fit=crop&auto=format'],
+    description: 'Statement cocktail ring with hand-faceted polki stone setting and adjustable 18k gold polish band.',
+    stock: 40,
+    status: 'Active',
+    is_active: true,
+    rating: 4.7,
+    reviewsCount: 15,
+    featured: true,
+  },
+
+  // Candle & Home Fragrance (Fragrance)
+  {
+    id: 'prod-candle-1',
+    name: 'Botanical Sandalwood & Amber Soy Wax Candle',
+    price: 999,
+    originalPrice: 1499,
+    category: 'Candle & Home Fragrance',
+    categorySlug: 'Fragrance',
+    subcategory: 'Soy Wax Candles',
+    badge: 'Best Seller',
+    lifestyleTag: 'New Arrivals',
+    image: 'https://images.unsplash.com/photo-1603006905003-be475563bc59?w=800&fit=crop&auto=format',
+    images: ['https://images.unsplash.com/photo-1603006905003-be475563bc59?w=800&fit=crop&auto=format'],
+    description: 'Hand-poured 100% natural soy wax infused with royal Mysore sandalwood and warm golden amber essential oils.',
+    stock: 50,
+    status: 'Active',
+    is_active: true,
+    rating: 5.0,
+    reviewsCount: 42,
+    featured: true,
+  },
+  {
+    id: 'prod-diffuser-1',
+    name: 'Velvet Rose & Oud Luxury Reed Diffuser Set',
+    price: 1599,
+    originalPrice: 1999,
+    category: 'Candle & Home Fragrance',
+    categorySlug: 'Fragrance',
+    subcategory: 'Reed Diffusers',
+    badge: 'Premium',
+    lifestyleTag: 'Festive Luxury',
+    image: 'https://images.unsplash.com/photo-1608571423902-eed4a5ad8108?w=800&fit=crop&auto=format',
+    images: ['https://images.unsplash.com/photo-1608571423902-eed4a5ad8108?w=800&fit=crop&auto=format'],
+    description: 'Long-lasting aromatic reed diffuser with rattan reeds and frosted glass decanter.',
+    stock: 35,
+    status: 'Active',
+    is_active: true,
+    rating: 4.8,
+    reviewsCount: 29,
+    featured: true,
+  },
+
+  // Home Decor & Lifestyle (Lifestyle)
+  {
+    id: 'prod-brassware-1',
+    name: 'Hand-Carved Heritage Brass Ganesha Idol',
+    price: 2499,
+    originalPrice: 3299,
+    category: 'Home Decor & Lifestyle',
+    categorySlug: 'Lifestyle',
+    subcategory: 'Brassware & Idols',
+    badge: 'Festive',
+    lifestyleTag: 'New Arrivals',
+    image: 'https://images.unsplash.com/photo-1616401784845-180882ba9ba8?w=800&fit=crop&auto=format',
+    images: ['https://images.unsplash.com/photo-1616401784845-180882ba9ba8?w=800&fit=crop&auto=format'],
+    description: 'Solid brass hand-engraved Lord Ganesha sculpture with antique patina finish.',
+    stock: 20,
+    status: 'Active',
+    is_active: true,
+    rating: 4.9,
+    reviewsCount: 31,
+    featured: true,
+  },
+  {
+    id: 'prod-vase-1',
+    name: 'Artisanal Ceramic & Gold Foil Floral Vase',
+    price: 1799,
+    originalPrice: 2299,
+    category: 'Home Decor & Lifestyle',
+    categorySlug: 'Lifestyle',
+    subcategory: 'Vases & Planters',
+    badge: 'Trending',
+    lifestyleTag: 'New Arrivals',
+    image: 'https://images.unsplash.com/photo-1581783342308-f792dbdd27c5?w=800&fit=crop&auto=format',
+    images: ['https://images.unsplash.com/photo-1581783342308-f792dbdd27c5?w=800&fit=crop&auto=format'],
+    description: 'Handcrafted ceramic vase detailing gold leaf motifs for contemporary luxury living spaces.',
+    stock: 30,
+    status: 'Active',
+    is_active: true,
+    rating: 4.7,
+    reviewsCount: 16,
+    featured: true,
+  },
+
+  // Organic & Wellness (Wellness)
+  {
+    id: 'prod-wellness-1',
+    name: 'Kumkumadi Tailam Radiance Facial Oil',
+    price: 1299,
+    originalPrice: 1699,
+    category: 'Organic & Wellness',
+    categorySlug: 'Wellness',
+    subcategory: 'Ayurvedic Oils & Skincare',
+    badge: 'Organic',
+    lifestyleTag: 'New Arrivals',
+    image: 'https://images.unsplash.com/photo-1540555700478-4be289fbecef?w=800&fit=crop&auto=format',
+    images: ['https://images.unsplash.com/photo-1540555700478-4be289fbecef?w=800&fit=crop&auto=format'],
+    description: 'Pure saffron-infused 100% organic ayurvedic elixir for timeless glowing skin.',
+    stock: 45,
+    status: 'Active',
+    is_active: true,
+    rating: 5.0,
+    reviewsCount: 53,
+    featured: true,
+  },
+  {
+    id: 'prod-tea-1',
+    name: 'Royal Kashmiri Saffron & Rose Herbal Tea Blend',
+    price: 699,
+    originalPrice: 899,
+    category: 'Organic & Wellness',
+    categorySlug: 'Wellness',
+    subcategory: 'Herbal Teas',
+    badge: 'Organic',
+    lifestyleTag: 'New Arrivals',
+    image: 'https://images.unsplash.com/photo-1576092768241-dec231879fc3?w=800&fit=crop&auto=format',
+    images: ['https://images.unsplash.com/photo-1576092768241-dec231879fc3?w=800&fit=crop&auto=format'],
+    description: 'Whole leaf green tea blended with organic damask rose petals and authentic Kashmiri saffron threads.',
+    stock: 60,
+    status: 'Active',
+    is_active: true,
+    rating: 4.9,
+    reviewsCount: 22,
+    featured: true,
+  },
+
+  // Gift & Stationery (Gift)
+  {
+    id: 'prod-giftbox-1',
+    name: 'Purnya Royal Celebration Velvet Gift Hamper',
+    price: 3999,
+    originalPrice: 4999,
+    category: 'Gift & Stationery',
+    categorySlug: 'Gift',
+    subcategory: 'Bespoke Gift Boxes',
+    badge: 'Corporate',
+    lifestyleTag: 'Festive Luxury',
+    image: 'https://images.unsplash.com/photo-1549465220-1a8b9238cd48?w=800&fit=crop&auto=format',
+    images: ['https://images.unsplash.com/photo-1549465220-1a8b9238cd48?w=800&fit=crop&auto=format'],
+    description: 'Curated royal gift box containing soy candle, brass diya, gourmet teas, and handcrafted journal in velvet keepsake chest.',
+    stock: 20,
+    status: 'Active',
+    is_active: true,
+    rating: 5.0,
+    reviewsCount: 47,
+    featured: true,
+  },
+  {
+    id: 'prod-journal-1',
+    name: 'Embossed Leather Handmade Parchment Journal',
+    price: 899,
+    originalPrice: 1199,
+    category: 'Gift & Stationery',
+    categorySlug: 'Gift',
+    subcategory: 'Handmade Journals',
+    badge: 'Trending',
+    lifestyleTag: 'New Arrivals',
+    image: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=800&fit=crop&auto=format',
+    images: ['https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=800&fit=crop&auto=format'],
+    description: 'Vintage leather-bound diary with recycled cotton deckle edge parchment pages.',
+    stock: 40,
+    status: 'Active',
+    is_active: true,
+    rating: 4.8,
+    reviewsCount: 18,
+    featured: true,
+  },
+];
 export const initialCoupons: Coupon[] = [];
 export const initialHeroSlides: HeroSlide[] = [
   {
@@ -44,3 +377,88 @@ export const initialUser: UserProfile = {
 
 export const initialAddresses: Address[] = [];
 export const initialOrders: Order[] = [];
+
+export const DEFAULT_SUBCAT_PHOTOS: Record<string, string> = {
+  // Jewellery & Accessories (apparel)
+  'necklaces': 'https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=600&fit=crop&auto=format',
+  'earrings': 'https://images.unsplash.com/photo-1630019852942-f89202989a59?w=600&fit=crop&auto=format',
+  'bangles & bracelets': 'https://images.unsplash.com/photo-1611591475143-be232563e414?w=600&fit=crop&auto=format',
+  'bangles': 'https://images.unsplash.com/photo-1611591475143-be232563e414?w=600&fit=crop&auto=format',
+  'bracelets': 'https://images.unsplash.com/photo-1611591475143-be232563e414?w=600&fit=crop&auto=format',
+  'rings': 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=600&fit=crop&auto=format',
+  'pendants & sets': 'https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?w=600&fit=crop&auto=format',
+  'pendants': 'https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?w=600&fit=crop&auto=format',
+  'bridal & heritage': 'https://images.unsplash.com/photo-1515562141589-67f0d0953a8e?w=600&fit=crop&auto=format',
+  'bridal': 'https://images.unsplash.com/photo-1515562141589-67f0d0953a8e?w=600&fit=crop&auto=format',
+
+  // Candle & Home Fragrance (Fragrance)
+  'soy wax candles': 'https://images.unsplash.com/photo-1603006905003-be475563bc59?w=600&fit=crop&auto=format',
+  'candles': 'https://images.unsplash.com/photo-1603006905003-be475563bc59?w=600&fit=crop&auto=format',
+  'reed diffusers': 'https://images.unsplash.com/photo-1608571423902-eed4a5ad8108?w=600&fit=crop&auto=format',
+  'diffusers': 'https://images.unsplash.com/photo-1608571423902-eed4a5ad8108?w=600&fit=crop&auto=format',
+  'incense & dhoop': 'https://images.unsplash.com/photo-1602928321679-560b4139c907?w=600&fit=crop&auto=format',
+  'incense': 'https://images.unsplash.com/photo-1602928321679-560b4139c907?w=600&fit=crop&auto=format',
+  'dhoop': 'https://images.unsplash.com/photo-1602928321679-560b4139c907?w=600&fit=crop&auto=format',
+  'room sprays': 'https://images.unsplash.com/photo-1616949755610-8c9bbc08f138?w=600&fit=crop&auto=format',
+  'sprays': 'https://images.unsplash.com/photo-1616949755610-8c9bbc08f138?w=600&fit=crop&auto=format',
+
+  // Home Decor & Lifestyle (Lifestyle)
+  'brassware & idols': 'https://images.unsplash.com/photo-1616401784845-180882ba9ba8?w=600&fit=crop&auto=format',
+  'brassware': 'https://images.unsplash.com/photo-1616401784845-180882ba9ba8?w=600&fit=crop&auto=format',
+  'idols': 'https://images.unsplash.com/photo-1616401784845-180882ba9ba8?w=600&fit=crop&auto=format',
+  'vases & planters': 'https://images.unsplash.com/photo-1581783342308-f792dbdd27c5?w=600&fit=crop&auto=format',
+  'vases': 'https://images.unsplash.com/photo-1581783342308-f792dbdd27c5?w=600&fit=crop&auto=format',
+  'planters': 'https://images.unsplash.com/photo-1581783342308-f792dbdd27c5?w=600&fit=crop&auto=format',
+  'tabletop & trays': 'https://images.unsplash.com/photo-1578749556568-bc2c40e68b61?w=600&fit=crop&auto=format',
+  'trays': 'https://images.unsplash.com/photo-1578749556568-bc2c40e68b61?w=600&fit=crop&auto=format',
+  'wall art & mirrors': 'https://images.unsplash.com/photo-1513519245088-0e12902e35ca?w=600&fit=crop&auto=format',
+  'mirrors': 'https://images.unsplash.com/photo-1513519245088-0e12902e35ca?w=600&fit=crop&auto=format',
+  'wall art': 'https://images.unsplash.com/photo-1513519245088-0e12902e35ca?w=600&fit=crop&auto=format',
+
+  // Organic & Wellness (Wellness)
+  'ayurvedic oils & skincare': 'https://images.unsplash.com/photo-1540555700478-4be289fbecef?w=600&fit=crop&auto=format',
+  'ayurvedic oils': 'https://images.unsplash.com/photo-1540555700478-4be289fbecef?w=600&fit=crop&auto=format',
+  'skincare': 'https://images.unsplash.com/photo-1540555700478-4be289fbecef?w=600&fit=crop&auto=format',
+  'herbal teas': 'https://images.unsplash.com/photo-1576092768241-dec231879fc3?w=600&fit=crop&auto=format',
+  'teas': 'https://images.unsplash.com/photo-1576092768241-dec231879fc3?w=600&fit=crop&auto=format',
+  'wellness elixirs': 'https://images.unsplash.com/photo-1512290900673-7002b5217615?w=600&fit=crop&auto=format',
+  'elixirs': 'https://images.unsplash.com/photo-1512290900673-7002b5217615?w=600&fit=crop&auto=format',
+  'bath salts': 'https://images.unsplash.com/photo-1608571423902-eed4a5ad8108?w=600&fit=crop&auto=format',
+
+  // Gift & Stationery (Gift)
+  'bespoke gift boxes': 'https://images.unsplash.com/photo-1549465220-1a8b9238cd48?w=600&fit=crop&auto=format',
+  'gift boxes': 'https://images.unsplash.com/photo-1549465220-1a8b9238cd48?w=600&fit=crop&auto=format',
+  'handmade journals': 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=600&fit=crop&auto=format',
+  'journals': 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=600&fit=crop&auto=format',
+  'greeting cards': 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?w=600&fit=crop&auto=format',
+  'cards': 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?w=600&fit=crop&auto=format',
+  'festive hampers': 'https://images.unsplash.com/photo-1513519245088-0e12902e35ca?w=600&fit=crop&auto=format',
+  'hampers': 'https://images.unsplash.com/photo-1513519245088-0e12902e35ca?w=600&fit=crop&auto=format',
+};
+
+export function getSubcategoryImage(name: string, catHero?: string, currentImage?: string): string {
+  const cleanName = (name || '').trim().toLowerCase().replace(/é/g, 'e');
+  const cleanImg = (currentImage || '').trim();
+  const cleanHero = (catHero || '').trim();
+
+  // If cleanImg exists, is valid URL, and is NOT identical to cleanHero, use it!
+  if (cleanImg && cleanImg !== cleanHero && (cleanImg.startsWith('http://') || cleanImg.startsWith('https://') || cleanImg.startsWith('data:image/'))) {
+    return cleanImg;
+  }
+
+  // Exact key match
+  if (DEFAULT_SUBCAT_PHOTOS[cleanName]) {
+    return DEFAULT_SUBCAT_PHOTOS[cleanName];
+  }
+
+  // Partial key match
+  for (const [key, url] of Object.entries(DEFAULT_SUBCAT_PHOTOS)) {
+    if (cleanName.includes(key) || key.includes(cleanName)) {
+      return url;
+    }
+  }
+
+  // Fallback to non-hero cleanImg or cleanHero or generic luxury photo
+  return (cleanImg && cleanImg !== cleanHero) ? cleanImg : (cleanHero || 'https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=600&fit=crop&auto=format');
+}
+

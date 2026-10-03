@@ -1,14 +1,20 @@
 'use client';
 
-import React, { useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Mail, Phone, MapPin, ArrowUpRight } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
+import { initialCategories } from '../data/mockData';
 
 export default function Footer() {
   const pathname = usePathname();
   const { categories } = useStore();
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   // Detect the active category across category pages and subpages (/wishlist, /product/123, /cart, etc.)
   const activeCategorySlug = useMemo(() => {
@@ -31,10 +37,23 @@ export default function Footer() {
     }
   }, [pathname]);
 
+  const categoriesList = useMemo(() => {
+    return (categories && categories.length > 0) ? categories : initialCategories;
+  }, [categories]);
+
   const currentCategory = useMemo(() => {
     if (!activeCategorySlug) return null;
-    return categories.find((c) => (c.slug || '').trim().toLowerCase() === activeCategorySlug.trim().toLowerCase()) || null;
-  }, [activeCategorySlug, categories]);
+    const target = activeCategorySlug.trim().toLowerCase();
+    return (
+      categoriesList.find((c) => (c.slug || '').trim().toLowerCase() === target) ||
+      categoriesList.find((c) => {
+        const s = (c.slug || '').trim().toLowerCase();
+        const t = (c.title || '').trim().toLowerCase();
+        return s.includes(target) || target.includes(s) || t.includes(target) || target.includes(t);
+      }) ||
+      null
+    );
+  }, [activeCategorySlug, categoriesList]);
 
   if (pathname?.startsWith('/admin')) return null;
 
@@ -140,16 +159,16 @@ export default function Footer() {
                   FAQs
                 </Link>
               </li>
-              {currentCategory && (
+              {isMounted && currentCategory && currentCategory.slug && (
                 <li className="pt-2 border-t border-[#144234] mt-2">
                   <Link
-                    href={`/all-products/${currentCategory.slug}`}
+                    href={`/all-products/${encodeURIComponent((currentCategory.slug || '').trim())}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="hover:text-[#D4AF37] transition-colors text-[#FAF8F5] font-bold flex items-center justify-between group"
-                    title={`All ${currentCategory.title}`}
+                    title={`All ${(currentCategory.title || '').trim()}`}
                   >
-                    <span>All {currentCategory.title}</span>
+                    <span>All {(currentCategory.title || '').trim()}</span>
                     <ArrowUpRight className="w-3.5 h-3.5 text-[#D4AF37]" />
                   </Link>
                 </li>
@@ -164,16 +183,16 @@ export default function Footer() {
             </h4>
 
             <ul className="space-y-2.5 text-xs sm:text-sm text-[#B4C9BF]">
-              {categories.map((cat) => (
+              {categoriesList.map((cat) => (
                 <li key={cat.id || cat.slug}>
                   <Link
-                    href={`/category/${cat.slug}`}
+                    href={`/category/${(cat.slug || '').trim()}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="hover:text-[#D4AF37] transition-colors flex items-center justify-between group"
-                    title={`Open ${cat.title} Boutique in new tab`}
+                    title={`Open ${(cat.title || '').trim()} Boutique in new tab`}
                   >
-                    <span>{cat.title}</span>
+                    <span>{(cat.title || '').trim()}</span>
                     <ArrowUpRight className="w-3 h-3 text-[#D4AF37]/60 group-hover:text-[#D4AF37] transition-colors" />
                   </Link>
                 </li>

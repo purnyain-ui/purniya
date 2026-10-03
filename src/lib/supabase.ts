@@ -1,5 +1,6 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { Product, CategoryMeta, Order, HeroSlide, Address, Coupon, HomeMiddleSection, HomeBottomSection, CartItem } from '../types';
+import { getSubcategoryImage } from '../data/mockData';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
@@ -315,9 +316,21 @@ export async function getCategoriesFromSupabase(): Promise<CategoryMeta[] | null
         ? ['All', ...matchingSubs.map((s: any) => cleanDecor((s.name || '').trim()))]
         : (Array.isArray(c.subcategories) && c.subcategories.length > 0 ? c.subcategories.map((s: any) => cleanDecor((s || '').trim())) : ['All']);
 
-      const subcatImgs = matchingSubs.length > 0
-        ? matchingSubs.map((s: any) => ({ name: cleanDecor((s.name || '').trim()), image: (s.image || '').trim() || hero }))
-        : (Array.isArray(c.subcat_images) ? c.subcat_images.map((s: any) => ({ ...s, name: cleanDecor((s.name || '').trim()) })) : (c.subcatImages || []));
+      const rawSubcatImgs = matchingSubs.length > 0
+        ? matchingSubs.map((s: any) => ({ name: cleanDecor((s.name || '').trim()), image: (s.image || '').trim() }))
+        : (Array.isArray(c.subcat_images) && c.subcat_images.length > 0
+            ? c.subcat_images.map((s: any) => ({ name: cleanDecor((s.name || '').trim()), image: (s.image || '').trim() }))
+            : (c.subcatImages || []));
+
+      const subcatImgs = subcatNames
+        .filter((s: string) => s !== 'All')
+        .map((sName: string) => {
+          const found = rawSubcatImgs.find((si: any) => (si.name || '').trim().toLowerCase() === sName.trim().toLowerCase());
+          return {
+            name: sName,
+            image: getSubcategoryImage(sName, hero, found?.image),
+          };
+        });
 
       return {
         id: c.id,

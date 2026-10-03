@@ -19,7 +19,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
-import { initialHeroSlides } from '../data/mockData';
+import { initialHeroSlides, getSubcategoryImage } from '../data/mockData';
 import { HomeMiddleSection, HomeBottomSection } from '../types';
 import { getHomeMiddleSectionsFromSupabase, getHomeBottomSectionsFromSupabase } from '../lib/supabase';
 import ProductCard from '../components/ProductCard';
@@ -280,11 +280,16 @@ export default function HomePage() {
               })
               .slice(0, 10);
 
-            const validSubcats = (
+            const catHero = cat.heroImage || cat.bannerImage || '';
+            const rawSubcats = (
               (cat.subcatImages && cat.subcatImages.length > 0)
                 ? cat.subcatImages
-                : (cat.subcategories || []).filter((s) => s !== 'All').map((s) => ({ name: s, image: cat.bannerImage || cat.heroImage }))
+                : (cat.subcategories || []).filter((s) => s !== 'All').map((s) => ({ name: s, image: catHero }))
             );
+            const validSubcats = rawSubcats.map((s) => ({
+              name: s.name,
+              image: getSubcategoryImage(s.name, catHero, s.image),
+            }));
 
             const Icon = getCategoryIcon(cat);
 

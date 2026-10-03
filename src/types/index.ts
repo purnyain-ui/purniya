@@ -42,9 +42,9 @@ export interface CategoryMeta {
   subtitle: string;
   heroImage: string;
   bannerImage: string;
-   priority?: number; 
+  priority?: number; 
   subcategories: string[];
-  subcatImages: { name: string; image: string }[];
+  subcatImages?: { name: string; image: string }[];
 }
 
 export interface CartItem {
