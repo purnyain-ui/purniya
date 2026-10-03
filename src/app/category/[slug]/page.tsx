@@ -4,6 +4,7 @@ import React, { useState, useEffect, useMemo, useRef, use, Suspense } from 'reac
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import {
+  ChevronLeft,
   ChevronRight,
   CheckCircle2,
   ArrowRight,
@@ -47,11 +48,14 @@ const AUTO_SCROLL_MS = 4000;
 function AutoScrollRow({
   className,
   children,
+  rowRef: externalRef,
 }: {
   className?: string;
   children: React.ReactNode;
+  rowRef?: React.RefObject<HTMLDivElement | null> | React.MutableRefObject<HTMLDivElement | null>;
 }) {
-  const rowRef = useRef<HTMLDivElement>(null);
+  const internalRef = useRef<HTMLDivElement>(null);
+  const rowRef = externalRef || internalRef;
   const pausedRef = useRef(false);
 
   useEffect(() => {
@@ -78,11 +82,11 @@ function AutoScrollRow({
     }, AUTO_SCROLL_MS);
 
     return () => window.clearInterval(id);
-  }, []);
+  }, [rowRef]);
 
   return (
     <div
-      ref={rowRef}
+      ref={rowRef as React.RefObject<HTMLDivElement>}
       className={className}
       onMouseEnter={() => (pausedRef.current = true)}
       onMouseLeave={() => (pausedRef.current = false)}
@@ -230,6 +234,9 @@ function CategoryContent({ slug }: { slug: string }) {
   const [selectedVideoUrl, setSelectedVideoUrl] = useState<string | null>(null);
 
   const [festivalBanner, setFestivalBanner] = useState<any | null>(null);
+  const festivalRowRef = useRef<HTMLDivElement | null>(null);
+  const lifestyleRowRefs = useRef<Record<number, HTMLDivElement | null>>({});
+  const featuredRowRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const fetchBanners = async () => {
@@ -466,18 +473,39 @@ function CategoryContent({ slug }: { slug: string }) {
 
             {/* The Sale Products — mobile: 2-col vertical grid, desktop: horizontal row */}
             <div className="p-4 sm:p-8 lg:p-10 space-y-4 sm:space-y-6">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-3">
                 <h3 className="font-serif-title text-xl sm:text-2xl font-bold text-[#0B241C]">
                   {festivalBanner.lifestyleTag}
                 </h3>
-                <Link
-                  href={tagHref(festivalBanner.lifestyleTag)}
-                  className="text-xs font-bold text-[#C5A059] hover:text-[#0C3B2E] transition-colors flex items-center gap-1 uppercase tracking-wider"
-                >
-                  View All Sale <ArrowRight className="w-3.5 h-3.5" />
-                </Link>
+                <div className="flex items-center gap-3">
+                  <Link
+                    href={tagHref(festivalBanner.lifestyleTag)}
+                    className="text-xs font-bold text-[#C5A059] hover:text-[#0C3B2E] transition-colors flex items-center gap-1 uppercase tracking-wider"
+                  >
+                    View All Sale <ArrowRight className="w-3.5 h-3.5" />
+                  </Link>
+                  {/* Desktop Scroll Controls < > */}
+                  <div className="hidden sm:flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => festivalRowRef.current?.scrollBy({ left: -320, behavior: 'smooth' })}
+                      aria-label="Previous products"
+                      className="w-8 h-8 rounded-full border border-[#F5DFD6] bg-white text-[#0B241C] hover:bg-[#0C3B2E] hover:text-white hover:border-[#0C3B2E] flex items-center justify-center transition-all shadow-xs cursor-pointer active:scale-95"
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => festivalRowRef.current?.scrollBy({ left: 320, behavior: 'smooth' })}
+                      aria-label="Next products"
+                      className="w-8 h-8 rounded-full border border-[#F5DFD6] bg-white text-[#0B241C] hover:bg-[#0C3B2E] hover:text-white hover:border-[#0C3B2E] flex items-center justify-center transition-all shadow-xs cursor-pointer active:scale-95"
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
               </div>
-              <AutoScrollRow className="grid grid-cols-2 gap-3 sm:flex sm:gap-4 sm:overflow-x-auto sm:snap-x sm:snap-mandatory pb-2 sm:pb-4 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+              <AutoScrollRow rowRef={festivalRowRef} className="grid grid-cols-2 gap-3 sm:flex sm:gap-4 sm:overflow-x-auto sm:snap-x sm:snap-mandatory pb-2 sm:pb-4 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
                 {festivalProducts.map((product: any, i: number) => (
                   <div
                     key={product.id}
@@ -566,7 +594,7 @@ function CategoryContent({ slug }: { slug: string }) {
                         {group.tag}
                       </h2>
                     </div>
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-3">
                       <span className={`text-xs ${theme.textMain} opacity-60 font-semibold hidden md:inline-block`}>
                         {group.items.length} {group.items.length === 1 ? 'Piece' : 'Pieces'}
                       </span>
@@ -576,11 +604,54 @@ function CategoryContent({ slug }: { slug: string }) {
                       >
                         View All <ArrowRight className="w-3.5 h-3.5" />
                       </Link>
+                      {/* Desktop Scroll Controls < > */}
+                      <div className="hidden sm:flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const el = lifestyleRowRefs.current[idx];
+                            if (el) el.scrollBy({ left: -320, behavior: 'smooth' });
+                          }}
+                          aria-label="Previous items"
+                          className={`w-8 h-8 rounded-full border flex items-center justify-center transition-all shadow-xs cursor-pointer active:scale-95 ${
+                            theme.bg === 'bg-[#08281F]' || theme.bg === 'bg-[#2A231C]'
+                              ? 'bg-white/10 hover:bg-white/20 text-white border-white/20'
+                              : 'bg-white hover:bg-[#0C3B2E] hover:text-white text-[#0B241C] border-[#E2DBD0]'
+                          }`}
+                        >
+                          <ChevronLeft className="w-4 h-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const el = lifestyleRowRefs.current[idx];
+                            if (el) el.scrollBy({ left: 320, behavior: 'smooth' });
+                          }}
+                          aria-label="Next items"
+                          className={`w-8 h-8 rounded-full border flex items-center justify-center transition-all shadow-xs cursor-pointer active:scale-95 ${
+                            theme.bg === 'bg-[#08281F]' || theme.bg === 'bg-[#2A231C]'
+                              ? 'bg-white/10 hover:bg-white/20 text-white border-white/20'
+                              : 'bg-white hover:bg-[#0C3B2E] hover:text-white text-[#0B241C] border-[#E2DBD0]'
+                          }`}
+                        >
+                          <ChevronRight className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
                   </div>
 
                   {/* Mobile: 2-col vertical grid (max 15 rows). Desktop: horizontal scroll row */}
-                  <AutoScrollRow className="relative grid grid-cols-2 gap-3 sm:flex sm:gap-5 sm:overflow-x-auto pb-2 sm:pb-4 scrollbar-none sm:snap-x sm:justify-start">
+                  <AutoScrollRow
+                    rowRef={{
+                      get current() {
+                        return lifestyleRowRefs.current[idx] || null;
+                      },
+                      set current(el) {
+                        lifestyleRowRefs.current[idx] = el;
+                      }
+                    } as any}
+                    className="relative grid grid-cols-2 gap-3 sm:flex sm:gap-5 sm:overflow-x-auto pb-2 sm:pb-4 scrollbar-none sm:snap-x sm:justify-start"
+                  >
                     {group.items.map((prod, i) => (
                       <div
                         key={prod.id}
@@ -658,7 +729,7 @@ function CategoryContent({ slug }: { slug: string }) {
                   Featured Collections
                 </h2>
               </div>
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-3">
                 <span className="text-xs text-[#5A7469] font-semibold hidden md:inline-block">
                   {featuredProducts.length} {featuredProducts.length === 1 ? 'Piece' : 'Pieces'}
                 </span>
@@ -668,11 +739,30 @@ function CategoryContent({ slug }: { slug: string }) {
                 >
                   View All <ArrowRight className="w-3.5 h-3.5" />
                 </Link>
+                {/* Desktop Scroll Controls < > */}
+                <div className="hidden sm:flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => featuredRowRef.current?.scrollBy({ left: -320, behavior: 'smooth' })}
+                    aria-label="Previous featured items"
+                    className="w-8 h-8 rounded-full border border-[#E2E5EA] bg-white text-[#0B241C] hover:bg-[#0C3B2E] hover:text-white flex items-center justify-center transition-all shadow-xs cursor-pointer active:scale-95"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => featuredRowRef.current?.scrollBy({ left: 320, behavior: 'smooth' })}
+                    aria-label="Next featured items"
+                    className="w-8 h-8 rounded-full border border-[#E2E5EA] bg-white text-[#0B241C] hover:bg-[#0C3B2E] hover:text-white flex items-center justify-center transition-all shadow-xs cursor-pointer active:scale-95"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
             </div>
 
             {/* Mobile: 2-col vertical grid (max 15 rows). Desktop: horizontal scroll row */}
-            <AutoScrollRow className="relative grid grid-cols-2 gap-3 sm:flex sm:gap-5 sm:overflow-x-auto pb-2 sm:pb-4 scrollbar-none sm:snap-x sm:justify-start">
+            <AutoScrollRow rowRef={featuredRowRef} className="relative grid grid-cols-2 gap-3 sm:flex sm:gap-5 sm:overflow-x-auto pb-2 sm:pb-4 scrollbar-none sm:snap-x sm:justify-start">
               {featuredProducts.map((prod: any, i: number) => (
                 <div
                   key={prod.id}

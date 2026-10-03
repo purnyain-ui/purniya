@@ -92,6 +92,7 @@ export default function HomePage() {
   const [activeSlide, setActiveSlide] = useState(0);
   const [middleSection, setMiddleSection] = useState<HomeMiddleSection | null>(null);
   const [bottomSection, setBottomSection] = useState<HomeBottomSection | null>(null);
+  const catRowRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   useEffect(() => {
     let isMounted = true;
@@ -378,17 +379,51 @@ export default function HomePage() {
 
                   {/* Featured Mini Product Grid */}
                   <div className="rounded-2xl bg-[#FAF8F5] border border-[#E2DBD0]/70 p-4 sm:p-5">
-                    <div className="flex items-center justify-center gap-2 mb-4">
-                      <span className="w-1.5 h-1.5 rounded-full bg-[#0C3B2E]" />
-                      <p className="text-sm sm:text-base font-bold uppercase tracking-widest text-[#0B241C]">
-                        Featured in {cat.title}
-                      </p>
-                      <span className="w-1.5 h-1.5 rounded-full bg-[#0C3B2E]" />
+                    <div className="flex items-center justify-between gap-2 mb-4">
+                      <div className="flex items-center gap-2">
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#0C3B2E]" />
+                        <p className="text-sm sm:text-base font-bold uppercase tracking-widest text-[#0B241C]">
+                          Featured in {cat.title}
+                        </p>
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#0C3B2E]" />
+                      </div>
+                      {/* Desktop Scroll Controls < > */}
+                      {catProducts.length > 2 && (
+                        <div className="hidden sm:flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const el = catRowRefs.current[cat.id];
+                              if (el) el.scrollBy({ left: -320, behavior: 'smooth' });
+                            }}
+                            aria-label="Scroll left"
+                            className="w-7 h-7 rounded-full border border-[#E2DBD0] bg-white text-[#0B241C] hover:bg-[#0C3B2E] hover:text-white flex items-center justify-center transition-all shadow-xs cursor-pointer active:scale-95"
+                          >
+                            <ChevronLeft className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const el = catRowRefs.current[cat.id];
+                              if (el) el.scrollBy({ left: 320, behavior: 'smooth' });
+                            }}
+                            aria-label="Scroll right"
+                            className="w-7 h-7 rounded-full border border-[#E2DBD0] bg-white text-[#0B241C] hover:bg-[#0C3B2E] hover:text-white flex items-center justify-center transition-all shadow-xs cursor-pointer active:scale-95"
+                          >
+                            <ChevronRight className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      )}
                     </div>
                     {catProducts.length > 0 ? (
-                      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 sm:gap-3">
+                      <div
+                        ref={(el) => { catRowRefs.current[cat.id] = el; }}
+                        className="grid grid-cols-2 sm:flex sm:gap-3 sm:overflow-x-auto pb-2 scrollbar-none sm:snap-x sm:justify-start gap-2"
+                      >
                         {catProducts.map((prod) => (
-                          <ProductCard key={prod.id} product={prod} compact hidePrice showVariants={false} />
+                          <div key={prod.id} className="w-full sm:w-[210px] sm:shrink-0 sm:snap-start">
+                            <ProductCard product={prod} compact hidePrice showVariants={false} />
+                          </div>
                         ))}
                       </div>
                     ) : (
