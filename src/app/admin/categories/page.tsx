@@ -647,7 +647,7 @@ export default function AdminCategoriesPage() {
                   className="w-full px-3.5 py-2.5 bg-[#FAF8F5] border border-[#E2DBD0] rounded-xl font-semibold text-[#0B241C] focus:outline-none focus:border-[#C5A059]"
                 />
                 <p className="text-[10px] text-[#5A7469] mt-1">
-                  Lower numbers appear first in navigation & storefront listings.
+                  Lower numbers appear first in navigation & boutique listings.
                 </p>
               </div>
               <div className="space-y-2">

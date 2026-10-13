@@ -1,6 +1,7 @@
 'use client';
 import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
+import StorefrontMotion from '../components/StorefrontMotion';
 import {
   ChevronLeft,
   ChevronRight,
@@ -17,11 +18,13 @@ import {
   Leaf,
   Gift,
   Sparkles,
+  Pause,
+  Play,
 } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
-import { initialHeroSlides, getSubcategoryImage } from '../data/mockData';
-import { HomeMiddleSection, HomeBottomSection } from '../types';
-import { getHomeMiddleSectionsFromSupabase, getHomeBottomSectionsFromSupabase } from '../lib/supabase';
+import { getSubcategoryImage } from '../data/mockData';
+import { HomeMiddleSection } from '../types';
+import { getHomeMiddleSectionsFromSupabase } from '../lib/supabase';
 import ProductCard from '../components/ProductCard';
 
 const defaultMiddleFallback: HomeMiddleSection = {
@@ -43,39 +46,7 @@ const defaultMiddleFallback: HomeMiddleSection = {
   isActive: true,
 };
 
-const defaultBottomCardImages = [
-  'https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=800&fit=crop&auto=format',
-  'https://images.unsplash.com/photo-1603006905003-be475563bc59?w=800&fit=crop&auto=format',
-  'https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?w=800&fit=crop&auto=format',
-];
 
-const defaultBottomFallback: HomeBottomSection = {
-  id: 'homepage-bottom-integrity',
-  tag: 'THE PURNYA STANDARD',
-  heading: 'Artisanal Integrity in Every Creation',
-  subheading: 'From conscious sourcing to anti-tarnish protective sealing, our commitment to mindful luxury is uncompromising.',
-  cards: [
-    {
-      iconText: '18K',
-      title: 'Gold Vermeil & Anti-Tarnish Sealing',
-      description: 'Handcrafted jewellery plated with genuine 18-karat gold over hypoallergenic brass and finished with proprietary nano-ceramic sealing.',
-      image: 'https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=800&fit=crop&auto=format',
-    },
-    {
-      iconText: '100%',
-      title: 'Clean Natural Sand Wax Formulations',
-      description: 'Granulated plant-based sand and pearl wax that burns soot-free with pure cotton wicks and distilled aromatic botanicals.',
-      image: 'https://images.unsplash.com/photo-1603006905003-be475563bc59?w=800&fit=crop&auto=format',
-    },
-    {
-      iconText: 'Origin',
-      title: 'Direct Single-Origin Ethical Sourcing',
-      description: 'Herbal wellness infusions and handcrafted stoneware produced in ethical artisan cooperatives with traceable, conscious materials.',
-      image: 'https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?w=800&fit=crop&auto=format',
-    },
-  ],
-  isActive: true,
-};
 
 function getCategoryIcon(cat: { slug?: string; title?: string }) {
   const s = `${cat.slug || ''} ${cat.title || ''}`.toLowerCase();
@@ -87,27 +58,62 @@ function getCategoryIcon(cat: { slug?: string; title?: string }) {
   return Sparkles;
 }
 
+function getCategoryCuratedTitle(cat: { slug?: string; title?: string }) {
+  const s = `${cat.slug || ''} ${cat.title || ''}`.toLowerCase();
+  if (s.includes('jewel') || s.includes('apparel') || s.includes('accessor')) return 'Jewellery & Accessories';
+  if (s.includes('candle') || s.includes('fragrance')) return 'Candle & Home Fragrance';
+  if (s.includes('decor') || s.includes('décor') || s.includes('lifestyle')) return 'Home Décor & Lifestyle';
+  if (s.includes('wellness') || s.includes('organic')) return 'Organic & Wellness';
+  if (s.includes('gift') || s.includes('stationery')) return 'Gift & Stationery';
+  return cat.title || '';
+}
+
+function getCategoryCuratedDescription(cat: { slug?: string; title?: string; subtitle?: string }) {
+  const s = `${cat.slug || ''} ${cat.title || ''}`.toLowerCase();
+  if (s.includes('jewel') || s.includes('apparel') || s.includes('accessor')) {
+    return 'Discover jewellery and accessories that bring elegance and charm to everyday moments.';
+  }
+  if (s.includes('candle') || s.includes('fragrance')) {
+    return 'Explore pearl wax and home fragrance essentials to create a warm, inviting atmosphere.';
+  }
+  if (s.includes('decor') || s.includes('décor') || s.includes('lifestyle') || s.includes('home')) {
+    return 'Discover thoughtfully selected décor and lifestyle essentials to make your space feel special.';
+  }
+  if (s.includes('wellness') || s.includes('organic')) {
+    return 'Explore organic products and wellness essentials for a more mindful everyday lifestyle.';
+  }
+  if (s.includes('gift') || s.includes('stationery')) {
+    return 'Find thoughtful gifts and stationery to celebrate special moments and make every occasion memorable.';
+  }
+  return cat.subtitle || 'Discover thoughtfully curated essentials for a mindful, elegant lifestyle.';
+}
+
 export default function HomePage() {
-  const { categories, products, banners } = useStore();
+  const { categories, products, heroBanners: banners, markHeroReady, bannersLoaded, bannersError, retryBanners } = useStore();
   const [activeSlide, setActiveSlide] = useState(0);
+  const [motionReduced, setMotionReduced] = useState(true);
+  const [rotationPaused, setRotationPaused] = useState(false);
+  const [heroHovered, setHeroHovered] = useState(false);
+  const [heroFocused, setHeroFocused] = useState(false);
+
+  useEffect(() => {
+    const preference = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const update = () => setMotionReduced(preference.matches);
+    update();
+    preference.addEventListener('change', update);
+    return () => preference.removeEventListener('change', update);
+  }, []);
   const [middleSection, setMiddleSection] = useState<HomeMiddleSection | null>(null);
-  const [bottomSection, setBottomSection] = useState<HomeBottomSection | null>(null);
   const catRowRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   useEffect(() => {
     let isMounted = true;
     async function loadSections() {
       try {
-        const [mid, bot] = await Promise.all([
-          getHomeMiddleSectionsFromSupabase(),
-          getHomeBottomSectionsFromSupabase(),
-        ]);
+        const mid = await getHomeMiddleSectionsFromSupabase();
         if (!isMounted) return;
         const activeMid = mid.find((m) => m.isActive) || mid[0] || null;
         if (activeMid) setMiddleSection(activeMid);
-
-        const activeBot = bot.find((b) => b.isActive) || bot[0] || null;
-        if (activeBot) setBottomSection(activeBot);
       } catch (err) {
         console.warn('Error fetching dynamic sections from Supabase:', err);
       }
@@ -119,17 +125,22 @@ export default function HomePage() {
   }, []);
 
   const activeMiddle = middleSection || defaultMiddleFallback;
-  const activeBottom = bottomSection || defaultBottomFallback;
 
-  const activeBanners = banners.filter((b) => b.active);
-  const displayedBanners = activeBanners.length > 0 ? activeBanners : initialHeroSlides;
+  const activeBanners = [...banners]
+    .filter((b) => b.active)
+    .sort((a, b) => (a.priority ?? 999) - (b.priority ?? 999));
+  const displayedBanners = activeBanners;
 
   useEffect(() => {
-    if (displayedBanners.length <= 1) return;
+    if (displayedBanners.length <= 1 || motionReduced || rotationPaused || heroHovered || heroFocused) return;
     const timer = setInterval(() => {
-      setActiveSlide((prev) => (prev + 1) % displayedBanners.length);
+      if (!document.hidden) setActiveSlide((prev) => (prev + 1) % displayedBanners.length);
     }, 6000);
     return () => clearInterval(timer);
+  }, [displayedBanners.length, motionReduced, rotationPaused, heroHovered, heroFocused]);
+
+  useEffect(() => {
+    setActiveSlide((previous) => previous % Math.max(displayedBanners.length, 1));
   }, [displayedBanners.length]);
 
   const nextSlide = () => {
@@ -141,23 +152,53 @@ export default function HomePage() {
   };
 
   return (
-    <div className="space-y-6 sm:space-y-10 pb-12">
+    <StorefrontMotion className="space-y-6 sm:space-y-10 pb-12">
 {/* 1. HERO BANNER SECTION (SOW 5.A) */}
-<section className="relative w-full h-[520px] sm:h-[620px] lg:h-[680px] overflow-hidden bg-[#08281F]">
+<section
+  hidden={bannersLoaded && !bannersError && displayedBanners.length === 0}
+  aria-label="Featured collections"
+  aria-roledescription="carousel"
+  onMouseEnter={() => setHeroHovered(true)}
+  onMouseLeave={() => setHeroHovered(false)}
+  onFocusCapture={() => setHeroFocused(true)}
+  onBlurCapture={(event) => {
+    if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setHeroFocused(false);
+  }}
+  className="relative w-full h-[520px] sm:h-[620px] lg:h-[680px] overflow-hidden bg-[#08281F]">
+  {displayedBanners.length === 0 && (
+    <div className="absolute inset-0 flex flex-col gap-4 items-center justify-center bg-gradient-to-br from-[#08281F] to-[#164E3D]">
+      <p role="status" className="text-sm tracking-widest uppercase text-[#E9D28B]">
+        {bannersError ? 'Unable to load featured collections' : 'Loading featured collections…'}
+      </p>
+      {bannersError && (
+        <button type="button" onClick={retryBanners} className="rounded-full border border-[#E9D28B]/60 px-5 py-2 text-sm text-[#E9D28B] hover:bg-white/10">
+          Retry loading banners
+        </button>
+      )}
+    </div>
+  )}
   {displayedBanners.map((slide, idx) => {
-    const heroImage = slide.image || 'https://images.unsplash.com/photo-1515562141589-67f0d0953a8e?w=1920&fit=crop&auto=format';
+    const heroImage = slide.image;
     return (
       <div
         key={slide.id}
-        className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${
+        data-active={idx === activeSlide}
+        aria-hidden={idx !== activeSlide}
+        inert={idx !== activeSlide}
+        className={`hero-slide absolute inset-0 transition-opacity duration-1000 ease-in-out ${
           idx === activeSlide ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'
         }`}
       >
-        <img
+        {heroImage && <img
           src={heroImage}
+          fetchPriority={idx === activeSlide ? 'high' : 'low'}
+          loading={idx === activeSlide ? 'eager' : 'lazy'}
+          decoding="async"
+          onLoad={() => { if (idx === activeSlide) markHeroReady(); }}
+          onError={() => { if (idx === activeSlide) markHeroReady(); }}
           alt={slide.title}
-          className="w-full h-full object-cover object-center scale-105 transition-transform duration-10000 ease-out opacity-90"
-        />
+          className="w-full h-full object-cover object-center hero-image opacity-90"
+        />}
       {/* Emerald Deep Atmospheric Gradient Overlay */}
       <div className="absolute inset-0 bg-gradient-to-r from-[#08281F]/90 via-[#0C3B2E]/60 to-black/30" />
       <div className="absolute inset-0 bg-gradient-to-t from-[#08281F]/80 via-transparent to-transparent" />
@@ -165,7 +206,7 @@ export default function HomePage() {
       {/* pb-24 / sm:pb-28 keeps text clear of bottom controls */}
       <div className="absolute inset-0 flex items-center pb-24 sm:pb-28">
         <div className="w-full px-3 sm:px-6">
-          <div className="max-w-2xl text-[#FAF8F5] space-y-3.5 sm:space-y-6">
+          <div className="hero-copy max-w-2xl text-[#FAF8F5] space-y-3.5 sm:space-y-6">
             {slide.pretitle && (
               <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/10 backdrop-blur-md text-[#D4AF37] text-xs font-semibold uppercase tracking-[0.25em] border border-[#D4AF37]/30">
                 <span>{slide.pretitle}</span>
@@ -217,12 +258,23 @@ export default function HomePage() {
               i === activeSlide ? 'w-7 sm:w-8 bg-[#D4AF37]' : 'w-2 bg-white/40 hover:bg-white/70'
             }`}
             aria-label={`Slide ${i + 1}`}
+            aria-current={i === activeSlide ? true : undefined}
           />
         ))}
       </div>
 
       {/* Navigation Arrows (Bottom-Right Corner) */}
       <div className="absolute bottom-3 right-3 sm:bottom-6 sm:right-6 z-30 flex items-center gap-2 sm:gap-3">
+        {!motionReduced && (
+          <button
+            type="button"
+            onClick={() => setRotationPaused((paused) => !paused)}
+            aria-label={rotationPaused ? 'Resume banner rotation' : 'Pause banner rotation'}
+            className="w-9 h-9 sm:w-11 sm:h-11 rounded-full bg-black/40 hover:bg-[#0C3B2E] text-white flex items-center justify-center border border-white/30 transition-colors"
+          >
+            {rotationPaused ? <Play className="w-4 h-4" /> : <Pause className="w-4 h-4" />}
+          </button>
+        )}
         <button
           onClick={prevSlide}
           aria-label="Previous Slide"
@@ -249,7 +301,7 @@ export default function HomePage() {
 
             <span>Curated Lifestyle Worlds</span>
           </p>
-          <h2 className="font-serif-title text-3xl sm:text-4xl lg:text-5xl font-bold text-[#0B241C]">
+          <h2 data-motion className="font-serif-title text-3xl sm:text-4xl lg:text-5xl font-bold text-[#0B241C]">
             Explore Our Boutiques
           </h2>
           <p className="text-sm text-[#2C4A3E]">
@@ -299,7 +351,7 @@ export default function HomePage() {
                 className="group/card relative bg-white rounded-[1.75rem] border border-[#E2DBD0] shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden"
               >
                 {/* Header Band: Icon + Title + Description + CTA */}
-                <div className="relative bg-gradient-to-r from-[#0C3B2E] via-[#0C3B2E] to-[#08281F] px-6 sm:px-8 lg:px-10 py-6 sm:py-7 overflow-hidden">
+                <div data-motion={idx % 2 ? "right" : "left"} className="relative bg-gradient-to-r from-[#0C3B2E] via-[#0C3B2E] to-[#08281F] px-6 sm:px-8 lg:px-10 py-6 sm:py-7 overflow-hidden">
                   {/* Decorative glow */}
                   <div className="pointer-events-none absolute -right-10 -top-16 w-56 h-56 rounded-full bg-[#D4AF37]/10 blur-3xl" />
                   <div className="pointer-events-none absolute -left-10 -bottom-16 w-48 h-48 rounded-full bg-[#D4AF37]/5 blur-3xl" />
@@ -310,9 +362,6 @@ export default function HomePage() {
                         <Icon className="w-6 h-6 sm:w-7 sm:h-7" />
                       </div>
                       <div>
-                        <span className="text-[10px] font-bold uppercase tracking-[0.22em] text-[#D4AF37]">
-                          World 0{idx + 1}
-                        </span>
                         <h3 className="font-serif-title text-xl sm:text-2xl lg:text-3xl font-bold text-white leading-tight whitespace-nowrap">
                           {cat.title}
                         </h3>
@@ -358,12 +407,15 @@ export default function HomePage() {
                         {validSubcats.map((sub) => (
                           <Link
                             key={sub.name}
+                            data-motion="pop"
                             href={`/category/${cat.slug}/${encodeURIComponent(sub.name)}`}
                             className="group relative aspect-square rounded-xl overflow-hidden border border-[#E2DBD0] bg-[#EBF3EF] shadow-sm hover:shadow-lg hover:-translate-y-0.5 hover:border-[#C5A059] transition-all duration-300"
                             title={`Shop ${sub.name}`}
                           >
                             <img
                               src={sub.image}
+                              loading="lazy"
+                              decoding="async"
                               alt={sub.name}
                               className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                             />
@@ -399,7 +451,7 @@ export default function HomePage() {
                             type="button"
                             onClick={() => {
                               const el = catRowRefs.current[cat.id];
-                              if (el) el.scrollBy({ left: -320, behavior: 'smooth' });
+                              if (el) el.scrollBy({ left: -320, behavior: motionReduced ? 'instant' : 'smooth' });
                             }}
                             aria-label="Scroll left"
                             className="w-7 h-7 rounded-full border border-[#E2DBD0] bg-white text-[#0B241C] hover:bg-[#0C3B2E] hover:text-white flex items-center justify-center transition-all shadow-xs cursor-pointer active:scale-95"
@@ -410,7 +462,7 @@ export default function HomePage() {
                             type="button"
                             onClick={() => {
                               const el = catRowRefs.current[cat.id];
-                              if (el) el.scrollBy({ left: 320, behavior: 'smooth' });
+                              if (el) el.scrollBy({ left: 320, behavior: motionReduced ? 'instant' : 'smooth' });
                             }}
                             aria-label="Scroll right"
                             className="w-7 h-7 rounded-full border border-[#E2DBD0] bg-white text-[#0B241C] hover:bg-[#0C3B2E] hover:text-white flex items-center justify-center transition-all shadow-xs cursor-pointer active:scale-95"
@@ -426,7 +478,7 @@ export default function HomePage() {
                         className="grid grid-cols-2 sm:flex sm:gap-3 sm:overflow-x-auto pb-2 scrollbar-none sm:snap-x sm:justify-start gap-2"
                       >
                         {catProducts.map((prod) => (
-                          <div key={prod.id} className="w-full sm:w-[210px] sm:shrink-0 sm:snap-start">
+                          <div key={prod.id} data-motion="pop" className="w-full sm:w-[210px] sm:shrink-0 sm:snap-start">
                             <ProductCard product={prod} compact hidePrice showVariants={false} />
                           </div>
                         ))}
@@ -448,51 +500,55 @@ export default function HomePage() {
       {/* 1.5 FIVE WORLDS, ONE PURNYA — BRAND OBJECTIVE / QUICK CATEGORY ACCESS */}
       <section className="w-full px-2 sm:px-3">
         <div className="relative rounded-3xl overflow-hidden bg-[#FAF8F5] border border-[#E2DBD0] px-5 py-10 sm:px-10 sm:py-14">
-          <div className="text-center max-w-2xl mx-auto space-y-2 mb-10">
+          <div className="text-center max-w-2xl mx-auto space-y-2.5 mb-10">
             <p className="text-xs font-bold uppercase tracking-[0.25em] text-[#C5A059]">
-              One Unified Lifestyle Brand
+              EXPLORE THE WORLD OF PURNYA
             </p>
-            <h2 className="font-serif-title text-3xl sm:text-4xl lg:text-5xl font-bold text-[#0B241C]">
+            <h2 data-motion className="font-serif-title text-3xl sm:text-4xl lg:text-5xl font-bold text-[#0B241C]">
               Five Worlds. One Purnya.
             </h2>
-            <p className="text-sm text-[#2C4A3E]">
-              From artisanal jewellery to organic wellness, every Purnya world is crafted with the
-              same premium, mindful standard — so however you shop, it always feels like Purnya.
+            <p className="text-sm sm:text-base text-[#2C4A3E] leading-relaxed">
+              From everyday elegance to thoughtful gifts and lifestyle essentials, discover a curated collection for every part of your life.
             </p>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 sm:gap-5">
-            {categories.map((cat, idx) => {
-              const Icon = getCategoryIcon(cat);
-              const isLastOdd = idx === categories.length - 1 && categories.length % 2 !== 0;
-              return (
-                <Link
-                  key={cat.id}
-                  href={`/category/${cat.slug}`}
-                  className={`group relative flex flex-col items-center text-center gap-3 p-5 rounded-2xl bg-white border border-[#E2DBD0] hover:border-[#C5A059] hover:shadow-lg transition-all ${
-                    isLastOdd
-                      ? 'col-span-2 sm:col-span-1 w-[calc(50%-8px)] sm:w-full mx-auto sm:mx-0 justify-self-center sm:justify-self-auto'
-                      : ''
-                  }`}
-                >
-                  <div className="w-14 h-14 rounded-2xl bg-[#EBF3EF] flex items-center justify-center text-[#0C3B2E] group-hover:bg-[#0C3B2E] group-hover:text-[#D4AF37] transition-colors shadow-inner">
-                    <Icon className="w-6 h-6" />
-                  </div>
-                  <div>
-                    <h3 className="font-serif-title text-sm sm:text-base font-bold text-[#0B241C] leading-snug">
-                      {cat.title}
-                    </h3>
-                    {cat.subtitle && (
-                      <p className="text-[11px] text-[#5A7469] mt-1 line-clamp-2">{cat.subtitle}</p>
-                    )}
-                  </div>
-                  <span className="text-[11px] font-semibold text-[#0C3B2E] group-hover:text-[#C5A059] inline-flex items-center gap-1 mt-1">
-                    <span>Shop Now</span>
-                    <ArrowRight className="w-3 h-3" />
-                  </span>
-                </Link>
-              );
-            })}
+          <div data-motion-stagger className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 sm:gap-5 items-stretch">
+            {[...categories]
+              .sort((a: any, b: any) => (a.priority ?? 1) - (b.priority ?? 1))
+              .map((cat, idx) => {
+                const Icon = getCategoryIcon(cat);
+                const isLastOdd = idx === categories.length - 1 && categories.length % 2 !== 0;
+                const displayTitle = getCategoryCuratedTitle(cat);
+                const displayDesc = getCategoryCuratedDescription(cat);
+                return (
+                  <Link
+                    key={cat.id}
+                    data-motion
+                    href={`/category/${cat.slug}`}
+                    className={`group relative flex flex-col items-center text-center justify-between px-4 pt-5 pb-4 sm:px-5 sm:pt-5 sm:pb-4 rounded-2xl bg-white border border-[#E2DBD0] hover:border-[#C5A059] hover:shadow-lg transition-all duration-300 h-full ${
+                      isLastOdd
+                        ? 'sm:col-span-2 lg:col-span-1 sm:w-1/2 lg:w-full mx-auto'
+                        : ''
+                    }`}
+                  >
+                    <div className="flex flex-col items-center text-center flex-1 w-full">
+                      <div className="w-13 h-13 sm:w-14 sm:h-14 rounded-2xl bg-[#EBF3EF] flex items-center justify-center text-[#0C3B2E] group-hover:bg-[#0C3B2E] group-hover:text-[#D4AF37] transition-all duration-300 shadow-inner mb-3">
+                        <Icon className="w-6 h-6 transition-transform duration-300 group-hover:scale-110" />
+                      </div>
+                      <h3 className="font-serif-title text-sm sm:text-base font-bold text-[#0B241C] leading-snug mb-2">
+                        {displayTitle}
+                      </h3>
+                      <p className="text-xs text-[#5A7469] leading-relaxed mb-2.5">
+                        {displayDesc}
+                      </p>
+                    </div>
+                    <span className="text-xs font-semibold text-[#0C3B2E] group-hover:text-[#C5A059] inline-flex items-center gap-1.5 transition-colors mt-auto">
+                      <span>Shop Now</span>
+                      <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-1 text-[#C5A059]" />
+                    </span>
+                  </Link>
+                );
+              })}
           </div>
         </div>
       </section>
@@ -500,7 +556,7 @@ export default function HomePage() {
       {/* 3. TRUST REASSURANCE BAR */}
       <section className="bg-white border-y border-[#E2DBD0] py-6 shadow-xs">
         <div className="w-full px-2 sm:px-3">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center sm:text-left">
+          <div data-motion-stagger className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center sm:text-left">
             <div className="flex flex-col sm:flex-row items-center gap-3">
               <div className="w-12 h-12 rounded-2xl bg-[#EBF3EF] flex items-center justify-center text-[#0C3B2E] shrink-0 shadow-inner">
                 <Truck className="w-6 h-6" />
@@ -555,12 +611,12 @@ export default function HomePage() {
       {/* 4. EDITORIAL BRAND STORY / MIDDLE SECTION */}
       <section className="w-full px-2 sm:px-3">
         <div className="relative rounded-3xl overflow-hidden bg-[#0C3B2E] text-[#FAF8F5] p-6 sm:p-10 lg:p-12 shadow-2xl">
-          <div className="grid grid-cols-1 lg:grid-cols-[1.3fr_1fr] gap-8 lg:gap-12 items-center">
+          <div data-motion-stagger className="grid grid-cols-1 lg:grid-cols-[1.3fr_1fr] gap-8 lg:gap-12 items-center">
             <div className="space-y-5">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 text-[#D4AF37] text-[10px] font-bold tracking-widest uppercase border border-[#D4AF37]/30">
                 {activeMiddle.tag || 'The Purnya Philosophy'}
               </div>
-              <h2 className="font-serif-title text-3xl sm:text-4xl font-bold leading-tight">
+              <h2 data-motion className="font-serif-title text-3xl sm:text-4xl font-bold leading-tight">
                 {activeMiddle.title}
               </h2>
               <p className="text-sm text-[#B4C9BF] leading-relaxed">
@@ -568,7 +624,7 @@ export default function HomePage() {
               </p>
 
               {activeMiddle.features && activeMiddle.features.length > 0 && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                <div data-motion-stagger className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
                   {activeMiddle.features.map((feat, idx) => (
                     <div key={idx} className="p-3 rounded-xl bg-white/5 border border-white/10 flex items-center gap-2">
                       <CheckCircle2 className="w-3.5 h-3.5 text-[#D4AF37] shrink-0" />
@@ -602,6 +658,8 @@ export default function HomePage() {
 
             <div className="relative aspect-[4/3] rounded-2xl overflow-hidden shadow-2xl border border-white/15 bg-[#071a13]">
               <img
+                loading="lazy"
+                decoding="async"
                 src={activeMiddle.imageUrl || 'https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?w=1000&fit=crop&auto=format'}
                 alt={activeMiddle.title}
                 onError={(e) => {
@@ -614,56 +672,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* 7. AUTHENTIC PURNYA CRAFTSMANSHIP STANDARDS / BOTTOM SECTION */}
-      <section className="bg-[#EBF3EF]/60 border-y border-[#E2DBD0] py-10">
-        <div className="w-full px-2 sm:px-3">
-          <div className="text-center max-w-xl mx-auto mb-10 space-y-2">
-            <span className="text-xs font-bold uppercase tracking-[0.25em] text-[#C5A059]">
-              {activeBottom.tag || 'The Purnya Standard'}
-            </span>
-            <h2 className="font-serif-title text-3xl sm:text-4xl font-bold text-[#0B241C]">
-              {activeBottom.heading}
-            </h2>
-            <p className="text-xs sm:text-sm text-[#2C4A3E]">
-              {activeBottom.subheading}
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {activeBottom.cards.map((card, idx) => {
-              const cardImage = card.image || defaultBottomCardImages[idx % defaultBottomCardImages.length];
-              return (
-                <div key={idx} className="bg-white p-7 rounded-2xl border border-[#E2DBD0] shadow-xs space-y-4 flex flex-col justify-between group hover:border-[#C5A059] transition-all">
-                  <div className="space-y-3">
-                    <div className="w-10 h-10 rounded-xl bg-[#EBF3EF] flex items-center justify-center text-[#0C3B2E] font-serif-title font-bold text-lg">
-                      {card.iconText}
-                    </div>
-                    <h3 className="font-serif-title text-base font-bold text-[#0B241C]">
-                      {card.title}
-                    </h3>
-                    <p className="text-xs text-[#2C4A3E] leading-relaxed">
-                      {card.description}
-                    </p>
-                  </div>
-                  {cardImage && (
-                    <div className="w-full h-40 rounded-xl overflow-hidden border border-[#E2DBD0] mt-3 relative bg-[#FAF9F5]">
-                      <img
-                        src={cardImage}
-                        alt={card.title}
-                        onError={(e) => {
-                          e.currentTarget.src = defaultBottomCardImages[idx % defaultBottomCardImages.length];
-                        }}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                      />
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </section>
-    </div>
+    </StorefrontMotion>
   );
 }
 

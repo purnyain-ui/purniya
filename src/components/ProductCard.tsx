@@ -61,11 +61,19 @@ export default function ProductCard({
     ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
     : 0;
 
+  const handleProductClick = () => {
+    if (product.categorySlug) {
+      try {
+        sessionStorage.setItem('purnya_active_category', product.categorySlug.trim().toLowerCase());
+      } catch (e) {}
+    }
+  };
+
   return (
     <div className="group relative bg-white rounded-2xl border border-[#E2DBD0] overflow-hidden flex flex-col transition-all duration-300 hover:shadow-xl hover:border-[#0C3B2E]/60 hover:-translate-y-1">
       {/* Image Container */}
       <div className="relative aspect-square w-full overflow-hidden bg-[#FAF8F5] border-b border-[#E2DBD0]/60">
-        <Link href={`/product/${product.id}`} className="block w-full h-full relative bg-[#FAF8F5]">
+        <Link href={`/product/${product.id}`} onClick={handleProductClick} className="block w-full h-full relative bg-[#FAF8F5]">
           <img
             src={displayImg}
             alt={product.name}
@@ -178,6 +186,7 @@ export default function ProductCard({
 
         <Link
           href={`/product/${product.id}`}
+          onClick={handleProductClick}
           className="text-xs sm:text-sm font-semibold text-[#0B241C] hover:text-[#0C3B2E] transition-colors line-clamp-1 mb-1.5"
         >
           {product.name}

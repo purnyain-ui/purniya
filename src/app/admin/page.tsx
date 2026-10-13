@@ -442,7 +442,7 @@ export default function AdminOverviewPage() {
               <ShoppingBag className="w-8 h-8 text-[#C5A059] mx-auto opacity-50" />
               <p className="text-xs font-bold text-[#0B241C]">No Customer Orders Yet</p>
               <p className="text-[11px] text-[#5A7469] max-w-xs mx-auto">
-                Orders placed on any of the five boutique storefronts will appear here in real-time.
+                Orders placed across the online boutiques will appear here in real-time.
               </p>
             </div>
           ) : (

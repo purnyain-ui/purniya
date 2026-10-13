@@ -468,6 +468,17 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
       setData(result);
       setLoading(false);
 
+      if (result.category?.slug) {
+        try {
+          sessionStorage.setItem('purnya_active_category', result.category.slug.trim().toLowerCase());
+        } catch (e) {}
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(
+            new CustomEvent('purnya_category_change', { detail: result.category.slug.trim().toLowerCase() })
+          );
+        }
+      }
+
       const [relatedList, reviewsList] = await Promise.all([
         fetchRelatedProducts(result.product.category_id, result.product.id),
         fetchReviews(result.product.id),
@@ -592,7 +603,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
           href="/"
           className="inline-block px-8 py-3 rounded-full bg-[#0C3B2E] text-white text-xs font-semibold uppercase tracking-wider"
         >
-          Return to Storefront
+          Return to Home Boutique
         </Link>
       </div>
     );

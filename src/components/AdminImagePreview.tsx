@@ -32,7 +32,7 @@ export default function AdminImagePreview({ url, file, onRemove, isPrimary, labe
   const isNew = !!file;
   const sizeKb = file ? (file.size / 1024).toFixed(1) : null;
 
-  if (!displayUrl) return null;
+  if (!displayUrl || (typeof displayUrl === 'string' && !displayUrl.trim())) return null;
 
   return (
     <div className={`flex flex-col gap-1.5 group ${circular ? 'items-center' : 'w-full'} ${className}`}>

@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Image as ImageIcon, Save, Edit3, Trash2, Plus, Upload, CheckCircle, Sparkles, Database } from 'lucide-react';
-import { useStore } from '../../../context/StoreContext';
+import { Image as ImageIcon, Save, Edit3, Trash2, Plus, Upload, CheckCircle, Sparkles, Database, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useStore, sortBannersByFiveWorlds } from '../../../context/StoreContext';
 import { HeroSlide } from '../../../types';
 import { initialHeroSlides } from '../../../data/mockData';
 import AdminImagePreview from '../../../components/AdminImagePreview';
@@ -32,9 +32,29 @@ export default function AdminBannersPage() {
     addHeroSlide,
     updateHeroSlide,
     deleteHeroSlide,
+    reorderBanners,
+    updateBannerPriority,
+    saveAllBannerPriorities,
     announcement,
     updateAnnouncement,
   } = useStore();
+
+  const handleMoveSlide = (currentIndex: number, direction: -1 | 1) => {
+    const targetIndex = currentIndex + direction;
+    if (targetIndex < 0 || targetIndex >= banners.length) return;
+    const updated = [...banners];
+    const [movedItem] = updated.splice(currentIndex, 1);
+    updated.splice(targetIndex, 0, movedItem);
+    reorderBanners(updated);
+  };
+
+  const handleAutoSortFiveWorlds = () => {
+    const sorted = sortBannersByFiveWorlds(banners).map((s, idx) => ({
+      ...s,
+      priority: idx + 1,
+    }));
+    reorderBanners(sorted);
+  };
 
   const [announcementText, setAnnouncementText] = useState(announcement);
   const [editingSlide, setEditingSlide] = useState<HeroSlide | null>(null);
@@ -126,7 +146,7 @@ export default function AdminBannersPage() {
               <span>Storewide Top Announcement Bar</span>
             </h2>
             <p className="text-xs text-[#2C4A3E]">
-              Displayed prominently across the very top bar of all storefront pages.
+              Displayed prominently across the very top bar of all website pages.
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -169,20 +189,45 @@ export default function AdminBannersPage() {
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-50 text-emerald-800 text-xs font-bold border border-emerald-200">
+              <Database className="w-3.5 h-3.5 text-emerald-600" />
+              <span>Database Connected</span>
+            </span>
+
+            <button
+              type="button"
+              onClick={handleAutoSortFiveWorlds}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white border border-[#C5A059] hover:bg-[#FAF8F5] text-[#0B241C] font-bold text-xs transition-colors shadow-2xs cursor-pointer"
+              title="Auto-assign priorities 1 to 5 (Jewellery → Candle → Home Décor → Organic → Gift) & save to DB"
+            >
+              <Sparkles className="w-4 h-4 text-[#C5A059]" />
+              <span>Auto-Set 1 to 5 (5 Worlds)</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => saveAllBannerPriorities()}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#08281F] hover:bg-[#0E3E31] text-[#D4AF37] font-bold text-xs transition-colors shadow-2xs cursor-pointer"
+              title="Save all banner priority numbers to Supabase database"
+            >
+              <Save className="w-4 h-4 text-[#D4AF37]" />
+              <span>Save Priorities to DB</span>
+            </button>
+
             {banners.length === 0 && (
               <button
                 onClick={handleRestoreDefaults}
                 className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-[#C5A059] text-[#0B241C] hover:bg-[#FAF8F5] text-xs font-semibold"
               >
                 <Sparkles className="w-3.5 h-3.5 text-[#C5A059]" />
-                <span>Load Luxury Presets</span>
+                <span>Load Presets</span>
               </button>
             )}
 
             <button
               onClick={handleOpenAddModal}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#C5A059] hover:bg-[#B38F48] text-[#0B241C] font-bold text-xs transition-colors"
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#C5A059] hover:bg-[#B38F48] text-[#0B241C] font-bold text-xs transition-colors cursor-pointer"
             >
               <Plus className="w-4 h-4" />
               <span>Create Slide</span>
@@ -223,7 +268,7 @@ export default function AdminBannersPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {banners.map((slide) => (
+            {banners.map((slide, index) => (
               <div
                 key={slide.id}
                 className={`bg-white rounded-3xl border transition-all overflow-hidden shadow-sm flex flex-col justify-between ${slide.active ? 'border-[#E2DBD0]' : 'border-gray-200 opacity-75'
@@ -231,15 +276,32 @@ export default function AdminBannersPage() {
               >
                 <div>
                   <div className="relative aspect-[16/9] w-full bg-[#0B241C] overflow-hidden group">
-                    <img
-                      src={slide.image}
-                      alt={slide.title}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 opacity-85"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
+                    {slide.image && slide.image.trim() !== '' ? (
+                      <img
+                        src={slide.image}
+                        alt={slide.title || 'Slide Image'}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 opacity-85"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex flex-col items-center justify-center bg-[#08281F] text-[#C5A059] p-4 text-center">
+                        <ImageIcon className="w-10 h-10 mb-2 opacity-50 text-[#C5A059]" />
+                        <span className="text-xs font-bold uppercase tracking-wider text-white/60">
+                          No Image Uploaded
+                        </span>
+                      </div>
+                    )}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent pointer-events-none" />
+
+                    {/* Numbered Slide Priority Badge (Top Left) */}
+                    <div className="absolute top-3 left-3 z-10 flex items-center gap-1.5">
+                      <span className="px-3 py-1 rounded-full text-[11px] font-bold bg-[#08281F]/95 text-[#D4AF37] border border-[#D4AF37]/50 backdrop-blur-md shadow-md flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-[#D4AF37] animate-pulse" />
+                        <span>Priority #{slide.priority ?? index + 1}</span>
+                      </span>
+                    </div>
 
                     {/* Active/Hidden pill top right */}
-                    <div className="absolute top-3 right-3">
+                    <div className="absolute top-3 right-3 z-10">
                       <span
                         className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider backdrop-blur-md ${slide.active
                             ? 'bg-emerald-500/90 text-white shadow-sm'
@@ -288,6 +350,57 @@ export default function AdminBannersPage() {
                   >
                     {slide.active ? 'Disable' : 'Enable'}
                   </button>
+
+                  {/* Priority Number Dropdown & Shift Buttons */}
+                  <div className="flex items-center gap-1.5 bg-[#FAF8F5] px-2 py-1 rounded-xl border border-[#E2DBD0]">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-[#5A7469]">
+                      Priority:
+                    </span>
+                    <select
+                      value={slide.priority ?? index + 1}
+                      onChange={(e) => {
+                        const newPriority = parseInt(e.target.value);
+                        updateBannerPriority(slide.id, newPriority);
+                      }}
+                      className="text-xs font-bold font-mono text-[#0B241C] bg-white border border-[#C5A059] rounded-lg px-2 py-0.5 cursor-pointer focus:outline-none focus:ring-1 focus:ring-[#C5A059] shadow-2xs"
+                      title="Set display priority number (1 appears first on frontend home page)"
+                    >
+                      {banners.map((_, i) => (
+                        <option key={i + 1} value={i + 1}>
+                          #{i + 1}
+                        </option>
+                      ))}
+                    </select>
+
+                    <div className="flex items-center border-l border-[#E2DBD0] pl-1 ml-0.5">
+                      <button
+                        type="button"
+                        onClick={() => handleMoveSlide(index, -1)}
+                        disabled={index === 0}
+                        title="Shift priority earlier"
+                        className={`p-1 rounded-md transition-colors cursor-pointer ${
+                          index === 0
+                            ? 'text-gray-300 cursor-not-allowed'
+                            : 'text-[#0B241C] hover:bg-white hover:text-[#C5A059]'
+                        }`}
+                      >
+                        <ChevronLeft className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleMoveSlide(index, 1)}
+                        disabled={index === banners.length - 1}
+                        title="Shift priority later"
+                        className={`p-1 rounded-md transition-colors cursor-pointer ${
+                          index === banners.length - 1
+                            ? 'text-gray-300 cursor-not-allowed'
+                            : 'text-[#0B241C] hover:bg-white hover:text-[#C5A059]'
+                        }`}
+                      >
+                        <ChevronRight className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
 
                   <div className="flex items-center gap-2">
                     <button
@@ -372,6 +485,29 @@ export default function AdminBannersPage() {
                 placeholder="Brief evocative description of the collection or offer displayed on the hero slide..."
                 className="w-full p-3 rounded-xl border border-[#E2DBD0] text-xs focus:outline-none focus:border-[#C5A059]"
               />
+            </div>
+
+            {/* Display Priority Number */}
+            <div className="p-3.5 bg-[#FAF8F5] border border-[#E2DBD0] rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <label className="font-semibold text-xs text-[#2C4A3E] block">
+                  Display Priority Number (Order)
+                </label>
+                <p className="text-[11px] text-[#5A7469]">
+                  Lower numbers appear first on the frontend home page (e.g. 1 = First slide, 2 = Second).
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-[#0B241C]">Priority #</span>
+                <input
+                  type="number"
+                  min="1"
+                  max="99"
+                  value={editingSlide.priority ?? (isAddingNew ? banners.length + 1 : 1)}
+                  onChange={(e) => setEditingSlide({ ...editingSlide, priority: parseInt(e.target.value) || 1 })}
+                  className="w-20 px-3 py-1.5 rounded-xl border border-[#C5A059] bg-white font-mono font-bold text-sm text-[#0B241C] text-center focus:outline-none focus:ring-1 focus:ring-[#C5A059]"
+                />
+              </div>
             </div>
 
             {/* CTA Button Text & Link */}

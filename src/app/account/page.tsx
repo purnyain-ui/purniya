@@ -22,7 +22,7 @@ import { useStore } from '../../context/StoreContext';
 import { Address } from '../../types';
 
 function AccountContent() {
-  const { user, isAuthLoading, updateUser, orders, addresses, addAddress, deleteAddress, showToast, logoutUser, updateOrderStatus } = useStore();
+  const { user, isAuthLoading, updateUser, orders, addresses, addAddress, deleteAddress, showToast, logoutUser, updateOrderStatus, openAuthModal } = useStore();
   const searchParams = useSearchParams();
   const tabParam = searchParams.get('tab');
   const [activeTab, setActiveTab] = useState<'profile' | 'orders' | 'addresses' | 'returns'>('orders');
@@ -164,19 +164,21 @@ function AccountContent() {
             </p>
           </div>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
-            <Link
-              href="/login?redirect=/account"
-              className="w-full sm:w-auto px-8 py-3.5 rounded-xl bg-[#08281F] hover:bg-[#0C3B2E] text-white font-bold text-xs sm:text-sm tracking-wide shadow-md transition-all flex items-center justify-center gap-2"
+            <button
+              type="button"
+              onClick={() => openAuthModal({ redirectUrl: '/account', mode: 'login' })}
+              className="w-full sm:w-auto px-8 py-3.5 rounded-xl bg-[#08281F] hover:bg-[#0C3B2E] text-white font-bold text-xs sm:text-sm tracking-wide shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
             >
               <span>Sign In to Account</span>
               <ChevronRight className="w-4 h-4 text-[#D4AF37]" />
-            </Link>
-            <Link
-              href="/signup?redirect=/account"
-              className="w-full sm:w-auto px-8 py-3.5 rounded-xl border border-[#08281F] text-[#08281F] hover:bg-[#FAF8F5] font-bold text-xs sm:text-sm transition-all"
+            </button>
+            <button
+              type="button"
+              onClick={() => openAuthModal({ redirectUrl: '/account', mode: 'signup' })}
+              className="w-full sm:w-auto px-8 py-3.5 rounded-xl border border-[#08281F] text-[#08281F] hover:bg-[#FAF8F5] font-bold text-xs sm:text-sm transition-all cursor-pointer"
             >
               Join Purnya Circle
-            </Link>
+            </button>
           </div>
         </div>
       </div>

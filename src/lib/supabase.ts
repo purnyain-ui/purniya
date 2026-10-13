@@ -887,6 +887,51 @@ export async function syncAttributesToSupabase(
 /**
  * Fetch banners from Supabase
  */
+export async function getBannerPrioritiesFromSupabase(): Promise<Record<string, number>> {
+  if (!isSupabaseConfigured || !supabase) return {};
+  try {
+    const { data } = await supabase
+      .from('banners')
+      .select('subtitle')
+      .eq('id', 'hero-banners-order')
+      .maybeSingle();
+    if (data?.subtitle) {
+      return JSON.parse(data.subtitle);
+    }
+  } catch {}
+  return {};
+}
+
+export async function saveBannerPrioritiesToSupabase(
+  priorities: Record<string, number>
+): Promise<{ success: boolean; error?: string }> {
+  if (!isSupabaseConfigured || !supabase) return { success: false, error: 'Supabase credentials not configured' };
+  try {
+    const { error } = await supabase.from('banners').upsert(
+      {
+        id: 'hero-banners-order',
+        title: 'Hero Banners Order & Priorities',
+        category: 'hero-banners-order',
+        subtitle: JSON.stringify(priorities),
+        image: 'config',
+        is_active: true,
+      },
+      { onConflict: 'id' }
+    );
+    if (error) {
+      console.warn('Supabase saveBannerPriorities error:', error);
+      return { success: false, error: error.message };
+    }
+    return { success: true };
+  } catch (err: any) {
+    console.warn('Supabase saveBannerPriorities exception:', err);
+    return { success: false, error: err?.message || 'Failed to save banner priorities' };
+  }
+}
+
+/**
+ * Fetch banners from Supabase
+ */
 export async function getBannersFromSupabase(): Promise<HeroSlide[] | null> {
   if (!isSupabaseConfigured || !supabase) return null;
   try {
@@ -900,14 +945,25 @@ export async function getBannersFromSupabase(): Promise<HeroSlide[] | null> {
       return null;
     }
     if (!data) return [];
-    return data
+
+    const orderRow = data.find((b: any) => b.id === 'hero-banners-order' || b.category === 'hero-banners-order');
+    let prioritiesMap: Record<string, number> = {};
+    if (orderRow && orderRow.subtitle) {
+      try {
+        prioritiesMap = JSON.parse(orderRow.subtitle);
+      } catch {}
+    }
+
+    const slides: HeroSlide[] = data
       .filter((b: any) =>
         b.id !== 'announcement-bar-main' &&
         b.category !== 'announcement' &&
         b.category !== 'home-middle-section' &&
-        b.category !== 'home-bottom-section'
+        b.category !== 'home-bottom-section' &&
+        b.id !== 'hero-banners-order' &&
+        b.category !== 'hero-banners-order'
       )
-      .map((b: any) => ({
+      .map((b: any, idx: number) => ({
         id: b.id,
         title: b.title || '',
         subtitle: b.subtitle || '',
@@ -916,7 +972,13 @@ export async function getBannersFromSupabase(): Promise<HeroSlide[] | null> {
         ctaLink: b.cta_link || '/',
         image: b.image || '',
         active: b.is_active ?? true,
+        priority: typeof b.priority === 'number'
+          ? b.priority
+          : (typeof prioritiesMap[b.id] === 'number' ? prioritiesMap[b.id] : (idx + 1)),
       }));
+
+    slides.sort((a, b) => (a.priority ?? 999) - (b.priority ?? 999));
+    return slides.map((s, i) => ({ ...s, priority: i + 1 }));
   } catch (err) {
     console.warn('Supabase getBanners exception:', err);
     return null;
@@ -996,6 +1058,14 @@ export async function upsertBannerToSupabase(slide: HeroSlide): Promise<{ succes
       console.warn('Supabase upsertBanner error:', error);
       return { success: false, error: error.message };
     }
+
+    if (typeof slide.priority === 'number') {
+      getBannerPrioritiesFromSupabase().then((priorities) => {
+        priorities[slide.id] = slide.priority!;
+        saveBannerPrioritiesToSupabase(priorities).catch(() => {});
+      }).catch(() => {});
+    }
+
     return { success: true };
   } catch (err: any) {
     console.warn('Supabase upsertBanner exception:', err);
@@ -1014,6 +1084,12 @@ export async function deleteBannerFromSupabase(id: string): Promise<boolean> {
       console.warn('Supabase deleteBanner error:', error);
       return false;
     }
+    getBannerPrioritiesFromSupabase().then((priorities) => {
+      if (priorities[id] !== undefined) {
+        delete priorities[id];
+        saveBannerPrioritiesToSupabase(priorities).catch(() => {});
+      }
+    }).catch(() => {});
     return true;
   } catch (err) {
     console.warn('Supabase deleteBanner exception:', err);

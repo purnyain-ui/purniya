@@ -1700,8 +1700,8 @@ function AdminAddProductPage() {
                 </div>
                 <p className="text-[10px] text-[#5A7469] mt-1.5 leading-relaxed">
                   {isActive
-                    ? 'Active products are immediately visible to shoppers on the storefront.'
-                    : 'Inactive products are hidden from the storefront, catalog, and search.'}
+                    ? 'Active products are immediately visible to shoppers in the boutique.'
+                    : 'Inactive products are hidden from the boutique, catalog, and search.'}
                 </p>
               </div>
 

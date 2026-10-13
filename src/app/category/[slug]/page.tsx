@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useMemo, useRef, use, Suspense } from 'react';
 import Link from 'next/link';
+import StorefrontMotion from '../../../components/StorefrontMotion';
 import { useSearchParams } from 'next/navigation';
 import {
   ChevronLeft,
@@ -31,6 +32,36 @@ function getCategoryIcon(cat: { slug?: string; title?: string }) {
   return Sparkles;
 }
 
+function getCategoryCuratedTitle(cat: { slug?: string; title?: string }) {
+  const s = `${cat.slug || ''} ${cat.title || ''}`.toLowerCase();
+  if (s.includes('jewel') || s.includes('apparel') || s.includes('accessor')) return 'Jewellery & Accessories';
+  if (s.includes('candle') || s.includes('fragrance')) return 'Candle & Home Fragrance';
+  if (s.includes('decor') || s.includes('décor') || s.includes('lifestyle')) return 'Home Décor & Lifestyle';
+  if (s.includes('wellness') || s.includes('organic')) return 'Organic & Wellness';
+  if (s.includes('gift') || s.includes('stationery')) return 'Gift & Stationery';
+  return cat.title || '';
+}
+
+function getCategoryCuratedDescription(cat: { slug?: string; title?: string; subtitle?: string }) {
+  const s = `${cat.slug || ''} ${cat.title || ''}`.toLowerCase();
+  if (s.includes('jewel') || s.includes('apparel') || s.includes('accessor')) {
+    return 'Discover jewellery and accessories that bring elegance and charm to everyday moments.';
+  }
+  if (s.includes('candle') || s.includes('fragrance')) {
+    return 'Explore pearl wax and home fragrance essentials to create a warm, inviting atmosphere.';
+  }
+  if (s.includes('decor') || s.includes('décor') || s.includes('lifestyle') || s.includes('home')) {
+    return 'Discover thoughtfully selected décor and lifestyle essentials to make your space feel special.';
+  }
+  if (s.includes('wellness') || s.includes('organic')) {
+    return 'Explore organic products and wellness essentials for a more mindful everyday lifestyle.';
+  }
+  if (s.includes('gift') || s.includes('stationery')) {
+    return 'Find thoughtful gifts and stationery to celebrate special moments and make every occasion memorable.';
+  }
+  return cat.subtitle || 'Discover thoughtfully curated essentials for a mindful, elegant lifestyle.';
+}
+
 function BoutiqueLoadingScreen({ title }: { title?: string }) {
   return (
     <div className="min-h-[70vh] w-full flex flex-col items-center justify-center relative overflow-hidden bg-[#08281F] text-[#FAF8F5] rounded-[2rem] my-6 shadow-xl border border-[#144234] px-4">
@@ -54,11 +85,11 @@ function BoutiqueLoadingScreen({ title }: { title?: string }) {
 
         {/* Brand Text */}
         <div className="space-y-1.5">
-          <h2 className="font-serif-title text-2xl sm:text-3xl font-bold tracking-[0.2em] text-white">
+          <h2 data-motion className="font-serif-title text-2xl sm:text-3xl font-bold tracking-[0.2em] text-white">
             PURNYA
           </h2>
-          <p className="text-[10px] sm:text-xs font-bold uppercase tracking-[0.25em] text-[#D4AF37]">
-            Life · Lifestyle · You
+          <p className="text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.16em] text-[#D4AF37]">
+            Thoughtfully · Curated · Beautifully Yours
           </p>
         </div>
 
@@ -132,6 +163,7 @@ function AutoScrollRow({
 
   return (
     <div
+      data-motion-stagger
       ref={rowRef as React.RefObject<HTMLDivElement>}
       className={className}
       onMouseEnter={() => (pausedRef.current = true)}
@@ -346,18 +378,8 @@ function CategoryContent({ slug }: { slug: string }) {
     }));
   }, [currentCategory]);
 
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    setLoading(true);
-    const timer = setTimeout(() => {
-      setLoading(false);
-    }, 2500);
-    return () => clearTimeout(timer);
-  }, [slug]);
-
-  if (loading || !currentCategory) {
-    return <BoutiqueLoadingScreen title={currentCategory?.title} />;
+  if (!currentCategory) {
+    return <BoutiqueLoadingScreen />;
   }
 
   const categorySlug = (currentCategory.slug || '').trim();
@@ -383,13 +405,13 @@ function CategoryContent({ slug }: { slug: string }) {
     : [];
 
   return (
-    <div className="space-y-12 sm:space-y-16 pb-24">
+    <StorefrontMotion key={slug} className="space-y-12 sm:space-y-16 pb-24">
       {/* 1. DEDICATED CATEGORY HERO BANNER */}
-      <section className="relative w-full min-h-[460px] sm:min-h-[540px] lg:min-h-[620px] bg-[#08281F] overflow-hidden flex items-center">
+      <section className="category-hero relative w-full min-h-[460px] sm:min-h-[540px] lg:min-h-[620px] bg-[#08281F] overflow-hidden flex items-center">
         <img
           src={currentCategory.heroImage || currentCategory.bannerImage}
           alt={currentCategory.title}
-          className="w-full h-full object-cover object-center absolute inset-0 opacity-45 scale-105 transition-transform duration-7000"
+          className="w-full h-full object-cover object-center absolute inset-0 opacity-45 hero-image"
         />
         <div className="absolute inset-0 bg-gradient-to-r from-[#08281F]/95 via-[#0C3B2E]/70 to-black/30" />
         <div className="absolute inset-0 bg-gradient-to-t from-[#08281F] via-transparent to-transparent" />
@@ -409,7 +431,7 @@ function CategoryContent({ slug }: { slug: string }) {
             </span>
           </div>
 
-          <div className="max-w-3xl space-y-4 sm:space-y-5">
+          <div className="hero-copy max-w-3xl space-y-4 sm:space-y-5">
             <h1 className="font-serif-title text-4xl sm:text-6xl lg:text-7xl font-bold text-white tracking-tight leading-[1.08]">
               {currentCategory.title}
             </h1>
@@ -430,7 +452,7 @@ function CategoryContent({ slug }: { slug: string }) {
                 <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#C5A059]">
                   Explore Collections
                 </p>
-                <h2 className="font-serif-title text-xl sm:text-2xl font-bold text-[#0B241C] mt-1">
+                <h2 data-motion className="font-serif-title text-xl sm:text-2xl font-bold text-[#0B241C] mt-1">
                   {currentCategory.title}
                 </h2>
               </div>
@@ -447,7 +469,7 @@ function CategoryContent({ slug }: { slug: string }) {
           </div>
 
           {/* Big Square Subcategory Cards */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5 sm:gap-5">
+          <div data-motion-stagger className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5 sm:gap-5">
             {/* "All" Square Card */}
             <button
               onClick={() => setSelectedSubcategory('All')}
@@ -518,7 +540,7 @@ function CategoryContent({ slug }: { slug: string }) {
       {/* 2.2 FESTIVAL BANNER & SALE PRODUCTS */}
       {festivalBanner && (
         <section className="w-full px-2 sm:px-3 mt-6 sm:mt-10">
-          <div className="relative bg-[#FFEFE8] rounded-[1.75rem] overflow-hidden border border-[#F5DFD6] shadow-sm flex flex-col">
+          <div data-motion="left" className="relative bg-[#FFEFE8] rounded-[1.75rem] overflow-hidden border border-[#F5DFD6] shadow-sm flex flex-col">
             {/* The Banner → all-products filtered by this sale tag */}
             <Link
               href={tagHref(festivalBanner.lifestyleTag)}
@@ -598,7 +620,7 @@ function CategoryContent({ slug }: { slug: string }) {
             <p className="text-xs font-bold uppercase tracking-[0.25em] text-[#C5A059]">
               Shop by Lifestyle
             </p>
-            <h2 className="font-serif-title text-2xl sm:text-3xl lg:text-4xl font-bold text-[#0B241C]">
+            <h2 data-motion className="font-serif-title text-2xl sm:text-3xl lg:text-4xl font-bold text-[#0B241C]">
               Curated for the Way You Live
             </h2>
             <p className="text-sm text-[#2C4A3E]">
@@ -651,7 +673,7 @@ function CategoryContent({ slug }: { slug: string }) {
                       <p className={`text-xs font-bold uppercase tracking-[0.2em] ${theme.tag}`}>
                         Curated Edit
                       </p>
-                      <h2 className={`font-serif-title text-3xl sm:text-4xl font-bold ${theme.textMain} mt-1`}>
+                      <h2 data-motion className={`font-serif-title text-3xl sm:text-4xl font-bold ${theme.textMain} mt-1`}>
                         {group.tag}
                       </h2>
                     </div>
@@ -741,7 +763,7 @@ function CategoryContent({ slug }: { slug: string }) {
 
       {/* 2.5.5 PRICE BUCKETS — navigate to /all-products/[slug] with the price filter applied */}
       <section className="w-full px-2 sm:px-3">
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
+        <div data-motion-stagger className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
           {[99, 499, 999].map((price, idx) => {
             const isLast = idx === 2;
             return (
@@ -786,7 +808,7 @@ function CategoryContent({ slug }: { slug: string }) {
                 <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#5A7469]">
                   Handpicked
                 </p>
-                <h2 className="font-serif-title text-3xl sm:text-4xl font-bold text-[#0B241C] mt-1">
+                <h2 data-motion className="font-serif-title text-3xl sm:text-4xl font-bold text-[#0B241C] mt-1">
                   Featured Collections
                 </h2>
               </div>
@@ -850,50 +872,54 @@ function CategoryContent({ slug }: { slug: string }) {
       {/* 2.5.6 FIVE WORLDS, ONE PURNYA */}
       <section className="w-full px-2 sm:px-3">
         <div className="relative rounded-3xl overflow-hidden bg-[#FAF8F5] border border-[#E2DBD0] px-5 py-10 sm:px-10 sm:py-14">
-          <div className="text-center max-w-2xl mx-auto space-y-2 mb-10">
+          <div className="text-center max-w-2xl mx-auto space-y-2.5 mb-10">
             <p className="text-xs font-bold uppercase tracking-[0.25em] text-[#C5A059]">
-              One Unified Lifestyle Brand
+              EXPLORE THE WORLD OF PURNYA
             </p>
-            <h2 className="font-serif-title text-3xl sm:text-4xl lg:text-5xl font-bold text-[#0B241C]">
+            <h2 data-motion className="font-serif-title text-3xl sm:text-4xl lg:text-5xl font-bold text-[#0B241C]">
               Five Worlds. One Purnya.
             </h2>
-            <p className="text-sm text-[#2C4A3E]">
-              From artisanal jewellery to organic wellness, every Purnya world is crafted with the
-              same premium, mindful standard — so however you shop, it always feels like Purnya.
+            <p className="text-sm sm:text-base text-[#2C4A3E] leading-relaxed">
+              From everyday elegance to thoughtful gifts and lifestyle essentials, discover a curated collection for every part of your life.
             </p>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 sm:gap-5">
-            {categories.map((cat, idx) => {
-              const Icon = getCategoryIcon(cat);
-              const isLastOdd = idx === categories.length - 1 && categories.length % 2 !== 0;
-              return (
-                <Link
-                  key={cat.id}
-                  href={`/category/${cat.slug}`}
-                  className={`group relative flex flex-col items-center text-center gap-3 p-5 rounded-2xl bg-white border border-[#E2DBD0] hover:border-[#C5A059] hover:shadow-lg transition-all ${isLastOdd
-                    ? 'col-span-2 sm:col-span-1 w-[calc(50%-8px)] sm:w-full mx-auto sm:mx-0 justify-self-center sm:justify-self-auto'
-                    : ''
+          <div data-motion-stagger className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 sm:gap-5 items-stretch">
+            {[...categories]
+              .sort((a: any, b: any) => (a.priority ?? 1) - (b.priority ?? 1))
+              .map((cat, idx) => {
+                const Icon = getCategoryIcon(cat);
+                const isLastOdd = idx === categories.length - 1 && categories.length % 2 !== 0;
+                const displayTitle = getCategoryCuratedTitle(cat);
+                const displayDesc = getCategoryCuratedDescription(cat);
+                return (
+                  <Link
+                    key={cat.id}
+                    href={`/category/${cat.slug}`}
+                    className={`group relative flex flex-col items-center text-center justify-between px-4 pt-5 pb-4 sm:px-5 sm:pt-5 sm:pb-4 rounded-2xl bg-white border border-[#E2DBD0] hover:border-[#C5A059] hover:shadow-lg transition-all duration-300 h-full ${
+                      isLastOdd
+                        ? 'sm:col-span-2 lg:col-span-1 sm:w-1/2 lg:w-full mx-auto'
+                        : ''
                     }`}
-                >
-                  <div className="w-14 h-14 rounded-2xl bg-[#EBF3EF] flex items-center justify-center text-[#0C3B2E] group-hover:bg-[#0C3B2E] group-hover:text-[#D4AF37] transition-colors shadow-inner">
-                    <Icon className="w-6 h-6" />
-                  </div>
-                  <div>
-                    <h3 className="font-serif-title text-sm sm:text-base font-bold text-[#0B241C] leading-snug">
-                      {cat.title}
-                    </h3>
-                    {cat.subtitle && (
-                      <p className="text-[11px] text-[#5A7469] mt-1 line-clamp-2">{cat.subtitle}</p>
-                    )}
-                  </div>
-                  <span className="text-[11px] font-semibold text-[#0C3B2E] group-hover:text-[#C5A059] inline-flex items-center gap-1 mt-1">
-                    <span>Shop Now</span>
-                    <ArrowRight className="w-3 h-3" />
-                  </span>
-                </Link>
-              );
-            })}
+                  >
+                    <div className="flex flex-col items-center text-center flex-1 w-full">
+                      <div className="w-13 h-13 sm:w-14 sm:h-14 rounded-2xl bg-[#EBF3EF] flex items-center justify-center text-[#0C3B2E] group-hover:bg-[#0C3B2E] group-hover:text-[#D4AF37] transition-all duration-300 shadow-inner mb-3">
+                        <Icon className="w-6 h-6 transition-transform duration-300 group-hover:scale-110" />
+                      </div>
+                      <h3 className="font-serif-title text-sm sm:text-base font-bold text-[#0B241C] leading-snug mb-2">
+                        {displayTitle}
+                      </h3>
+                      <p className="text-xs text-[#5A7469] leading-relaxed mb-2.5">
+                        {displayDesc}
+                      </p>
+                    </div>
+                    <span className="text-xs font-semibold text-[#0C3B2E] group-hover:text-[#C5A059] inline-flex items-center gap-1.5 transition-colors mt-auto">
+                      <span>Shop Now</span>
+                      <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-1 text-[#C5A059]" />
+                    </span>
+                  </Link>
+                );
+              })}
           </div>
         </div>
       </section>
@@ -905,12 +931,12 @@ function CategoryContent({ slug }: { slug: string }) {
             <p className="text-xs font-bold uppercase tracking-[0.25em] text-[#C5A059]">
               Shop by Gender
             </p>
-            <h2 className="font-serif-title text-3xl sm:text-4xl font-bold text-[#0B241C]">
+            <h2 data-motion className="font-serif-title text-3xl sm:text-4xl font-bold text-[#0B241C]">
               Who Are You Shopping For?
             </h2>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 lg:gap-8 max-w-7xl mx-auto">
+          <div data-motion-stagger className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 lg:gap-8 max-w-7xl mx-auto">
             {[
               {
                 value: 'men',
@@ -964,7 +990,7 @@ function CategoryContent({ slug }: { slug: string }) {
             <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#C5A059]">
               {selectedSubcategory === 'All' ? 'Curated Collection' : 'Selected Collection'}
             </p>
-            <h2 className="font-serif-title text-2xl sm:text-3xl font-bold text-[#0B241C] mt-1">
+            <h2 data-motion className="font-serif-title text-2xl sm:text-3xl font-bold text-[#0B241C] mt-1">
               {selectedSubcategory === 'All'
                 ? `Complete ${currentCategory.title} Collection`
                 : `${selectedSubcategory} Collection`}
@@ -978,7 +1004,7 @@ function CategoryContent({ slug }: { slug: string }) {
         {/* Products Grid — 6 rows max (12 on mobile, 18 on tablet, 24 on desktop) */}
         {filteredProducts.length > 0 ? (
           <>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
+            <div data-motion-stagger className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
               {catalogProducts.map((product, i) => (
                 <div
                   key={product.id}
@@ -1030,9 +1056,17 @@ function CategoryContent({ slug }: { slug: string }) {
                 <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#D4AF37]">
                   Style Inspiration
                 </p>
-                <h2 className="font-serif-title text-3xl sm:text-4xl font-bold text-white mt-1">
-                  Purnya on Instagram
-                </h2>
+                <a
+                  href="https://www.instagram.com/rashviartistry?igsh=dGhpc3BmN200OGFi"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="group inline-flex items-center gap-2 hover:opacity-95 transition-opacity"
+                  title="Follow Rashvi Artistry on Instagram"
+                >
+                  <h2 data-motion className="font-serif-title text-3xl sm:text-4xl font-bold text-white mt-1 group-hover:text-[#D4AF37] transition-colors">
+                    @rashviartistry on Instagram
+                  </h2>
+                </a>
               </div>
             </div>
 
@@ -1096,7 +1130,7 @@ function CategoryContent({ slug }: { slug: string }) {
           </div>
         </div>
       )}
-    </div>
+    </StorefrontMotion>
   );
 }
 

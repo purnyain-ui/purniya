@@ -328,12 +328,6 @@ export default function AboutPage() {
                     }}
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
-                  <div className="absolute top-4 left-4">
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/90 backdrop-blur-md text-[#08281F] text-[10px] font-bold uppercase tracking-wider shadow-sm">
-                      <IconComponent className="w-3 h-3 text-[#C5A059]" />
-                      <span>World 0{index + 1}</span>
-                    </span>
-                  </div>
                   <div className="absolute bottom-4 left-4 right-4">
                     <p className="text-[11px] text-[#D4AF37] font-semibold uppercase tracking-wider">
                       {world.tagline}
@@ -518,7 +512,7 @@ export default function AboutPage() {
                 href="/"
                 className="inline-flex items-center gap-2 px-8 py-3.5 rounded-full bg-[#C5A059] hover:bg-[#D4AF37] text-[#08281F] font-bold text-xs uppercase tracking-wider shadow-lg hover:scale-105 transition-all"
               >
-                <span>Shop The Storefront</span>
+                <span>Explore The Boutique</span>
                 <ArrowRight className="w-4 h-4" />
               </Link>
               <Link

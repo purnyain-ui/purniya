@@ -96,6 +96,7 @@ export default function CheckoutPage() {
     isAuthLoading,
     placeOrder,
     showToast,
+    openAuthModal,
   } = useStore();
 
   const accountEmail = (user?.email || '').trim();
@@ -151,13 +152,12 @@ export default function CheckoutPage() {
   useEffect(() => {
     if (isAuthLoading || accountEmail) return;
 
-    showToast(
-      'Sign In to Place Order 💎',
-      'Please sign in to finalize delivery and place your order.',
-      'info'
-    );
-    router.replace('/login?redirect=/checkout');
-  }, [accountEmail, isAuthLoading, router, showToast]);
+    openAuthModal({
+      actionType: 'order',
+      redirectUrl: '/checkout',
+      mode: 'login',
+    });
+  }, [accountEmail, isAuthLoading, openAuthModal]);
 
   // Fetch only the signed-in customer's history.
   // Do not use the store's all-orders list or unscoped cached addresses.
@@ -523,7 +523,7 @@ export default function CheckoutPage() {
     }
   };
 
-  if (isAuthLoading || !accountEmail) {
+  if (isAuthLoading) {
     return (
       <div className="max-w-4xl mx-auto px-4 py-20 text-center">
         <div className="bg-white rounded-3xl p-12 border border-[#E8E1D5] shadow-sm flex flex-col items-center space-y-4">
@@ -531,6 +531,39 @@ export default function CheckoutPage() {
           <p className="font-serif-title text-base font-bold text-[#0B241C]">
             Preparing your checkout...
           </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!accountEmail) {
+    return (
+      <div className="max-w-4xl mx-auto px-4 py-20 text-center">
+        <div className="bg-white rounded-3xl p-8 sm:p-14 border border-[#E8E1D5] shadow-xl max-w-lg mx-auto space-y-6">
+          <div className="w-16 h-16 rounded-2xl bg-[#08281F] text-[#D4AF37] mx-auto flex items-center justify-center border border-[#C5A059]">
+            <Lock className="w-8 h-8" />
+          </div>
+          <div className="space-y-2">
+            <h1 className="font-serif-title text-2xl sm:text-3xl font-bold text-[#0B241C]">
+              Sign In to Place Order
+            </h1>
+            <p className="text-xs sm:text-sm text-[#5A7469] leading-relaxed">
+              Please sign in to your Purnya Circle account to finalize your bespoke delivery and secure payment.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() =>
+              openAuthModal({
+                actionType: 'order',
+                redirectUrl: '/checkout',
+                mode: 'login',
+              })
+            }
+            className="w-full py-4 rounded-xl bg-[#08281F] hover:bg-[#0C3B2E] text-white font-bold text-sm tracking-wide shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
+          >
+            <span>Sign In to Continue</span>
+          </button>
         </div>
       </div>
     );

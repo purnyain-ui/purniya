@@ -133,6 +133,7 @@ export interface HeroSlide {
   ctaLink: string;
   image: string;
   active: boolean;
+  priority?: number;
 }
 
 export interface UserProfile {

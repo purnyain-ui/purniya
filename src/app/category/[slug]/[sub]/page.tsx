@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useMemo, use, Suspense } from 'react';
 import Link from 'next/link';
+import StorefrontMotion from '../../../../components/StorefrontMotion';
 import {
   SlidersHorizontal,
   ChevronRight,
@@ -95,17 +96,7 @@ function SubcategoryContent({ slug, sub }: { slug: string; sub: string }) {
     );
   }, [currentCategory, subcategoryName]);
 
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    setLoading(true);
-    const timer = setTimeout(() => {
-      setLoading(false);
-    }, 2500);
-    return () => clearTimeout(timer);
-  }, [slug, sub]);
-
-  if (loading || !currentCategory) {
+  if (!currentCategory) {
     return (
       <div className="min-h-[70vh] w-full flex flex-col items-center justify-center relative overflow-hidden bg-[#08281F] text-[#FAF8F5] rounded-[2rem] my-6 shadow-xl border border-[#144234] px-4">
         {/* Background radial glow */}
@@ -128,11 +119,11 @@ function SubcategoryContent({ slug, sub }: { slug: string; sub: string }) {
 
           {/* Brand Text */}
           <div className="space-y-1.5">
-            <h2 className="font-serif-title text-2xl sm:text-3xl font-bold tracking-[0.2em] text-white">
+            <h2 data-motion className="font-serif-title text-2xl sm:text-3xl font-bold tracking-[0.2em] text-white">
               PURNYA
             </h2>
-            <p className="text-[10px] sm:text-xs font-bold uppercase tracking-[0.25em] text-[#D4AF37]">
-              Life · Lifestyle · You
+            <p className="text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.16em] text-[#D4AF37]">
+              Thoughtfully · Curated · Beautifully Yours
             </p>
           </div>
 
@@ -151,13 +142,13 @@ function SubcategoryContent({ slug, sub }: { slug: string; sub: string }) {
   }
 
   return (
-    <div className="space-y-12 sm:space-y-16 pb-24">
+    <StorefrontMotion key={`${slug}/${sub}`} className="space-y-12 sm:space-y-16 pb-24">
       {/* 1. SUBCATEGORY HERO BANNER */}
-      <section className="relative w-full min-h-[340px] sm:min-h-[400px] lg:min-h-[440px] bg-[#08281F] overflow-hidden flex items-center">
+      <section className="category-hero relative w-full min-h-[340px] sm:min-h-[400px] lg:min-h-[440px] bg-[#08281F] overflow-hidden flex items-center">
         <img
           src={bannerImage || 'https://images.unsplash.com/photo-1515562141589-67f0d0953a8e?w=1920&fit=crop&auto=format'}
           alt={subcategoryName}
-          className="w-full h-full object-cover object-center absolute inset-0 opacity-40 scale-105"
+          className="w-full h-full object-cover object-center absolute inset-0 opacity-40 hero-image"
         />
         <div className="absolute inset-0 bg-gradient-to-r from-[#08281F]/95 via-[#0C3B2E]/70 to-black/30" />
         <div className="absolute inset-0 bg-gradient-to-t from-[#08281F] via-transparent to-transparent" />
@@ -185,7 +176,7 @@ function SubcategoryContent({ slug, sub }: { slug: string; sub: string }) {
             </span>
           </div>
 
-          <div className="max-w-2xl space-y-4 sm:space-y-5">
+          <div className="hero-copy max-w-2xl space-y-4 sm:space-y-5">
             <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/10 backdrop-blur-md text-[#D4AF37] text-xs font-bold uppercase tracking-[0.25em] border border-[#D4AF37]/30 shadow-sm">
               <span>{currentCategory.title} Collection</span>
             </div>
@@ -211,7 +202,7 @@ function SubcategoryContent({ slug, sub }: { slug: string; sub: string }) {
               <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#C5A059]">
                 Also in {currentCategory.title}
               </p>
-              <h2 className="font-serif-title text-xl sm:text-2xl font-bold text-[#0B241C]">
+              <h2 data-motion className="font-serif-title text-xl sm:text-2xl font-bold text-[#0B241C]">
                 Explore Other Collections
               </h2>
               <Link
@@ -222,7 +213,7 @@ function SubcategoryContent({ slug, sub }: { slug: string; sub: string }) {
               </Link>
             </div>
 
-            <div 
+            <div data-motion-stagger
               className={`grid gap-3 sm:gap-4 max-w-7xl mx-auto ${
                 (otherSubcategories.length + 1) === 4 ? 'grid-cols-2 sm:grid-cols-4' :
                 (otherSubcategories.length + 1) === 5 ? 'grid-cols-3 sm:grid-cols-5' :
@@ -284,7 +275,7 @@ function SubcategoryContent({ slug, sub }: { slug: string; sub: string }) {
             <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#C5A059]">
               {subcategoryName} Collection
             </p>
-            <h2 className="font-serif-title text-2xl sm:text-3xl font-bold text-[#0B241C] mt-1">
+            <h2 data-motion className="font-serif-title text-2xl sm:text-3xl font-bold text-[#0B241C] mt-1">
               {subcategoryName}
             </h2>
             <p className="text-xs text-[#5A7469] mt-1.5">
@@ -389,7 +380,7 @@ function SubcategoryContent({ slug, sub }: { slug: string; sub: string }) {
 
         {/* Products Grid */}
         {filteredProducts.length > 0 ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
+          <div data-motion-stagger className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
             {filteredProducts.map((product) => (
               <ProductCard key={product.id} product={product} />
             ))}
@@ -414,7 +405,7 @@ function SubcategoryContent({ slug, sub }: { slug: string; sub: string }) {
           </div>
         )}
       </section>
-    </div>
+    </StorefrontMotion>
   );
 }
 

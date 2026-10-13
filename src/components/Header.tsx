@@ -27,7 +27,7 @@ import {
 } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import { initialCategories } from '../data/mockData';
-import { signInWithSupabase, signUpWithSupabase, isSupabaseConfigured, sendPasswordResetEmail } from '../lib/supabase';
+import { supabase } from '../lib/supabaseClient';
 import { isAdminEmail } from '../lib/adminPermissions';
 
 
@@ -41,32 +41,23 @@ function HeaderContent() {
     wishlistCount,
     setIsSearchOpen,
     categories,
+    products,
     user,
     mounted,
     loginUser,
     logoutUser,
     showToast,
+    openAuthModal,
   } = useStore();
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [expandedMobileCategory, setExpandedMobileCategory] = useState<string | null>(null);
   const [otherBoutiquesOpen, setOtherBoutiquesOpen] = useState(false);
+  const [mobileOtherBoutiquesOpen, setMobileOtherBoutiquesOpen] = useState(false);
 
   // Profile Dropdown Popover (for logged-in patrons)
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
   const profileDropdownRef = useRef<HTMLDivElement>(null);
-
-  // Auth Pop-up Modal (for non-logged-in patrons)
-  const [authModalOpen, setAuthModalOpen] = useState(false);
-  const [authMode, setAuthMode] = useState<'login' | 'signup' | 'forgot'>('login');
-  const [authEmail, setAuthEmail] = useState('');
-  const [authPassword, setAuthPassword] = useState('');
-  const [authName, setAuthName] = useState('');
-  const [authPhone, setAuthPhone] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [authLoading, setAuthLoading] = useState(false);
-  const [authError, setAuthError] = useState('');
-  const [authForgotSent, setAuthForgotSent] = useState(false);
 
   // A patron is strictly an authenticated store customer, never an administrator
   const isCustomerLoggedIn = Boolean(
@@ -133,100 +124,9 @@ function HeaderContent() {
   // Handle Profile click
   const handleProfileClick = () => {
     if (!isCustomerLoggedIn) {
-      setAuthError('');
-      setAuthModalOpen(true);
+      openAuthModal({ mode: 'login' });
     } else {
       setProfileDropdownOpen((prev) => !prev);
-    }
-  };
-
-
-  // Auth Modal Login Submit
-  const handleAuthSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setAuthError('');
-
-    if (!authEmail.trim()) {
-      setAuthError('Please enter your email address.');
-      return;
-    }
-    if (!authPassword) {
-      setAuthError('Please enter your password.');
-      return;
-    }
-
-    setAuthLoading(true);
-
-    try {
-      if (authMode === 'login') {
-        if (isSupabaseConfigured && authEmail.includes('@')) {
-          const res = await signInWithSupabase(authEmail.trim(), authPassword);
-          if (!res.success && res.error) {
-            setAuthLoading(false);
-            setAuthError(
-              res.error.toLowerCase().includes('invalid login credentials')
-                ? 'Invalid email or password. Please verify and try again.'
-                : res.error
-            );
-            return;
-          } else if (res.success && res.user) {
-            const meta = res.user.user_metadata || {};
-            const detectedName = meta.name || meta.full_name || authEmail.split('@')[0];
-            loginUser({
-              name: detectedName,
-              email: authEmail.trim(),
-              phone: meta.phone || '+91 98765 43210',
-            });
-            setAuthLoading(false);
-            setAuthModalOpen(false);
-            showToast('Welcome Back ✨', `Delighted to see you, ${detectedName}.`);
-            return;
-          }
-        }
-
-        // Direct local login fallback
-        const detectedName = authEmail.split('@')[0] || 'Patron';
-        const capitalized = detectedName.charAt(0).toUpperCase() + detectedName.slice(1);
-        loginUser({
-          name: capitalized,
-          email: authEmail.trim(),
-          phone: '+91 98765 43210',
-        });
-        setAuthLoading(false);
-        setAuthModalOpen(false);
-        showToast('Welcome Back ✨', `Signed in successfully as ${capitalized}.`);
-      } else {
-        // Sign up
-        if (!authName.trim()) {
-          setAuthLoading(false);
-          setAuthError('Please enter your full name.');
-          return;
-        }
-
-        if (isSupabaseConfigured && authEmail.includes('@')) {
-          const res = await signUpWithSupabase(authEmail.trim(), authPassword, {
-            name: authName.trim(),
-            phone: authPhone.trim() || '',
-          });
-          if (!res.success && res.error) {
-            setAuthLoading(false);
-            setAuthError(res.error);
-            return;
-          }
-        }
-
-        loginUser({
-          name: authName.trim(),
-          email: authEmail.trim(),
-          phone: authPhone.trim() || '+91 98765 43210',
-        });
-        setAuthLoading(false);
-        setAuthModalOpen(false);
-        showToast('Welcome to Purnya ✨', `Delighted to welcome you to the Circle, ${authName.trim()}.`);
-      }
-    } catch (err: any) {
-      setAuthLoading(false);
-      setAuthError(err?.message || 'Authentication error. Please try again.');
     }
   };
 
@@ -236,29 +136,155 @@ function HeaderContent() {
     showToast('Signed Out', 'You have been safely signed out. See you soon!');
   };
 
-  // Track active category across pages (e.g. /wishlist, /product/123, /cart)
+  // Track active category across pages (e.g. /category/..., /all-products/..., /product/[id], /cart, /wishlist)
   const [activeCategorySlug, setActiveCategorySlug] = useState<string | null>(null);
 
   useEffect(() => {
-    if (pathname?.startsWith('/category/')) {
+    if (!pathname) return;
+
+    // 1. If at homepage / main page, clear category context
+    if (pathname === '/') {
+      try {
+        sessionStorage.removeItem('purnya_active_category');
+      } catch (e) {}
+      setActiveCategorySlug(null);
+      return;
+    }
+
+    // 2. If at /category/[slug]...
+    if (pathname.startsWith('/category/')) {
       const parts = pathname.split('/');
-      const slug = parts[2]?.trim()?.toLowerCase();
+      const slug = decodeURIComponent(parts[2] || '').trim().toLowerCase();
       if (slug) {
+        try {
+          sessionStorage.setItem('purnya_active_category', slug);
+        } catch (e) {}
         setActiveCategorySlug(slug);
         return;
       }
     }
+
+    // 3. If at /all-products/[slug]...
+    if (pathname.startsWith('/all-products/')) {
+      const parts = pathname.split('/');
+      const slug = decodeURIComponent(parts[2] || '').trim().toLowerCase();
+      if (slug) {
+        try {
+          sessionStorage.setItem('purnya_active_category', slug);
+        } catch (e) {}
+        setActiveCategorySlug(slug);
+        return;
+      }
+    }
+
+    // 4. If at /product/[id]...
+    if (pathname.startsWith('/product/')) {
+      const parts = pathname.split('/');
+      const prodId = parts[2]?.trim();
+
+      // Check sessionStorage first for instantaneous UI continuity
+      let savedSlug: string | null = null;
+      try {
+        savedSlug = sessionStorage.getItem('purnya_active_category');
+      } catch (e) {}
+
+      if (savedSlug) {
+        setActiveCategorySlug(savedSlug.toLowerCase());
+      }
+
+      // Also verify/fetch the exact product category to ensure 100% accuracy (even on direct visit)
+      if (prodId) {
+        // Check preloaded products from store context
+        const matchedProduct = products?.find((p) => p.id === prodId);
+        if (matchedProduct?.categorySlug) {
+          const catSlug = matchedProduct.categorySlug.trim().toLowerCase();
+          setActiveCategorySlug(catSlug);
+          try {
+            sessionStorage.setItem('purnya_active_category', catSlug);
+          } catch (e) {}
+          return;
+        }
+
+        // Direct fetch from Supabase if not in preloaded context
+        (async () => {
+          try {
+            const { data: pData } = await supabase
+              .from('products')
+              .select('category_id')
+              .eq('id', prodId)
+              .maybeSingle();
+
+            if (pData?.category_id) {
+              const { data: cData } = await supabase
+                .from('categories')
+                .select('slug')
+                .eq('id', pData.category_id)
+                .maybeSingle();
+
+              if (cData?.slug) {
+                const fetchedSlug = cData.slug.trim().toLowerCase();
+                setActiveCategorySlug(fetchedSlug);
+                try {
+                  sessionStorage.setItem('purnya_active_category', fetchedSlug);
+                } catch (e) {}
+              }
+            }
+          } catch (err) {
+            console.error('Error fetching product category in Header:', err);
+          }
+        })();
+      }
+      return;
+    }
+
+    // 5. On other subpages (e.g. /cart, /wishlist), retain active category if exists
+    try {
+      const saved = sessionStorage.getItem('purnya_active_category');
+      if (saved) {
+        setActiveCategorySlug(saved.toLowerCase());
+        return;
+      }
+    } catch (e) {}
+
     setActiveCategorySlug(null);
-  }, [pathname]);
+  }, [pathname, products]);
+
+  // Listen for custom category change event (e.g. dispatched by product detail page once loaded)
+  useEffect(() => {
+    const handleCategoryEvent = (e: any) => {
+      const slug = e?.detail;
+      if (slug && typeof slug === 'string') {
+        const clean = slug.trim().toLowerCase();
+        setActiveCategorySlug(clean);
+        try {
+          sessionStorage.setItem('purnya_active_category', clean);
+        } catch (err) {}
+      }
+    };
+
+    window.addEventListener('purnya_category_change', handleCategoryEvent as EventListener);
+    return () => {
+      window.removeEventListener('purnya_category_change', handleCategoryEvent as EventListener);
+    };
+  }, []);
 
   const currentCategory = useMemo(() => {
     if (!activeCategorySlug) return null;
+    const target = activeCategorySlug.trim().toLowerCase();
     return (
-      categories.find(
-        (c) => (c.slug || '').trim().toLowerCase() === activeCategorySlug.trim().toLowerCase()
-      ) || null
+      categoriesList.find(
+        (c) => (c.slug || '').trim().toLowerCase() === target
+      ) ||
+      categoriesList.find(
+        (c) => {
+          const s = (c.slug || '').trim().toLowerCase();
+          const t = (c.title || '').trim().toLowerCase();
+          return s.includes(target) || target.includes(s) || t.includes(target) || target.includes(t);
+        }
+      ) ||
+      null
     );
-  }, [categories, activeCategorySlug]);
+  }, [categoriesList, activeCategorySlug]);
 
   // Dynamic navigation links directly from Supabase categories
   const navLinks = sortedCategories.map((cat) => ({
@@ -309,7 +335,7 @@ function HeaderContent() {
               <Link
                 href={currentCategory ? `/category/${(currentCategory.slug || '').trim()}` : '/'}
                 className="flex items-center gap-1.5 sm:gap-2.5 group shrink-0"
-                title={currentCategory ? `${(currentCategory.title || '').trim()} Storefront` : 'Purnya Official Store'}
+                title={currentCategory ? `${(currentCategory.title || '').trim()} Boutique` : 'Purnya Official Boutique'}
               >
                 <div className="w-8 h-8 sm:w-12 sm:h-12 shrink-0 rounded-full overflow-hidden flex items-center justify-center p-0.5 bg-[#FAF8F5] border border-[#C5A059]/40 shadow-xs group-hover:scale-105 transition-transform duration-300">
                   <img
@@ -320,12 +346,12 @@ function HeaderContent() {
                 </div>
                 <div className="flex flex-col items-start min-w-0">
                   <div className="flex items-center gap-1.5">
-                    <span className="font-serif-title text-lg sm:text-3xl font-bold tracking-[0.1em] sm:tracking-[0.16em] text-[#0C3B2E] group-hover:text-[#164E3D] transition-colors leading-none">
+                    <span className="font-serif-title text-lg sm:text-2xl xl:text-3xl font-bold tracking-[0.1em] sm:tracking-[0.14em] text-[#0C3B2E] group-hover:text-[#164E3D] transition-colors leading-none">
                       PURNYA
                     </span>
                   </div>
-                  <span className="block max-w-[110px] truncate sm:max-w-none text-[8px] sm:text-[10px] uppercase tracking-[0.14em] sm:tracking-[0.22em] text-[#C5A059] font-bold mt-0.5">
-                    {currentCategory ? (currentCategory.title || '').trim() : 'Life · Lifestyle · You'}
+                  <span className="block text-[6.5px] xs:text-[7px] sm:text-[8px] xl:text-[8.5px] uppercase tracking-[0.08em] sm:tracking-[0.12em] text-[#C5A059] font-bold mt-0.5 whitespace-nowrap leading-tight">
+                    Thoughtfully · Curated · Beautifully Yours
                   </span>
                 </div>
               </Link>
@@ -415,7 +441,7 @@ function HeaderContent() {
                       )}
                     </div>
 
-                    {/* Switcher back to Main Purnya Portal */}
+                    {/* Switcher back to Main Page */}
                     <Link
                       href="/"
                       target="_blank"
@@ -425,9 +451,9 @@ function HeaderContent() {
                         setActiveCategorySlug(null);
                       }}
                       className="ml-1 inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-[#FAF8F5] hover:bg-[#EBF3EF] border border-[#C5A059]/40 text-[#0C3B2E] text-[11px] font-bold normal-case tracking-normal transition-all shadow-xs"
-                      title="Go to Main Purnya Portal in new tab"
+                      title="Go to Main Page in new tab"
                     >
-                      <span>Main Portal</span>
+                      <span>Main Page</span>
                       <ArrowUpRight className="w-3.5 h-3.5 text-[#C5A059]" />
                     </Link>
                   </>
@@ -679,8 +705,8 @@ function HeaderContent() {
                   <span className="font-serif-title text-xl font-bold tracking-[0.14em] text-[#0C3B2E] block leading-none">
                     PURNYA
                   </span>
-                  <span className="text-[9px] uppercase tracking-[0.2em] text-[#C5A059] font-bold block mt-0.5">
-                    Maison of Luxury
+                  <span className="text-[7.5px] sm:text-[8.5px] uppercase tracking-[0.12em] text-[#C5A059] font-bold block mt-0.5 whitespace-nowrap">
+                    Thoughtfully · Curated · Beautifully Yours
                   </span>
                 </div>
               </Link>
@@ -728,8 +754,7 @@ function HeaderContent() {
                     type="button"
                     onClick={() => {
                       setMobileMenuOpen(false);
-                      setAuthMode('login');
-                      setAuthModalOpen(true);
+                      openAuthModal({ mode: 'login' });
                     }}
                     className="px-3.5 py-1.5 rounded-full bg-[#C5A059] hover:bg-[#D4AF37] text-[#08281F] font-bold text-[10px] uppercase tracking-wider transition-all cursor-pointer shadow-xs"
                   >
@@ -781,57 +806,199 @@ function HeaderContent() {
                 </div>
               )}
 
-              {/* Categories Section with Interactive Subcategory Accordion */}
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#C5A059] mb-2.5 px-1">
-                  Explore The Five Worlds
-                </p>
-                <div className="space-y-2">
+              {/* Navigation Section (Same as Desktop Header Navigation) */}
+              {currentCategory ? (
+                <div className="space-y-4">
+                  {/* Current Active Boutique Header */}
+                  <div className="bg-[#FAF8F5] border border-[#E2DBD0] rounded-2xl p-3.5 flex items-center justify-between shadow-2xs">
+                    <div className="min-w-0 pr-2">
+                      <span className="text-[9px] uppercase font-bold tracking-[0.2em] text-[#C5A059] block">
+                        Boutique
+                      </span>
+                      <h4 className="font-serif-title text-sm sm:text-base font-bold text-[#0C3B2E] truncate">
+                        {(currentCategory.title || '').trim()}
+                      </h4>
+                    </div>
+                    <Link
+                      href="/"
+                      onClick={() => {
+                        setMobileMenuOpen(false);
+                        try {
+                          sessionStorage.removeItem('purnya_active_category');
+                        } catch (e) {}
+                        setActiveCategorySlug(null);
+                      }}
+                      className="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-white text-[#0C3B2E] border border-[#C5A059]/60 flex items-center gap-1 shadow-2xs hover:bg-[#EBF3EF] shrink-0"
+                      title="Return to Main Page"
+                    >
+                      <span>Main Page</span>
+                      <ArrowUpRight className="w-3 h-3 text-[#C5A059]" />
+                    </Link>
+                  </div>
+
+                  {/* Navigation Links (Home, Subcategories, Other Boutiques, Main Page) */}
+                  <div className="space-y-1">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#C5A059] px-2 mb-2">
+                      Navigation
+                    </p>
+
+                    {/* Home Link */}
+                    <Link
+                      href={`/category/${(currentCategory.slug || '').trim()}`}
+                      onClick={() => setMobileMenuOpen(false)}
+                      className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all ${
+                        pathname === `/category/${(currentCategory.slug || '').trim()}` && (currentSub === 'All' || !currentSub)
+                          ? 'bg-[#0C3B2E] text-[#FAF8F5] shadow-xs'
+                          : 'text-[#2C4A3E] hover:text-[#0C3B2E] hover:bg-white'
+                      }`}
+                    >
+                      <span>Home</span>
+                      {pathname === `/category/${(currentCategory.slug || '').trim()}` && (currentSub === 'All' || !currentSub) ? (
+                        <span className="w-2 h-2 rounded-full bg-[#C5A059]" />
+                      ) : (
+                        <ChevronRight className="w-3.5 h-3.5 text-[#5A7469]/40" />
+                      )}
+                    </Link>
+
+                    {/* Subcategories (Same as desktop nav) */}
+                    {currentCategory.subcategories
+                      ?.filter((s: string) => (s || '').trim() !== 'All')
+                      .map((sub: string) => {
+                        const cleanSub = (sub || '').trim();
+                        const isSubActive =
+                          pathname === `/category/${(currentCategory.slug || '').trim()}/${encodeURIComponent(cleanSub)}` ||
+                          (pathname === `/category/${(currentCategory.slug || '').trim()}` && currentSub === cleanSub);
+                        return (
+                          <Link
+                            key={cleanSub}
+                            href={`/category/${(currentCategory.slug || '').trim()}/${encodeURIComponent(cleanSub)}`}
+                            onClick={() => setMobileMenuOpen(false)}
+                            className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-xs uppercase tracking-wider transition-all ${
+                              isSubActive
+                                ? 'bg-[#0C3B2E] text-[#FAF8F5] font-bold shadow-xs'
+                                : 'text-[#2C4A3E] hover:text-[#0C3B2E] hover:bg-white font-semibold'
+                            }`}
+                          >
+                            <span>{cleanSub}</span>
+                            {isSubActive ? (
+                              <span className="w-2 h-2 rounded-full bg-[#C5A059]" />
+                            ) : (
+                              <ChevronRight className="w-3.5 h-3.5 text-[#5A7469]/40" />
+                            )}
+                          </Link>
+                        );
+                      })}
+
+                    {/* Other Boutiques (Accordion matching desktop "Other Boutiques") */}
+                    <div className="pt-2">
+                      <button
+                        type="button"
+                        onClick={() => setMobileOtherBoutiquesOpen(!mobileOtherBoutiquesOpen)}
+                        className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider text-[#2C4A3E] hover:text-[#0C3B2E] hover:bg-white transition-colors cursor-pointer"
+                      >
+                        <span>Other Boutiques</span>
+                        <ChevronDown
+                          className={`w-4 h-4 text-[#C5A059] transition-transform duration-200 ${
+                            mobileOtherBoutiquesOpen ? 'rotate-180' : ''
+                          }`}
+                        />
+                      </button>
+
+                      {mobileOtherBoutiquesOpen && (
+                        <div className="pl-2 pt-1 space-y-1 animate-in fade-in duration-150">
+                          {sortedCategories
+                            .filter(
+                              (c) => (c.slug || '').trim().toLowerCase() !== (currentCategory.slug || '').trim().toLowerCase()
+                            )
+                            .map((otherCat) => {
+                              const otherSlug = (otherCat.slug || '').trim();
+                              return (
+                                <Link
+                                  key={otherCat.id || otherSlug}
+                                  href={`/category/${otherSlug}`}
+                                  onClick={() => {
+                                    setMobileMenuOpen(false);
+                                    setMobileOtherBoutiquesOpen(false);
+                                  }}
+                                  className="flex items-center justify-between px-3 py-2 rounded-xl text-xs text-[#0B241C] hover:bg-white hover:text-[#0C3B2E] transition-colors"
+                                >
+                                  <div className="flex items-center gap-2.5">
+                                    <div className="w-6 h-6 rounded-full overflow-hidden shrink-0 border border-[#C5A059]/40 bg-[#FAF8F5]">
+                                      <img
+                                        src={otherCat.bannerImage || otherCat.heroImage}
+                                        alt=""
+                                        className="w-full h-full object-cover"
+                                      />
+                                    </div>
+                                    <span className="font-semibold truncate">{(otherCat.title || '').trim()}</span>
+                                  </div>
+                                  <ArrowUpRight className="w-3.5 h-3.5 text-[#C5A059] shrink-0" />
+                                </Link>
+                              );
+                            })}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Main Page Switcher */}
+                    <div className="pt-2">
+                      <Link
+                        href="/"
+                        onClick={() => {
+                          setMobileMenuOpen(false);
+                          try {
+                            sessionStorage.removeItem('purnya_active_category');
+                          } catch (e) {}
+                          setActiveCategorySlug(null);
+                        }}
+                        className="flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider text-[#0C3B2E] bg-white border border-[#C5A059]/40 hover:bg-[#EBF3EF] transition-colors shadow-2xs"
+                      >
+                        <span>Main Page</span>
+                        <ArrowUpRight className="w-4 h-4 text-[#C5A059]" />
+                      </Link>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                /* Main Multi-Category Portal Navigation (Same 5 categories as desktop header) */
+                <div className="space-y-1">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#C5A059] px-2 mb-2">
+                    Categories
+                  </p>
                   {sortedCategories.map((cat) => {
                     const catSlug = (cat.slug || '').trim();
-                    const isCurrent = activeCategorySlug?.toLowerCase() === catSlug.toLowerCase();
                     const isExpanded = expandedMobileCategory === catSlug;
                     const cleanSubs = (cat.subcategories || []).filter((s) => (s || '').trim() !== 'All');
 
                     return (
-                      <div
-                        key={cat.id || catSlug}
-                        className={`rounded-2xl border transition-all overflow-hidden ${isCurrent
-                          ? 'bg-[#EBF3EF] border-[#C5A059]/60 shadow-xs'
-                          : 'bg-white border-[#E2DBD0]'
-                          }`}
-                      >
-                        <div className="flex items-center justify-between p-3">
+                      <div key={cat.id || catSlug} className="rounded-xl overflow-hidden transition-all">
+                        <div className="flex items-center justify-between px-3 py-2.5 rounded-xl hover:bg-white text-xs font-bold uppercase tracking-wider text-[#0B241C] transition-colors">
                           <Link
                             href={`/category/${catSlug}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
                             onClick={() => setMobileMenuOpen(false)}
                             className="flex items-center gap-2.5 flex-1 min-w-0"
                           >
-                            <div className="w-7 h-7 rounded-full overflow-hidden shrink-0 border border-[#C5A059]/40 bg-[#FAF8F5]">
+                            <div className="w-6 h-6 rounded-full overflow-hidden shrink-0 border border-[#C5A059]/40 bg-[#FAF8F5]">
                               <img
                                 src={cat.bannerImage || cat.heroImage}
                                 alt=""
                                 className="w-full h-full object-cover"
                               />
                             </div>
-                            <span className={`text-xs font-bold truncate ${isCurrent ? 'text-[#0C3B2E]' : 'text-[#0B241C]'}`}>
-                              {(cat.title || '').trim()}
-                            </span>
-                            <ArrowUpRight className="w-3 h-3 text-[#C5A059] shrink-0" />
+                            <span className="truncate">{(cat.title || '').trim()}</span>
                           </Link>
 
                           {cleanSubs.length > 0 && (
                             <button
                               type="button"
                               onClick={() => setExpandedMobileCategory(isExpanded ? null : catSlug)}
-                              className="p-1.5 text-[#5A7469] hover:text-[#0C3B2E] rounded-lg transition-transform cursor-pointer"
+                              className="p-1 text-[#5A7469] hover:text-[#0C3B2E] rounded-lg transition-transform cursor-pointer ml-1"
                               aria-label={`Toggle ${(cat.title || '').trim()} subcategories`}
                             >
                               <ChevronDown
-                                className={`w-4 h-4 text-[#C5A059] transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''
-                                  }`}
+                                className={`w-3.5 h-3.5 text-[#C5A059] transition-transform duration-200 ${
+                                  isExpanded ? 'rotate-180' : ''
+                                }`}
                               />
                             </button>
                           )}
@@ -839,13 +1006,11 @@ function HeaderContent() {
 
                         {/* Subcategories Accordion */}
                         {isExpanded && cleanSubs.length > 0 && (
-                          <div className="bg-[#FAF8F5] border-t border-[#EFEBE3] px-3 py-2 space-y-1 animate-in fade-in duration-150">
+                          <div className="pl-10 pr-3 py-1 space-y-1 animate-in fade-in duration-150">
                             <Link
                               href={`/category/${catSlug}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
                               onClick={() => setMobileMenuOpen(false)}
-                              className="flex items-center justify-between py-1.5 px-2.5 text-[11px] font-bold text-[#0C3B2E] hover:bg-[#FAF8F5] rounded-lg transition-colors"
+                              className="flex items-center justify-between py-1 px-2 text-[11px] font-bold text-[#0C3B2E] hover:text-[#C5A059] transition-colors"
                             >
                               <span>All {(cat.title || '').trim()}</span>
                               <ArrowUpRight className="w-3 h-3 text-[#C5A059]" />
@@ -857,7 +1022,7 @@ function HeaderContent() {
                                   key={cleanSub}
                                   href={`/category/${catSlug}/${encodeURIComponent(cleanSub)}`}
                                   onClick={() => setMobileMenuOpen(false)}
-                                  className="flex items-center justify-between py-1.5 px-2.5 text-[11px] text-[#2C4A3E] hover:text-[#0C3B2E] hover:bg-white rounded-lg transition-colors font-medium"
+                                  className="flex items-center justify-between py-1 px-2 text-[11px] font-medium text-[#2C4A3E] hover:text-[#0C3B2E] transition-colors"
                                 >
                                   <span>{cleanSub}</span>
                                   <ChevronRight className="w-3 h-3 text-[#C5A059]/60" />
@@ -870,7 +1035,7 @@ function HeaderContent() {
                     );
                   })}
                 </div>
-              </div>
+              )}
 
               {/* Main Brand Links */}
               <div className="space-y-1 pt-2 border-t border-[#E2DBD0]">
@@ -884,7 +1049,7 @@ function HeaderContent() {
                 >
                   <div className="flex items-center gap-2.5">
                     <Sparkles className="w-4 h-4 text-[#C5A059]" />
-                    <span>Main Storefront</span>
+                    <span>Main Boutique</span>
                   </div>
                   <ChevronRight className="w-3.5 h-3.5 text-[#5A7469]" />
                 </Link>
@@ -973,316 +1138,7 @@ function HeaderContent() {
         </div>
       )}
 
-      {/* 4. AUTHENTICATION POP-UP MODAL (Appears on clicking profile instead of redirecting to page!) */}
-      {authModalOpen && !isCustomerLoggedIn && (
-        <div
-          className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-200"
-          role="dialog"
-          aria-modal="true"
-        >
-          <div className="relative w-full max-w-md bg-white rounded-3xl p-6 sm:p-8 border border-[#C5A059]/40 shadow-2xl space-y-5 animate-in zoom-in-95 duration-200">
-            {/* Close Button */}
-            <button
-              onClick={() => setAuthModalOpen(false)}
-              className="absolute top-4 right-4 p-2 rounded-full text-[#5A7469] hover:text-[#0B241C] hover:bg-[#FAF8F5] transition-colors cursor-pointer"
-              aria-label="Close"
-            >
-              <X className="w-5 h-5" />
-            </button>
 
-            {/* Modal Header Brand Logo & Titles */}
-            <div className="flex flex-col items-center justify-center text-center space-y-1.5">
-              <div className="w-14 h-14 rounded-full overflow-hidden flex items-center justify-center p-1 bg-[#FAF8F5] border-2 border-[#C5A059] mx-auto shadow-md">
-                <img
-                  src="/logoicon.png"
-                  alt="Purnya Logo"
-                  className="w-full h-full object-contain"
-                />
-              </div>
-              <div>
-                <span className="font-serif-title text-xl font-bold tracking-[0.16em] text-[#0C3B2E] block leading-tight">
-                  PURNYA
-                </span>
-                <span className="text-[9px] uppercase tracking-[0.22em] text-[#C5A059] font-bold block mt-0.5">
-                  Maison of Mindful Luxury
-                </span>
-              </div>
-              <h3 className="font-serif-title text-2xl font-bold text-[#0B241C] pt-1">
-                {authMode === 'login'
-                  ? 'Welcome to Purnya'
-                  : authMode === 'signup'
-                    ? 'Join Purnya Circle'
-                    : 'Reset Password'}
-              </h3>
-              <p className="text-xs text-[#2C4A3E]">
-                {authMode === 'login'
-                  ? 'Sign in to access your bespoke orders, wishlist & exclusive benefits.'
-                  : authMode === 'signup'
-                    ? 'Experience elevated luxury living with personalized curated perks.'
-                    : 'Enter your registered email to receive a password reset link.'}
-              </p>
-            </div>
-
-            {/* Tab Switcher (Only visible for Sign In / Sign Up) */}
-            {authMode !== 'forgot' && (
-              <div className="flex rounded-2xl bg-[#FAF8F5] p-1 border border-[#E2DBD0]">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setAuthMode('login');
-                    setAuthError('');
-                  }}
-                  className={`flex-1 py-2 text-xs font-bold uppercase tracking-wider rounded-xl transition-all cursor-pointer ${authMode === 'login'
-                    ? 'bg-[#08281F] text-white shadow-sm'
-                    : 'text-[#5A7469] hover:text-[#0B241C]'
-                    }`}
-                >
-                  Sign In
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setAuthMode('signup');
-                    setAuthError('');
-                  }}
-                  className={`flex-1 py-2 text-xs font-bold uppercase tracking-wider rounded-xl transition-all cursor-pointer ${authMode === 'signup'
-                    ? 'bg-[#08281F] text-white shadow-sm'
-                    : 'text-[#5A7469] hover:text-[#0B241C]'
-                    }`}
-                >
-                  Create Account
-                </button>
-              </div>
-            )}
-
-            {/* Error Message Display */}
-            {authError && (
-              <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 shrink-0" />
-                <span>{authError}</span>
-              </div>
-            )}
-
-            {/* Form */}
-            {authMode === 'forgot' ? (
-              authForgotSent ? (
-                <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-center space-y-3">
-                  <p className="text-xs font-bold text-emerald-900">Recovery Instructions Dispatched</p>
-                  <p className="text-[11px] text-emerald-700">
-                    We have forwarded a password recovery link to <strong>{authEmail}</strong>. Please check your inbox and spam folder.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setAuthMode('login');
-                      setAuthForgotSent(false);
-                      setAuthError('');
-                    }}
-                    className="px-4 py-2 bg-[#08281F] text-white text-xs font-bold rounded-xl cursor-pointer hover:bg-[#0C3B2E]"
-                  >
-                    Return to Sign In
-                  </button>
-                </div>
-              ) : (
-                <form
-                  onSubmit={async (e) => {
-                    e.preventDefault();
-                    if (!authEmail.trim() || !authEmail.includes('@')) {
-                      setAuthError('Please enter a valid email address.');
-                      return;
-                    }
-                    setAuthLoading(true);
-                    setAuthError('');
-                    const res = await sendPasswordResetEmail(authEmail.trim());
-                    setAuthLoading(false);
-                    if (res.success) {
-                      setAuthForgotSent(true);
-                    } else {
-                      setAuthError(res.error || 'Failed to dispatch reset link. Please try again.');
-                    }
-                  }}
-                  className="space-y-4"
-                >
-                  <div className="space-y-1">
-                    <label className="text-[11px] font-bold uppercase tracking-wider text-[#2C4A3E]">
-                      Registered Email Address
-                    </label>
-                    <div className="relative">
-                      <Mail className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-[#5A7469]" />
-                      <input
-                        type="email"
-                        required
-                        value={authEmail}
-                        onChange={(e) => setAuthEmail(e.target.value)}
-                        placeholder="name@example.com"
-                        className="w-full pl-10 pr-4 py-3 rounded-xl border border-[#E2DBD0] bg-[#FAF8F5] focus:bg-white text-xs font-medium focus:border-[#C5A059] focus:outline-hidden"
-                      />
-                    </div>
-                  </div>
-
-                  <button
-                    type="submit"
-                    disabled={authLoading}
-                    className="w-full py-3 px-6 rounded-xl bg-[#08281F] hover:bg-[#0C3B2E] text-white font-bold text-xs uppercase tracking-wider shadow-md flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
-                  >
-                    {authLoading ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        <span>Sending Link...</span>
-                      </>
-                    ) : (
-                      <span>Send Recovery Link</span>
-                    )}
-                  </button>
-
-                  <div className="text-center pt-1">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setAuthMode('login');
-                        setAuthError('');
-                      }}
-                      className="text-xs font-semibold text-[#5A7469] hover:text-[#0B241C] cursor-pointer"
-                    >
-                      ← Back to Sign In
-                    </button>
-                  </div>
-                </form>
-              )
-            ) : (
-              <form onSubmit={handleAuthSubmit} className="space-y-3.5">
-                {authMode === 'signup' && (
-                  <div className="space-y-1">
-                    <label className="text-[11px] font-bold uppercase tracking-wider text-[#2C4A3E]">
-                      Full Name
-                    </label>
-                    <div className="relative">
-                      <User className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-[#5A7469]" />
-                      <input
-                        type="text"
-                        required
-                        value={authName}
-                        onChange={(e) => setAuthName(e.target.value)}
-                        placeholder="e.g. Devendra Sharma"
-                        className="w-full pl-10 pr-4 py-3 rounded-xl border border-[#E2DBD0] bg-[#FAF8F5] focus:bg-white text-xs font-medium focus:border-[#C5A059] focus:outline-hidden"
-                      />
-                    </div>
-                  </div>
-                )}
-
-                <div className="space-y-1">
-                  <label className="text-[11px] font-bold uppercase tracking-wider text-[#2C4A3E]">
-                    Email Address
-                  </label>
-                  <div className="relative">
-                    <Mail className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-[#5A7469]" />
-                    <input
-                      type="email"
-                      required
-                      value={authEmail}
-                      onChange={(e) => setAuthEmail(e.target.value)}
-                      placeholder="name@example.com"
-                      className="w-full pl-10 pr-4 py-3 rounded-xl border border-[#E2DBD0] bg-[#FAF8F5] focus:bg-white text-xs font-medium focus:border-[#C5A059] focus:outline-hidden"
-                    />
-                  </div>
-                </div>
-
-                {authMode === 'signup' && (
-                  <div className="space-y-1">
-                    <label className="text-[11px] font-bold uppercase tracking-wider text-[#2C4A3E]">
-                      Phone Number (Optional)
-                    </label>
-                    <div className="relative">
-                      <Phone className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-[#5A7469]" />
-                      <input
-                        type="tel"
-                        value={authPhone}
-                        onChange={(e) => setAuthPhone(e.target.value)}
-                        placeholder="+91 98765 43210"
-                        className="w-full pl-10 pr-4 py-3 rounded-xl border border-[#E2DBD0] bg-[#FAF8F5] focus:bg-white text-xs font-medium focus:border-[#C5A059] focus:outline-hidden"
-                      />
-                    </div>
-                  </div>
-                )}
-
-                <div className="space-y-1">
-                  <div className="flex items-center justify-between">
-                    <label className="text-[11px] font-bold uppercase tracking-wider text-[#2C4A3E]">
-                      Password
-                    </label>
-                    {authMode === 'login' && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setAuthMode('forgot');
-                          setAuthError('');
-                          setAuthForgotSent(false);
-                        }}
-                        className="text-[10px] text-[#C5A059] hover:underline cursor-pointer"
-                      >
-                        Forgot password?
-                      </button>
-                    )}
-                  </div>
-                  <div className="relative">
-                    <Lock className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-[#5A7469]" />
-                    <input
-                      type={showPassword ? 'text' : 'password'}
-                      required
-                      value={authPassword}
-                      onChange={(e) => setAuthPassword(e.target.value)}
-                      placeholder="••••••••"
-                      className="w-full pl-10 pr-10 py-3 rounded-xl border border-[#E2DBD0] bg-[#FAF8F5] focus:bg-white text-xs font-medium focus:border-[#C5A059] focus:outline-hidden"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#5A7469] hover:text-[#0B241C]"
-                    >
-                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
-                  </div>
-                </div>
-
-                {/* Submit Button */}
-                <button
-                  type="submit"
-                  disabled={authLoading}
-                  className="w-full py-3.5 px-6 rounded-2xl bg-gradient-to-r from-[#D4AF37] to-[#C5A059] hover:from-[#E6C25B] hover:to-[#D4AF37] text-[#08281F] font-bold text-xs uppercase tracking-widest shadow-lg flex items-center justify-center gap-2 transition-all hover:scale-[1.01] cursor-pointer disabled:opacity-50 mt-4"
-                >
-                  {authLoading ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      <span>Processing...</span>
-                    </>
-                  ) : (
-                    <span>{authMode === 'login' ? 'Sign In to Purnya' : 'Create Account'}</span>
-                  )}
-                </button>
-              </form>
-            )}
-
-            {/* Quick Demo Login Shortcut */}
-            <div className="pt-2 text-center border-t border-[#F0ECE4]">
-              <button
-                type="button"
-                onClick={() => {
-                  loginUser({
-                    name: 'Devendra Sharma',
-                    email: 'devendra@purnya.in',
-                    phone: '+91 98765 43210',
-                  });
-                  setAuthModalOpen(false);
-                  showToast('Welcome, Devendra ✨', 'Signed in seamlessly to Purnya Circle.');
-                }}
-                className="text-[11px] font-semibold text-[#0C3B2E] hover:text-[#C5A059] transition-colors cursor-pointer"
-              >
-                Instant 1-Click Demo Sign In ⚡
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
 
     </>

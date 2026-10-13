@@ -1,6 +1,8 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
+import { usePathname } from 'next/navigation';
+import { getStorefrontBanners } from '../lib/storefrontBanners';
+import React, { createContext, useContext, useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   Product,
   CategoryMeta,
@@ -24,6 +26,7 @@ import {
 } from '../data/mockData';
 import {
   checkSupabaseConnection,
+  isSupabaseConfigured,
   getProductsFromSupabase,
   getCategoriesFromSupabase,
   saveOrderToSupabase,
@@ -34,7 +37,8 @@ import {
   getBannersFromSupabase,
   upsertBannerToSupabase,
   deleteBannerFromSupabase,
-  seedBannersToSupabase,
+  getBannerPrioritiesFromSupabase,
+  saveBannerPrioritiesToSupabase,
   getAnnouncementFromSupabase,
   saveAnnouncementToSupabase,
   getAddressesFromSupabase,
@@ -67,6 +71,7 @@ export interface AuthModalState {
   title?: string;
   message?: string;
   redirectUrl?: string;
+  mode?: 'login' | 'signup' | 'forgot';
 }
 
 interface StoreContextType {
@@ -77,6 +82,11 @@ interface StoreContextType {
   orders: Order[];
   coupons: Coupon[];
   banners: HeroSlide[];
+  heroBanners: HeroSlide[];
+  markHeroReady: () => void;
+  bannersLoaded: boolean;
+  bannersError: boolean;
+  retryBanners: () => void;
   announcement: string;
   user: UserProfile;
   isAuthLoading: boolean;
@@ -90,6 +100,7 @@ interface StoreContextType {
     title?: string;
     message?: string;
     redirectUrl?: string;
+    mode?: 'login' | 'signup' | 'forgot';
   }) => void;
   closeAuthModal: () => void;
   isSearchOpen: boolean;
@@ -146,6 +157,9 @@ interface StoreContextType {
   addHeroSlide: (slide: HeroSlide) => void;
   updateHeroSlide: (slide: HeroSlide) => void;
   deleteHeroSlide: (id: string) => void;
+  reorderBanners: (slides: HeroSlide[]) => void;
+  updateBannerPriority: (id: string, priority: number) => Promise<void>;
+  saveAllBannerPriorities: (bannersToSave?: HeroSlide[]) => Promise<{ success: boolean; message: string }>;
   updateAnnouncement: (text: string) => void;
   updateUser: (profile: Partial<UserProfile>) => void;
   loginUser: (profile: UserProfile) => void;
@@ -155,6 +169,31 @@ interface StoreContextType {
   deleteAddress: (id: string) => void;
   refreshCatalog: () => Promise<void>;
 }
+
+export function sortBannersByFiveWorlds(slides: HeroSlide[]): HeroSlide[] {
+  const getWeight = (slide: HeroSlide) => {
+    const s = `${slide.ctaLink || ''} ${slide.title || ''} ${slide.pretitle || ''} ${slide.subtitle || ''}`.toLowerCase();
+    if (s.includes('jewel') || s.includes('apparel') || s.includes('accessor')) return 1;
+    if (s.includes('candle') || s.includes('fragrance')) return 2;
+    if (s.includes('decor') || s.includes('décor') || s.includes('lifestyle')) return 3;
+    if (s.includes('wellness') || s.includes('organic')) return 4;
+    if (s.includes('gift') || s.includes('stationery')) return 5;
+    return slide.priority ?? 99;
+  };
+
+  return [...slides].sort((a, b) => getWeight(a) - getWeight(b));
+}
+
+export function orderBanners(slides: HeroSlide[]): HeroSlide[] {
+  if (!slides || slides.length === 0) return [];
+  const hasPriorities = slides.some((s) => typeof s.priority === 'number');
+  if (hasPriorities) {
+    const sorted = [...slides].sort((a, b) => (a.priority ?? 999) - (b.priority ?? 999));
+    return sorted.map((s, idx) => ({ ...s, priority: idx + 1 }));
+  }
+  return sortBannersByFiveWorlds(slides).map((s, idx) => ({ ...s, priority: idx + 1 }));
+}
+
 
 function enrichCategories(cats: CategoryMeta[]): CategoryMeta[] {
   if (!cats || cats.length === 0) return initialCategories;
@@ -205,7 +244,59 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [wishlist, setWishlist] = useState<Product[]>([]);
   const [orders, setOrders] = useState<Order[]>(initialOrders);
   const [coupons, setCoupons] = useState<Coupon[]>(initialCoupons);
-  const [banners, setBanners] = useState<HeroSlide[]>(initialHeroSlides);
+  const [banners, setBanners] = useState<HeroSlide[]>(() => isSupabaseConfigured ? [] : orderBanners(initialHeroSlides));
+  const pathname = usePathname();
+  const isAdminPage = pathname.startsWith('/admin');
+  const [isGlobalLoading, setIsGlobalLoading] = useState(true);
+  const [fadeOutLoading, setFadeOutLoading] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setFadeOutLoading(true);
+      setTimeout(() => {
+        setIsGlobalLoading(false);
+      }, 500);
+    }, 2400);
+    return () => clearTimeout(timer);
+  }, []);
+
+  const [heroBanners, setHeroBanners] = useState<HeroSlide[]>(() => isSupabaseConfigured ? [] : orderBanners(initialHeroSlides));
+  const [heroReady, setHeroReady] = useState(false);
+  const markHeroReady = useCallback(() => setHeroReady(true), []);
+  const [bannersLoaded, setBannersLoaded] = useState(!isSupabaseConfigured);
+  const [bannersError, setBannersError] = useState(false);
+  const bannerRequest = useRef(0);
+  const retryBanners = useCallback(async () => {
+    if (!isSupabaseConfigured) return;
+    const request = ++bannerRequest.current;
+    setBannersError(false);
+    setBannersLoaded(false);
+    for (let attempt = 0; attempt < 3; attempt++) {
+      if (attempt) await new Promise((resolve) => setTimeout(resolve, attempt * 800));
+      if (request !== bannerRequest.current) return;
+      const latest = await (isAdminPage ? getBannersFromSupabase() : getStorefrontBanners());
+      if (request !== bannerRequest.current) return;
+      // null means a failed request; [] means a successful empty collection.
+      if (latest !== null) {
+        if (isAdminPage) setBanners(orderBanners(latest));
+        else setHeroBanners(orderBanners(latest));
+        setBannersLoaded(true);
+        return;
+      }
+    }
+    setBannersError(true);
+    setBannersLoaded(true);
+  }, [isAdminPage]);
+
+  useEffect(() => {
+    void retryBanners();
+    const retryOnConnection = () => { void retryBanners(); };
+    window.addEventListener('online', retryOnConnection);
+    return () => {
+      bannerRequest.current++;
+      window.removeEventListener('online', retryOnConnection);
+    };
+  }, [retryBanners]);
   const [announcement, setAnnouncement] = useState<string>(
     'Free Express Shipping on Orders Above ₹999  |  Cash on Delivery Available Pan-India'
   );
@@ -215,21 +306,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [toast, setToast] = useState<ToastState | null>(null);
   const [authModal, setAuthModal] = useState<AuthModalState | null>(null);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const [isGlobalLoading, setIsGlobalLoading] = useState(true);
-
-  useEffect(() => {
-    // 3-second global loading screen when opening the site
-    const timer = setTimeout(() => {
-      setIsGlobalLoading(false);
-    }, 3000);
-    return () => clearTimeout(timer);
-  }, []);
-
   const openAuthModal = (options?: {
     actionType?: 'order' | 'wishlist' | 'bag' | 'review';
     title?: string;
     message?: string;
     redirectUrl?: string;
+    mode?: 'login' | 'signup' | 'forgot';
   }) => {
     setAuthModal({
       isOpen: true,
@@ -237,6 +319,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       title: options?.title,
       message: options?.message,
       redirectUrl: options?.redirectUrl || (typeof window !== 'undefined' ? window.location.pathname : '/'),
+      mode: options?.mode || 'login',
     });
   };
 
@@ -273,12 +356,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     // Fetch real products with real uploaded images directly from Supabase immediately on mount
     getProductsFromSupabase().then((prods) => {
       if (prods && prods.length > 0) {
-        const dbIds = new Set(prods.map(p => p.id));
-        const remaining = initialProducts.filter(p => !dbIds.has(p.id));
-        const merged = [...prods, ...remaining];
-        setProducts(merged);
+        setProducts(prods);
         try {
-          localStorage.setItem('purnya_products', JSON.stringify(merged));
+          localStorage.setItem('purnya_products', JSON.stringify(prods));
         } catch (e) {
           console.warn('LocalStorage save error:', e);
         }
@@ -327,12 +407,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         if (status.tablesFound?.includes('products')) {
           getProductsFromSupabase().then((prods) => {
             if (prods && prods.length > 0) {
-              const dbIds = new Set(prods.map(p => p.id));
-              const remaining = initialProducts.filter(p => !dbIds.has(p.id));
-              const merged = [...prods, ...remaining];
-              setProducts(merged);
+              setProducts(prods);
               try {
-                localStorage.setItem('purnya_products', JSON.stringify(merged));
+                localStorage.setItem('purnya_products', JSON.stringify(prods));
               } catch { }
             }
           });
@@ -351,18 +428,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             }
           });
 
-          getBannersFromSupabase().then((dbBanners) => {
-            if (dbBanners && dbBanners.length > 0) {
-              setBanners(dbBanners);
-              safeSaveToLocalStorage('purnya_banners', dbBanners);
-            } else if (dbBanners && dbBanners.length === 0) {
-              // Auto-seed default luxury banners if table is empty
-              seedBannersToSupabase(initialHeroSlides).then(() => {
-                setBanners(initialHeroSlides);
-                safeSaveToLocalStorage('purnya_banners', initialHeroSlides);
-              });
-            }
-          });
+
         }
       }
     });
@@ -534,17 +600,14 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const [prods, cats, dbBanners, dbAnnouncement, dbCoupons] = await Promise.all([
         getProductsFromSupabase(),
         getCategoriesFromSupabase(),
-        getBannersFromSupabase(),
+        isAdminPage ? getBannersFromSupabase() : getStorefrontBanners(),
         getAnnouncementFromSupabase(),
         getCouponsFromSupabase(),
       ]);
       if (prods && prods.length > 0) {
-        const dbIds = new Set(prods.map(p => p.id));
-        const remaining = initialProducts.filter(p => !dbIds.has(p.id));
-        const merged = [...prods, ...remaining];
-        setProducts(merged);
+        setProducts(prods);
         try {
-          localStorage.setItem('purnya_products', JSON.stringify(merged));
+          localStorage.setItem('purnya_products', JSON.stringify(prods));
         } catch { }
       }
       if (cats && cats.length > 0) {
@@ -555,9 +618,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         } catch { }
       }
       if (dbBanners && dbBanners.length > 0) {
-        setBanners(dbBanners);
+        const ordered = orderBanners(dbBanners);
+        if (isAdminPage) setBanners(ordered);
+        else setHeroBanners(ordered);
         try {
-          localStorage.setItem('purnya_banners', JSON.stringify(dbBanners));
+          if (isAdminPage) localStorage.setItem('purnya_banners', JSON.stringify(ordered));
         } catch { }
       }
       if (dbAnnouncement && dbAnnouncement.trim()) {
@@ -575,7 +640,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     } catch (e) {
       console.warn('Refresh catalog error:', e);
     }
-  }, []);
+  }, [isAdminPage]);
 
   // Listen for catalog updates from admin actions
   useEffect(() => {
@@ -627,7 +692,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         try {
           const parsedProds: Product[] = JSON.parse(savedProducts);
           if (Array.isArray(parsedProds) && parsedProds.length > 0) {
-            setProducts(parsedProds);
+            const cleanProds = parsedProds.filter(p => !p.id.startsWith('prod-'));
+            setProducts(cleanProds);
           }
         } catch { }
       }
@@ -648,11 +714,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
 
       const savedBanners = localStorage.getItem('purnya_banners');
-      if (savedBanners) {
+      // Cached uploads omit image data; never display them before cloud banners arrive.
+      if (savedBanners && !isSupabaseConfigured) {
         try {
           const parsed = JSON.parse(savedBanners);
           if (Array.isArray(parsed) && parsed.length > 0) {
-            setBanners(parsed);
+            setBanners(orderBanners(parsed));
           }
         } catch { }
       }
@@ -679,7 +746,14 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         if (e.key === 'purnya_addresses') setAddresses(JSON.parse(e.newValue));
         if (e.key === 'purnya_products') setProducts(JSON.parse(e.newValue));
         if (e.key === 'purnya_categories') setCategories(JSON.parse(e.newValue));
-        if (e.key === 'purnya_banners') setBanners(JSON.parse(e.newValue));
+        if (e.key === 'purnya_banners') {
+          // Re-fetch the actual images, rather than the image-stripped storage copy.
+          if (isSupabaseConfigured) {
+            void retryBanners();
+          } else {
+            setBanners(orderBanners(JSON.parse(e.newValue)));
+          }
+        }
         if (e.key === 'purnya_announcement') setAnnouncement(e.newValue);
       } catch (err) {
         console.warn('Cross-tab storage sync error', err);
@@ -687,7 +761,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     };
     window.addEventListener('storage', handleStorageSync);
     return () => window.removeEventListener('storage', handleStorageSync);
-  }, []);
+  }, [retryBanners]);
 
   // Safe localStorage saver that catches QuotaExceededErrors and strips base64 data URLs
   const safeSaveToLocalStorage = (key: string, data: any) => {
@@ -725,11 +799,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     safeSaveToLocalStorage('purnya_wishlist', wishlist);
     safeSaveToLocalStorage('purnya_orders', orders);
     safeSaveToLocalStorage('purnya_coupons', coupons);
-    safeSaveToLocalStorage('purnya_banners', banners);
+    if (isAdminPage && bannersLoaded && !bannersError) safeSaveToLocalStorage('purnya_banners', banners);
     safeSaveToLocalStorage('purnya_announcement', announcement);
     safeSaveToLocalStorage('purnya_addresses', addresses);
     safeSaveToLocalStorage('purnya_user', user);
-  }, [mounted, products, categories, cart, wishlist, orders, coupons, banners, announcement, addresses, user]);
+  }, [mounted, isAdminPage, products, categories, cart, wishlist, orders, coupons, banners, bannersLoaded, bannersError, announcement, addresses, user]);
 
   // Toast helper
   const showToast = (title: string, desc?: string, type: 'success' | 'info' | 'error' = 'success') => {
@@ -1200,27 +1274,155 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // Admin Banners
   const addHeroSlide = (slide: HeroSlide) => {
-    setBanners(prev => [slide, ...prev]);
+    const withPriority = {
+      ...slide,
+      priority: slide.priority ?? (banners.length + 1),
+    };
+    const updated = [...banners, withPriority].sort((a, b) => (a.priority ?? 999) - (b.priority ?? 999));
+    setBanners(updated);
+    safeSaveToLocalStorage('purnya_banners', updated);
     showToast('Banner Added', 'New homepage hero banner created.');
-    upsertBannerToSupabase(slide).catch((err) => {
+    upsertBannerToSupabase(withPriority).catch((err) => {
       console.warn('Supabase banner save error:', err);
     });
   };
 
   const updateHeroSlide = (slide: HeroSlide) => {
-    setBanners(prev => prev.map(s => (s.id === slide.id ? slide : s)));
-    showToast('Banner Updated', 'Homepage hero slide updated.');
+    const currentIndex = banners.findIndex((b) => b.id === slide.id);
+    if (currentIndex === -1) return;
+
+    const targetIndex = typeof slide.priority === 'number'
+      ? Math.max(0, Math.min(slide.priority - 1, banners.length - 1))
+      : currentIndex;
+
+    const updated = [...banners];
+    updated[currentIndex] = slide;
+
+    if (targetIndex !== currentIndex) {
+      const [movedItem] = updated.splice(currentIndex, 1);
+      updated.splice(targetIndex, 0, movedItem);
+    }
+
+    const reindexed = updated.map((s, idx) => ({
+      ...s,
+      priority: idx + 1,
+    }));
+
+    setBanners(reindexed);
+    safeSaveToLocalStorage('purnya_banners', reindexed);
+    safeSaveToLocalStorage('purnya_banners_order', reindexed.map((s) => s.id));
+
+    const prioritiesMap: Record<string, number> = {};
+    reindexed.forEach((s) => {
+      prioritiesMap[s.id] = s.priority!;
+    });
+    saveBannerPrioritiesToSupabase(prioritiesMap).catch(() => {});
+
+    reindexed.forEach((s) => {
+      supabase
+        ?.from('banners')
+        .update({ priority: s.priority })
+        .eq('id', s.id)
+        .then(() => {}, () => {});
+    });
+
     upsertBannerToSupabase(slide).catch((err) => {
       console.warn('Supabase banner update error:', err);
     });
+
+    showToast('Banner Updated ✨', `Slide updated at Priority #${targetIndex + 1}.`);
   };
 
   const deleteHeroSlide = (id: string) => {
-    setBanners(prev => prev.filter(s => s.id !== id));
+    setBanners((prev) => prev.filter((s) => s.id !== id));
     showToast('Banner Deleted', 'Homepage hero slide removed.');
     deleteBannerFromSupabase(id).catch((err) => {
       console.warn('Supabase banner delete error:', err);
     });
+  };
+
+  const reorderBanners = (newSlides: HeroSlide[]) => {
+    const withPriorities = newSlides.map((s, idx) => ({
+      ...s,
+      priority: idx + 1,
+    }));
+    setBanners(withPriorities);
+    safeSaveToLocalStorage('purnya_banners', withPriorities);
+    safeSaveToLocalStorage('purnya_banners_order', withPriorities.map((s) => s.id));
+
+    const prioritiesMap: Record<string, number> = {};
+    withPriorities.forEach((s) => {
+      prioritiesMap[s.id] = s.priority!;
+    });
+    saveBannerPrioritiesToSupabase(prioritiesMap).catch((err) => {
+      console.warn('Supabase banner priorities save error:', err);
+    });
+
+    withPriorities.forEach((s) => {
+      supabase
+        ?.from('banners')
+        .update({ priority: s.priority })
+        .eq('id', s.id)
+        .then(() => {}, () => {});
+    });
+
+    showToast('Banner Order & Priorities Saved ✨', 'Synced and saved to database.');
+  };
+
+  const updateBannerPriority = async (id: string, targetPriority: number) => {
+    const currentIndex = banners.findIndex((b) => b.id === id);
+    if (currentIndex === -1) return;
+
+    // Target position (0-indexed) clamped between 0 and banners.length - 1
+    const targetIndex = Math.max(0, Math.min(targetPriority - 1, banners.length - 1));
+
+    // Splice item out and insert at new target position
+    const updated = [...banners];
+    const [movedItem] = updated.splice(currentIndex, 1);
+    updated.splice(targetIndex, 0, movedItem);
+
+    // Re-assign strict sequential 1..N priorities so NO TWO banners can ever have the same priority
+    const reindexed = updated.map((slide, idx) => ({
+      ...slide,
+      priority: idx + 1,
+    }));
+
+    setBanners(reindexed);
+    safeSaveToLocalStorage('purnya_banners', reindexed);
+    safeSaveToLocalStorage('purnya_banners_order', reindexed.map((s) => s.id));
+
+    const prioritiesMap: Record<string, number> = {};
+    reindexed.forEach((s) => {
+      prioritiesMap[s.id] = s.priority!;
+    });
+
+    await saveBannerPrioritiesToSupabase(prioritiesMap);
+
+    reindexed.forEach((s) => {
+      supabase
+        ?.from('banners')
+        .update({ priority: s.priority })
+        .eq('id', s.id)
+        .then(() => {}, () => {});
+    });
+
+    showToast('Priority Updated ✨', `Banner set to Priority #${targetPriority}. Cleanly shifted 1 to ${reindexed.length}.`);
+  };
+
+  const saveAllBannerPriorities = async (bannersToSave?: HeroSlide[]) => {
+    const target = bannersToSave || banners;
+    const prioritiesMap: Record<string, number> = {};
+    target.forEach((b, idx) => {
+      prioritiesMap[b.id] = b.priority ?? idx + 1;
+    });
+    const res = await saveBannerPrioritiesToSupabase(prioritiesMap);
+    if (res.success) {
+      showToast('Priorities Saved ✨', 'All banner priorities successfully connected and saved in database.');
+      return { success: true, message: 'Priorities saved to database.' };
+    } else {
+      showToast('Save Error', res.error || 'Failed to save to database', 'error');
+      return { success: false, message: res.error || 'Failed to save' };
+    }
   };
 
   const updateAnnouncement = (text: string) => {
@@ -1369,6 +1571,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         orders,
         coupons,
         banners,
+        heroBanners,
+        markHeroReady,
+        bannersLoaded,
+        bannersError,
+        retryBanners,
         announcement,
         user,
         isAuthLoading,
@@ -1414,6 +1621,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         addHeroSlide,
         updateHeroSlide,
         deleteHeroSlide,
+        reorderBanners,
+        updateBannerPriority,
+        saveAllBannerPriorities,
         updateAnnouncement,
         updateUser,
         loginUser,
@@ -1425,8 +1635,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }}
     >
       {children}
-      {isGlobalLoading && (
-        <div className="fixed inset-0 z-[999999] bg-[#08281F] text-[#FAF8F5] flex flex-col items-center justify-center p-6 overflow-hidden select-none">
+      {isGlobalLoading && !isAdminPage && (
+        <div
+          className={`fixed inset-0 z-[999999] bg-[#08281F] text-[#FAF8F5] flex flex-col items-center justify-center p-6 overflow-hidden select-none transition-opacity duration-500 ${
+            fadeOutLoading ? 'opacity-0 pointer-events-none' : 'opacity-100'
+          }`}
+        >
           {/* Glowing atmospheric backdrop */}
           <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-[#D4AF37]/15 rounded-full blur-[130px] pointer-events-none animate-pulse" />
           <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-[#C5A059]/15 rounded-full blur-[130px] pointer-events-none animate-pulse" />
@@ -1437,12 +1651,15 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-full bg-[#FAF8F5] p-1.5 border-2 border-[#D4AF37] shadow-[0_0_50px_rgba(212,175,55,0.4)] flex items-center justify-center animate-pulse">
                 <img
                   src="/logoicon.png"
-                  alt="Punya Emblem"
+                  alt="Purnya Emblem"
                   className="w-full h-full object-contain"
                 />
               </div>
               {/* Outer Golden Spinner Ring */}
-              <div className="absolute inset-0 -m-3 border-2 border-[#D4AF37] border-t-transparent border-b-transparent rounded-full animate-spin duration-3000" />
+              <div
+                className="absolute inset-0 -m-3 border-2 border-[#D4AF37] border-t-transparent border-b-transparent rounded-full animate-spin"
+                style={{ animationDuration: '3s' }}
+              />
             </div>
 
             {/* Brand Identity */}
@@ -1450,15 +1667,15 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               <h1 className="font-serif-title text-4xl sm:text-5xl font-bold tracking-[0.25em] text-white leading-none">
                 PURNYA
               </h1>
-              <p className="text-xs sm:text-sm font-bold uppercase tracking-[0.3em] text-[#D4AF37]">
-                Life · Lifestyle · You
+              <p className="text-[10px] sm:text-xs font-bold uppercase tracking-[0.2em] text-[#D4AF37]">
+                Thoughtfully · Curated · Beautifully Yours
               </p>
             </div>
 
             {/* Progress Bar & Subtitle */}
             <div className="space-y-4 pt-4 w-full">
               <p className="text-xs sm:text-sm text-[#E8F0EC]/90 font-medium tracking-widest uppercase">
-                Opening Punya Luxury Sanctuary...
+                Opening Purnya Luxury Sanctuary...
               </p>
 
               <div className="w-64 sm:w-80 h-1.5 bg-[#144234] rounded-full overflow-hidden mx-auto p-0.5 shadow-inner">
@@ -1468,6 +1685,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           </div>
         </div>
       )}
+
     </StoreContext.Provider>
   );
 };

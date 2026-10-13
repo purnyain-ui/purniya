@@ -53,8 +53,8 @@ export default function ForgotPasswordPage() {
             <span className="font-serif-title text-xl font-bold tracking-[0.16em] text-[#0C3B2E] block leading-tight">
               PURNYA
             </span>
-            <span className="text-[9px] uppercase tracking-[0.22em] text-[#C5A059] font-bold block mt-0.5">
-              Maison of Mindful Luxury
+            <span className="text-[8.5px] uppercase tracking-[0.14em] text-[#C5A059] font-bold block mt-0.5">
+              Thoughtfully · Curated · Beautifully Yours
             </span>
           </div>
           <h1 className="font-serif-title text-2xl font-bold text-[#0B241C] pt-1">

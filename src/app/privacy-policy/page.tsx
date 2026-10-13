@@ -23,7 +23,7 @@ export default function PrivacyPolicyPage() {
       title: 'Purpose of Collection & Use',
       content: (
         <p>
-          We use personal data only for specific, explicit, and lawful purposes for which consent is obtained, including: processing and fulfilling orders; sending delivery updates and notifications; providing customer support; managing user accounts; detecting and preventing fraud; improving storefront experiences; complying with applicable legal requirements; and sending promotional communications where permitted.
+          We use personal data only for specific, explicit, and lawful purposes for which consent is obtained, including: processing and fulfilling orders; sending delivery updates and notifications; providing customer support; managing user accounts; detecting and preventing fraud; improving shopping experiences; complying with applicable legal requirements; and sending promotional communications where permitted.
         </p>
       ),
     },
@@ -68,7 +68,7 @@ export default function PrivacyPolicyPage() {
       title: 'Cookies & Tracking Technologies',
       content: (
         <p>
-          Purnya.in uses cookies and similar technologies to support website functionality, remember session preferences, analyze traffic, and enhance your browsing journey. You can manage or disable cookie preferences through your browser settings; disabling certain cookies may limit some features of the storefront.
+          Purnya.in uses cookies and similar technologies to support website functionality, remember session preferences, analyze traffic, and enhance your browsing journey. You can manage or disable cookie preferences through your browser settings; disabling certain cookies may limit some features of the website.
         </p>
       ),
     },

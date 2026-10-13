@@ -295,7 +295,6 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
   const homeSubItems = [
     { name: 'Festival Banner', href: '/admin/home/festival-banner' },
     { name: 'Middle Section', href: '/admin/home/middle-section' },
-    { name: 'Bottom Section', href: '/admin/home/bottom-section' },
   ];
 
   // Products Catalog and Inventory & Stock are pulled out of the flat list
@@ -634,7 +633,7 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
             >
               <span className="flex items-center gap-2">
                 <ExternalLink className="w-3.5 h-3.5 text-[#D4AF37]" />
-                <span>Storefront</span>
+                <span>Live Boutique</span>
               </span>
               <span className="text-[10px] text-emerald-400 font-bold bg-emerald-950/60 px-1.5 py-0.5 rounded border border-emerald-500/30">Live</span>
             </Link>
