@@ -146,7 +146,7 @@ function HeaderContent() {
     if (pathname === '/') {
       try {
         sessionStorage.removeItem('purnya_active_category');
-      } catch (e) {}
+      } catch (e) { }
       setActiveCategorySlug(null);
       return;
     }
@@ -158,7 +158,7 @@ function HeaderContent() {
       if (slug) {
         try {
           sessionStorage.setItem('purnya_active_category', slug);
-        } catch (e) {}
+        } catch (e) { }
         setActiveCategorySlug(slug);
         return;
       }
@@ -171,7 +171,7 @@ function HeaderContent() {
       if (slug) {
         try {
           sessionStorage.setItem('purnya_active_category', slug);
-        } catch (e) {}
+        } catch (e) { }
         setActiveCategorySlug(slug);
         return;
       }
@@ -186,7 +186,7 @@ function HeaderContent() {
       let savedSlug: string | null = null;
       try {
         savedSlug = sessionStorage.getItem('purnya_active_category');
-      } catch (e) {}
+      } catch (e) { }
 
       if (savedSlug) {
         setActiveCategorySlug(savedSlug.toLowerCase());
@@ -201,7 +201,7 @@ function HeaderContent() {
           setActiveCategorySlug(catSlug);
           try {
             sessionStorage.setItem('purnya_active_category', catSlug);
-          } catch (e) {}
+          } catch (e) { }
           return;
         }
 
@@ -226,7 +226,7 @@ function HeaderContent() {
                 setActiveCategorySlug(fetchedSlug);
                 try {
                   sessionStorage.setItem('purnya_active_category', fetchedSlug);
-                } catch (e) {}
+                } catch (e) { }
               }
             }
           } catch (err) {
@@ -244,7 +244,7 @@ function HeaderContent() {
         setActiveCategorySlug(saved.toLowerCase());
         return;
       }
-    } catch (e) {}
+    } catch (e) { }
 
     setActiveCategorySlug(null);
   }, [pathname, products]);
@@ -258,7 +258,7 @@ function HeaderContent() {
         setActiveCategorySlug(clean);
         try {
           sessionStorage.setItem('purnya_active_category', clean);
-        } catch (err) {}
+        } catch (err) { }
       }
     };
 
@@ -350,140 +350,159 @@ function HeaderContent() {
                       PURNYA
                     </span>
                   </div>
-                  <span className="block text-[6.5px] xs:text-[7px] sm:text-[8px] xl:text-[8.5px] uppercase tracking-[0.08em] sm:tracking-[0.12em] text-[#C5A059] font-bold mt-0.5 whitespace-nowrap leading-tight">
-                    Thoughtfully · Curated · Beautifully Yours
-                  </span>
+                  <div className="flex flex-col items-start leading-[1.15] mt-0.5 sm:mt-1">
+                    <span className="text-[7px] sm:text-[8px] xl:text-[8.5px] uppercase tracking-[0.12em] sm:tracking-[0.16em] text-[#C5A059] font-bold whitespace-nowrap">
+                      Thoughtfully · Curated
+                    </span>
+                    <span className="text-[7px] sm:text-[8px] xl:text-[8.5px] uppercase tracking-[0.12em] sm:tracking-[0.16em] text-[#C5A059] font-bold whitespace-nowrap">
+                      Beautifully Yours
+                    </span>
+                  </div>
                 </div>
               </Link>
             </div>
 
-            {/* Desktop Navigation Links (Centered in Header) */}
-            <nav className="hidden lg:flex items-center justify-center gap-4 xl:gap-6 text-xs font-semibold tracking-wider uppercase text-[#2C4A3E] whitespace-nowrap absolute left-1/2 -translate-x-1/2">
-                {currentCategory ? (
-                  // Dedicated Category Storefront Navigation (Includes Home + Subcategories)
-                  <>
-                    <Link
-                      href={`/category/${(currentCategory.slug || '').trim()}`}
-                      className={`py-2 relative transition-colors duration-200 hover:text-[#0C3B2E] ${pathname === `/category/${(currentCategory.slug || '').trim()}` && currentSub === 'All'
+            {/* Desktop Navigation Links (Centered in Header, shifted slightly left in subcategory header to utilize open left space) */}
+            <nav className={`hidden lg:flex items-center justify-center gap-3 xl:gap-5 text-[11px] xl:text-xs font-semibold tracking-wider uppercase text-[#2C4A3E] whitespace-nowrap absolute ${
+              currentCategory ? 'left-1/2 -translate-x-1/2 -ml-8 xl:-ml-12 2xl:-ml-6' : 'left-1/2 -translate-x-1/2'
+            }`}>
+              {currentCategory ? (
+                // Dedicated Category Storefront Navigation (Includes Home + Subcategories)
+                <>
+                  <Link
+                    href={`/category/${(currentCategory.slug || '').trim()}`}
+                    className={`py-2 relative transition-colors duration-200 hover:text-[#0C3B2E] ${
+                      pathname === `/category/${(currentCategory.slug || '').trim()}` && (currentSub === 'All' || !currentSub)
                         ? 'text-[#0C3B2E] font-bold'
                         : ''
-                        }`}
+                    }`}
+                  >
+                    Home
+                    {pathname === `/category/${(currentCategory.slug || '').trim()}` && (currentSub === 'All' || !currentSub) && (
+                      <span className="absolute bottom-0 left-0 right-0 h-[2.5px] bg-[#0C3B2E] rounded-full" />
+                    )}
+                  </Link>
+
+                  {currentCategory.subcategories
+                    .filter((s: string) => (s || '').trim() !== 'All')
+                    .slice(0, 4)
+                    .map((sub: string) => {
+                      const cleanSub = (sub || '').trim();
+                      const isSubActive =
+                        decodeURIComponent(pathname).toLowerCase() === `/category/${(currentCategory.slug || '').trim().toLowerCase()}/${cleanSub.toLowerCase()}` ||
+                        decodeURIComponent(pathname).toLowerCase().endsWith(`/${cleanSub.toLowerCase()}`) ||
+                        currentSub.toLowerCase() === cleanSub.toLowerCase();
+                      return (
+                        <Link
+                          key={cleanSub}
+                          href={`/category/${(currentCategory.slug || '').trim()}/${encodeURIComponent(cleanSub)}`}
+                          className={`py-2 relative transition-colors duration-200 hover:text-[#0C3B2E] ${
+                            isSubActive ? 'text-[#0C3B2E] font-bold' : ''
+                          }`}
+                        >
+                          {cleanSub}
+                          {isSubActive && (
+                            <span className="absolute bottom-0 left-0 right-0 h-[2.5px] bg-[#0C3B2E] rounded-full" />
+                          )}
+                        </Link>
+                      );
+                    })}
+
+                  {/* Dropdown to open any of the other category websites in a new tab */}
+                  <div
+                    className="relative"
+                    onMouseEnter={() => setOtherBoutiquesOpen(true)}
+                    onMouseLeave={() => setOtherBoutiquesOpen(false)}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => setOtherBoutiquesOpen(!otherBoutiquesOpen)}
+                      className="py-2 inline-flex items-center gap-1 transition-colors hover:text-[#0C3B2E] text-[11px] xl:text-xs font-semibold uppercase tracking-wider text-[#2C4A3E] cursor-pointer"
                     >
-                      Home
-                      {pathname === `/category/${(currentCategory.slug || '').trim()}` && currentSub === 'All' && (
+                      <span>Other Boutiques</span>
+                      <ChevronDown className="w-3.5 h-3.5 text-[#C5A059]" />
+                    </button>
+
+                    {otherBoutiquesOpen && (
+                      <div className="absolute left-0 top-full pt-1 w-64 z-50">
+                        <div className="bg-white rounded-2xl shadow-xl border border-[#E2DBD0] py-2 overflow-hidden">
+                          <div className="px-3.5 py-1.5 border-b border-[#F0ECE4] text-[10px] uppercase tracking-wider text-[#5A7469] font-bold">
+                            Switch Boutique
+                          </div>
+                          {sortedCategories
+                            .filter((c) => (c.slug || '').trim() !== (currentCategory.slug || '').trim())
+                            .map((otherCat) => (
+                              <Link
+                                key={otherCat.id}
+                                href={`/category/${(otherCat.slug || '').trim()}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={() => setOtherBoutiquesOpen(false)}
+                                className="flex items-center justify-between px-3.5 py-2.5 text-xs text-[#0B241C] hover:bg-[#EBF3EF] hover:text-[#0C3B2E] transition-colors"
+                              >
+                                <div className="flex items-center gap-2.5">
+                                  <div className="w-7 h-7 rounded-full overflow-hidden shrink-0 border border-[#C5A059]/40 bg-[#EBF3EF]">
+                                    <img
+                                      src={otherCat.bannerImage || otherCat.heroImage}
+                                      alt=""
+                                      className="w-full h-full object-cover"
+                                    />
+                                  </div>
+                                  <span className="font-semibold text-[#0B241C]">{(otherCat.title || '').trim()}</span>
+                                </div>
+                                <ArrowUpRight className="w-3.5 h-3.5 text-[#C5A059]" />
+                              </Link>
+                            ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </>
+              ) : (
+                // Main Multi-Category Portal Navigation (Opens in new tab)
+                navLinks.map((link) => {
+                  const isActive = pathname === link.href;
+                  return (
+                    <Link
+                      key={link.href}
+                      href={link.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={`py-2 relative transition-colors duration-200 hover:text-[#0C3B2E] inline-flex items-center gap-1 ${isActive ? 'text-[#0C3B2E] font-bold' : ''
+                        }`}
+                      title={link.name}
+                    >
+                      <span>{link.name}</span>
+                      <ArrowUpRight className="w-3.5 h-3.5 text-[#C5A059]" />
+                      {isActive && (
                         <span className="absolute bottom-0 left-0 right-0 h-[2.5px] bg-[#0C3B2E] rounded-full" />
                       )}
                     </Link>
-
-                    {currentCategory.subcategories
-                      .filter((s: string) => (s || '').trim() !== 'All')
-                      .slice(0, 4)
-                      .map((sub: string) => {
-                        const cleanSub = (sub || '').trim();
-                        return (
-                          <Link
-                            key={cleanSub}
-                            href={`/category/${(currentCategory.slug || '').trim()}/${encodeURIComponent(cleanSub)}`}
-                            className={`py-2 relative transition-colors duration-200 hover:text-[#0C3B2E]`}
-                          >
-                            {cleanSub}
-                          </Link>
-                        );
-                      })}
-
-                    {/* Dropdown to open any of the other category websites in a new tab */}
-                    <div
-                      className="relative"
-                      onMouseEnter={() => setOtherBoutiquesOpen(true)}
-                      onMouseLeave={() => setOtherBoutiquesOpen(false)}
-                    >
-                      <button
-                        type="button"
-                        onClick={() => setOtherBoutiquesOpen(!otherBoutiquesOpen)}
-                        className="py-2 inline-flex items-center gap-1 transition-colors hover:text-[#0C3B2E] text-xs font-semibold uppercase tracking-wider text-[#2C4A3E] cursor-pointer"
-                      >
-                        <span>Other Boutiques</span>
-                        <ChevronDown className="w-3.5 h-3.5 text-[#C5A059]" />
-                      </button>
-
-                      {otherBoutiquesOpen && (
-                        <div className="absolute left-0 top-full pt-1 w-64 z-50">
-                          <div className="bg-white rounded-2xl shadow-xl border border-[#E2DBD0] py-2 overflow-hidden">
-                            <div className="px-3.5 py-1.5 border-b border-[#F0ECE4] text-[10px] uppercase tracking-wider text-[#5A7469] font-bold">
-                              Switch Boutique
-                            </div>
-                            {sortedCategories
-                              .filter((c) => (c.slug || '').trim() !== (currentCategory.slug || '').trim())
-                              .map((otherCat) => (
-                                <Link
-                                  key={otherCat.id}
-                                  href={`/category/${(otherCat.slug || '').trim()}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  onClick={() => setOtherBoutiquesOpen(false)}
-                                  className="flex items-center justify-between px-3.5 py-2.5 text-xs text-[#0B241C] hover:bg-[#EBF3EF] hover:text-[#0C3B2E] transition-colors"
-                                >
-                                  <div className="flex items-center gap-2.5">
-                                    <div className="w-7 h-7 rounded-full overflow-hidden shrink-0 border border-[#C5A059]/40 bg-[#EBF3EF]">
-                                      <img
-                                        src={otherCat.bannerImage || otherCat.heroImage}
-                                        alt=""
-                                        className="w-full h-full object-cover"
-                                      />
-                                    </div>
-                                    <span className="font-semibold text-[#0B241C]">{(otherCat.title || '').trim()}</span>
-                                  </div>
-                                  <ArrowUpRight className="w-3.5 h-3.5 text-[#C5A059]" />
-                                </Link>
-                              ))}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Switcher back to Main Page */}
-                    <Link
-                      href="/"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={() => {
-                        try { sessionStorage.removeItem('purnya_active_category'); } catch(e) {}
-                        setActiveCategorySlug(null);
-                      }}
-                      className="ml-1 inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-[#FAF8F5] hover:bg-[#EBF3EF] border border-[#C5A059]/40 text-[#0C3B2E] text-[11px] font-bold normal-case tracking-normal transition-all shadow-xs"
-                      title="Go to Main Page in new tab"
-                    >
-                      <span>Main Page</span>
-                      <ArrowUpRight className="w-3.5 h-3.5 text-[#C5A059]" />
-                    </Link>
-                  </>
-                ) : (
-                  // Main Multi-Category Portal Navigation (Opens in new tab)
-                  navLinks.map((link) => {
-                    const isActive = pathname === link.href;
-                    return (
-                      <Link
-                        key={link.href}
-                        href={link.href}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className={`py-2 relative transition-colors duration-200 hover:text-[#0C3B2E] inline-flex items-center gap-1 ${isActive ? 'text-[#0C3B2E] font-bold' : ''
-                          }`}
-                        title={link.name}
-                      >
-                        <span>{link.name}</span>
-                        <ArrowUpRight className="w-3.5 h-3.5 text-[#C5A059]" />
-                        {isActive && (
-                          <span className="absolute bottom-0 left-0 right-0 h-[2.5px] bg-[#0C3B2E] rounded-full" />
-                        )}
-                      </Link>
-                    );
-                  })
-                )}
-              </nav>
+                  );
+                })
+              )}
+            </nav>
 
             {/* 3. RIGHT ZONE: Action Icons (Wishlist & Cart ONLY show after login as requested!) */}
             <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0 justify-end z-10">
+              {/* Switcher back to Main Page (Anchored reliably on the right when browsing any category/subcategory boutique) */}
+              {currentCategory && (
+                <Link
+                  href="/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => {
+                    try { sessionStorage.removeItem('purnya_active_category'); } catch (e) { }
+                    setActiveCategorySlug(null);
+                  }}
+                  className="hidden lg:inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-[#FAF8F5] hover:bg-[#EBF3EF] border border-[#C5A059]/50 text-[#0C3B2E] text-[11px] font-bold normal-case tracking-normal transition-all shadow-xs shrink-0 mr-1"
+                  title="Go to Main Page in new tab"
+                >
+                  <span>Main Page</span>
+                  <ArrowUpRight className="w-3.5 h-3.5 text-[#C5A059]" />
+                </Link>
+              )}
+
               {/* Search Trigger */}
               <button
                 onClick={() => setIsSearchOpen(true)}
@@ -705,9 +724,14 @@ function HeaderContent() {
                   <span className="font-serif-title text-xl font-bold tracking-[0.14em] text-[#0C3B2E] block leading-none">
                     PURNYA
                   </span>
-                  <span className="text-[7.5px] sm:text-[8.5px] uppercase tracking-[0.12em] text-[#C5A059] font-bold block mt-0.5 whitespace-nowrap">
-                    Thoughtfully · Curated · Beautifully Yours
-                  </span>
+                  <div className="flex flex-col items-start leading-[1.15] mt-1">
+                    <span className="text-[7.5px] sm:text-[8px] uppercase tracking-[0.12em] text-[#C5A059] font-bold whitespace-nowrap">
+                      Thoughtfully · Curated
+                    </span>
+                    <span className="text-[7.5px] sm:text-[8px] uppercase tracking-[0.12em] text-[#C5A059] font-bold whitespace-nowrap">
+                      Beautifully Yours
+                    </span>
+                  </div>
                 </div>
               </Link>
 
@@ -825,7 +849,7 @@ function HeaderContent() {
                         setMobileMenuOpen(false);
                         try {
                           sessionStorage.removeItem('purnya_active_category');
-                        } catch (e) {}
+                        } catch (e) { }
                         setActiveCategorySlug(null);
                       }}
                       className="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-white text-[#0C3B2E] border border-[#C5A059]/60 flex items-center gap-1 shadow-2xs hover:bg-[#EBF3EF] shrink-0"
@@ -846,11 +870,10 @@ function HeaderContent() {
                     <Link
                       href={`/category/${(currentCategory.slug || '').trim()}`}
                       onClick={() => setMobileMenuOpen(false)}
-                      className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all ${
-                        pathname === `/category/${(currentCategory.slug || '').trim()}` && (currentSub === 'All' || !currentSub)
+                      className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all ${pathname === `/category/${(currentCategory.slug || '').trim()}` && (currentSub === 'All' || !currentSub)
                           ? 'bg-[#0C3B2E] text-[#FAF8F5] shadow-xs'
                           : 'text-[#2C4A3E] hover:text-[#0C3B2E] hover:bg-white'
-                      }`}
+                        }`}
                     >
                       <span>Home</span>
                       {pathname === `/category/${(currentCategory.slug || '').trim()}` && (currentSub === 'All' || !currentSub) ? (
@@ -873,11 +896,10 @@ function HeaderContent() {
                             key={cleanSub}
                             href={`/category/${(currentCategory.slug || '').trim()}/${encodeURIComponent(cleanSub)}`}
                             onClick={() => setMobileMenuOpen(false)}
-                            className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-xs uppercase tracking-wider transition-all ${
-                              isSubActive
+                            className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-xs uppercase tracking-wider transition-all ${isSubActive
                                 ? 'bg-[#0C3B2E] text-[#FAF8F5] font-bold shadow-xs'
                                 : 'text-[#2C4A3E] hover:text-[#0C3B2E] hover:bg-white font-semibold'
-                            }`}
+                              }`}
                           >
                             <span>{cleanSub}</span>
                             {isSubActive ? (
@@ -898,9 +920,8 @@ function HeaderContent() {
                       >
                         <span>Other Boutiques</span>
                         <ChevronDown
-                          className={`w-4 h-4 text-[#C5A059] transition-transform duration-200 ${
-                            mobileOtherBoutiquesOpen ? 'rotate-180' : ''
-                          }`}
+                          className={`w-4 h-4 text-[#C5A059] transition-transform duration-200 ${mobileOtherBoutiquesOpen ? 'rotate-180' : ''
+                            }`}
                         />
                       </button>
 
@@ -948,7 +969,7 @@ function HeaderContent() {
                           setMobileMenuOpen(false);
                           try {
                             sessionStorage.removeItem('purnya_active_category');
-                          } catch (e) {}
+                          } catch (e) { }
                           setActiveCategorySlug(null);
                         }}
                         className="flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider text-[#0C3B2E] bg-white border border-[#C5A059]/40 hover:bg-[#EBF3EF] transition-colors shadow-2xs"
@@ -996,9 +1017,8 @@ function HeaderContent() {
                               aria-label={`Toggle ${(cat.title || '').trim()} subcategories`}
                             >
                               <ChevronDown
-                                className={`w-3.5 h-3.5 text-[#C5A059] transition-transform duration-200 ${
-                                  isExpanded ? 'rotate-180' : ''
-                                }`}
+                                className={`w-3.5 h-3.5 text-[#C5A059] transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''
+                                  }`}
                               />
                             </button>
                           )}
