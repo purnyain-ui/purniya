@@ -42,7 +42,8 @@ export default function AuthModal() {
     try {
       const params = new URLSearchParams(window.location.search);
       const authQuery = params.get('auth');
-      if (authQuery === 'login' || authQuery === 'signup' || authQuery === 'forgot') {
+      // 'forgot' is switched off for now.
+      if (authQuery === 'login' || authQuery === 'signup') {
         openAuthModal({ mode: authQuery });
         // Clean URL query without page reload
         const url = new URL(window.location.href);
@@ -149,19 +150,6 @@ export default function AuthModal() {
       }
     } else {
       setErrorMsg(res.error || 'Invalid email or password.');
-    }
-  };
-
-  const handleDemoSignIn = () => {
-    loginUser({
-      name: 'Devendra Sharma',
-      email: 'devendra@purnya.in',
-      phone: '+91 98765 43210',
-    });
-    showToast('Welcome, Devendra ✨', 'Signed in with demo profile.');
-    closeAuthModal();
-    if (redirectUrl && redirectUrl !== window.location.pathname) {
-      router.push(redirectUrl);
     }
   };
 
@@ -402,19 +390,6 @@ export default function AuthModal() {
                 <label className="text-[11px] font-bold uppercase tracking-wider text-[#2C4A3E]">
                   Password
                 </label>
-                {mode === 'login' && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setMode('forgot');
-                      setErrorMsg('');
-                      setForgotSuccess(false);
-                    }}
-                    className="text-[10px] text-[#C5A059] hover:underline cursor-pointer"
-                  >
-                    Forgot password?
-                  </button>
-                )}
               </div>
               <div className="relative">
                 <Lock className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-[#5A7469]" />
@@ -453,17 +428,6 @@ export default function AuthModal() {
             </button>
           </form>
         )}
-
-        {/* Quick Demo Login Shortcut */}
-        <div className="pt-2 text-center border-t border-[#F0ECE4]">
-          <button
-            type="button"
-            onClick={handleDemoSignIn}
-            className="text-[11px] font-semibold text-[#0C3B2E] hover:text-[#C5A059] transition-colors cursor-pointer"
-          >
-            Instant 1-Click Demo Sign In ⚡
-          </button>
-        </div>
 
         {/* Member perks mini-badge */}
         <div className="flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-[#FAF8F5] text-[10px] text-[#5A7469]">
