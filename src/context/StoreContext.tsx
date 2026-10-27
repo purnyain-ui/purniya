@@ -56,6 +56,7 @@ import {
   supabase,
 } from '../lib/supabase';
 import { isAdminEmail, readAdminSession } from '../lib/adminPermissions';
+import { getCouponDiscount, getCouponProblem, getOrderTotal, getShippingFee } from '../lib/pricing';
 
 
 interface ToastState {
@@ -125,6 +126,7 @@ interface StoreContextType {
   isInWishlist: (productId: string) => boolean;
   applyCoupon: (code: string) => { success: boolean; message: string };
   removeCoupon: () => void;
+  syncCartPrices: (unitPrices: Record<string, number>) => void;
   placeOrder: (details: {
     customer: { name: string; email: string; phone: string };
     shippingAddress: Address;
@@ -887,22 +889,15 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, [cart]);
 
   const cartDiscount = useMemo(() => {
-    if (!appliedCoupon) return 0;
-    if (cartSubtotal < appliedCoupon.minOrderValue) return 0;
-    if (appliedCoupon.discountType === 'percentage') {
-      const calculated = Math.round((cartSubtotal * appliedCoupon.discountValue) / 100);
-      return appliedCoupon.maxDiscount ? Math.min(calculated, appliedCoupon.maxDiscount) : calculated;
-    }
-    return Math.min(appliedCoupon.discountValue, cartSubtotal);
+    return getCouponDiscount(appliedCoupon, cartSubtotal);
   }, [appliedCoupon, cartSubtotal]);
 
   const cartShipping = useMemo(() => {
-    if (cart.length === 0) return 0;
-    return cartSubtotal >= 999 ? 0 : 99;
+    return getShippingFee(cartSubtotal, cart.length);
   }, [cart, cartSubtotal]);
 
   const cartTotal = useMemo(() => {
-    return Math.max(0, cartSubtotal - cartDiscount + cartShipping);
+    return getOrderTotal(cartSubtotal, cartDiscount, cartShipping);
   }, [cartSubtotal, cartDiscount, cartShipping]);
 
   const cartCount = useMemo(() => {
@@ -919,31 +914,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (!found) {
       return { success: false, message: 'Invalid or inactive coupon code.' };
     }
-    if (cartSubtotal < found.minOrderValue) {
-      return {
-        success: false,
-        message: `Minimum order value of ₹${found.minOrderValue} required for this coupon.`,
-      };
-    }
-
-    const now = new Date();
-    if (found.validFrom && new Date(found.validFrom) > now) {
-      return {
-        success: false,
-        message: `This coupon will be active starting ${new Date(found.validFrom).toLocaleDateString('en-IN')}.`,
-      };
-    }
-    if (found.validUntil && new Date(found.validUntil) < now) {
-      return {
-        success: false,
-        message: 'This promo code has expired.',
-      };
-    }
-    if (found.usageLimit && (found.usageCount || 0) >= found.usageLimit) {
-      return {
-        success: false,
-        message: 'This coupon has reached its maximum redemption limit.',
-      };
+    const problem = getCouponProblem(found, cartSubtotal);
+    if (problem) {
+      return { success: false, message: problem };
     }
 
     setAppliedCoupon(found);
@@ -954,6 +927,18 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const removeCoupon = () => {
     setAppliedCoupon(null);
     showToast('Coupon Removed', undefined, 'info');
+  };
+
+  // Bring bag prices in line with what the server will charge (see create-order).
+  const syncCartPrices = (unitPrices: Record<string, number>) => {
+    setCart(prev =>
+      prev.map(item => {
+        const price = unitPrices[item.product.id];
+        return price === undefined || price === item.product.price
+          ? item
+          : { ...item, product: { ...item.product, price } };
+      })
+    );
   };
 
   // Place Order
@@ -1599,6 +1584,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         isInWishlist,
         applyCoupon,
         removeCoupon,
+        syncCartPrices,
         placeOrder,
         cartSubtotal,
         cartDiscount,

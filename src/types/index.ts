@@ -143,20 +143,6 @@ export interface UserProfile {
   phone: string;
 }
 
-export interface HomeMiddleSection {
-  id: string;
-  tag: string;
-  title: string;
-  description: string;
-  imageUrl: string;
-  features: string[];
-  primaryButtonText: string;
-  primaryButtonLink: string;
-  secondaryButtonText: string;
-  secondaryButtonLink: string;
-  isActive: boolean;
-}
-
 export interface HomeBottomCard {
   iconText: string;
   title: string;

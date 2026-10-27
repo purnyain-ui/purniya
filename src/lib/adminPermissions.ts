@@ -64,6 +64,37 @@ export function hasPermission(
   return Array.isArray(session.permissions) && session.permissions.includes(key);
 }
 
+// Shape of a row in public.admin_users (as read by the app)
+export interface AdminUserRecord {
+  id: string;
+  email: string;
+  full_name: string | null;
+  role: string | null;
+  is_active: boolean | null;
+  permissions: string[] | null;
+}
+
+/** Builds the session from the admin_users row, which is the source of truth for role + permissions. */
+export function sessionFromAdminRecord(
+  record: AdminUserRecord,
+  authMethod: AdminSession['authMethod']
+): AdminSession {
+  const role = record.role || 'Sub Administrator';
+  return {
+    id: record.id,
+    email: record.email,
+    fullName: record.full_name || '',
+    role,
+    permissions: isSuperAdmin(role)
+      ? ALL_ADMIN_PERMISSIONS
+      : Array.isArray(record.permissions)
+      ? (record.permissions as AdminPermissionKey[])
+      : [],
+    loginTime: new Date().toISOString(),
+    authMethod,
+  };
+}
+
 /** Reads the stored admin session from localStorage. Returns null if absent/invalid. */
 export function readAdminSession(): AdminSession | null {
   if (typeof window === 'undefined') return null;

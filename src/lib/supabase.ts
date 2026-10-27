@@ -1,6 +1,7 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { Product, CategoryMeta, Order, HeroSlide, Address, Coupon, HomeMiddleSection, HomeBottomSection, CartItem } from '../types';
+import { Product, CategoryMeta, Order, HeroSlide, Address, Coupon, HomeBottomSection, CartItem } from '../types';
 import { getSubcategoryImage } from '../data/mockData';
+import type { AdminUserRecord } from './adminPermissions';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
@@ -1317,83 +1318,31 @@ export async function getOrdersForCustomerFromSupabase(userEmail: string): Promi
  */
 export async function verifyAdminSession(): Promise<{
   authenticated: boolean;
-  email?: string;
-  role?: string;
-  name?: string;
+  record?: AdminUserRecord;
   error?: string;
 }> {
   if (!isSupabaseConfigured || !supabase) {
-    // Fallback preset verification for offline/unconfigured environments
-    if (typeof window !== 'undefined') {
-      const sess = localStorage.getItem('purnya_admin_session');
-      if (sess) {
-        try {
-          const parsed = JSON.parse(sess);
-          if (parsed.email?.toLowerCase() === 'admin@purnya.com' && parsed.authMethod === 'preset') {
-            return {
-              authenticated: true,
-              email: parsed.email,
-              role: 'Super Administrator',
-              name: 'Purnya Admin',
-            };
-          }
-        } catch { }
-      }
-    }
-    return { authenticated: false, error: 'Supabase unconfigured and no valid preset session.' };
+    return { authenticated: false, error: 'Supabase is not configured.' };
   }
 
   try {
-    // 1. Check live cryptographic Supabase Auth session
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-    if (sessionError || !session?.user) {
-      // If no active auth session, check if there's an emergency preset session
-      if (typeof window !== 'undefined') {
-        const sess = localStorage.getItem('purnya_admin_session');
-        if (sess) {
-          try {
-            const parsed = JSON.parse(sess);
-            if (parsed.email?.toLowerCase() === 'admin@purnya.com' && parsed.authMethod === 'preset') {
-              return {
-                authenticated: true,
-                email: parsed.email,
-                role: 'Super Administrator',
-                name: 'Purnya Admin',
-              };
-            }
-          } catch { }
-        }
-      }
-      return { authenticated: false, error: sessionError?.message || 'No active Supabase session' };
+    // 1. Confirm the Supabase Auth session with the auth server (getUser, unlike
+    //    getSession, doesn't just trust what's stored in the browser).
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user?.email) {
+      return { authenticated: false, error: userError?.message || 'No active Supabase session' };
     }
 
-    const user = session.user;
-    const userRole = user.user_metadata?.role;
-
-    // 2. Cross-verify with admin_users table for maximum security
+    // 2. Only an active admin_users row grants admin access. (user_metadata is
+    //    editable by the user themselves, so it must never grant a role.)
     const { data: adminRecord } = await supabase
       .from('admin_users')
-      .select('id, email, full_name, role, is_active')
-      .eq('email', user.email?.toLowerCase())
-      .single();
+      .select('id, email, full_name, role, is_active, permissions')
+      .eq('email', user.email.toLowerCase())
+      .maybeSingle();
 
     if (adminRecord && adminRecord.is_active) {
-      return {
-        authenticated: true,
-        email: adminRecord.email,
-        role: adminRecord.role || 'Super Administrator',
-        name: adminRecord.full_name || 'Purnya Admin',
-      };
-    }
-
-    // 3. Fallback to user metadata role check
-    if (userRole === 'admin') {
-      return {
-        authenticated: true,
-        email: user.email || '',
-        role: 'Super Administrator',
-        name: user.user_metadata?.name || 'Administrator',
-      };
+      return { authenticated: true, record: adminRecord as AdminUserRecord };
     }
 
     return { authenticated: false, error: 'User does not possess administrative privileges.' };
@@ -1663,23 +1612,27 @@ export async function getCouponsFromSupabase(): Promise<Coupon[]> {
       return [];
     }
 
-    return (data || []).map((row: any): Coupon => ({
-      code: row.code,
-      discountType: (row.discount_type as 'percentage' | 'fixed') || 'percentage',
-      discountValue: Number(row.discount_value ?? row.discount_percent ?? 0),
-      minOrderValue: Number(row.min_order_amount ?? 0),
-      isActive: Boolean(row.is_active),
-      description: row.description || `${row.discount_percent || row.discount_value || 0}% off promotional discount`,
-      maxDiscount: row.max_discount != null ? Number(row.max_discount) : undefined,
-      usageLimit: row.usage_limit != null ? Number(row.usage_limit) : undefined,
-      usageCount: Number(row.usage_count || 0),
-      validFrom: row.valid_from ? new Date(row.valid_from).toISOString() : undefined,
-      validUntil: row.valid_until ? new Date(row.valid_until).toISOString() : undefined,
-    }));
+    return (data || []).map(mapCouponRow);
   } catch (err) {
     console.warn('Supabase getCoupons exception:', err);
     return [];
   }
+}
+
+export function mapCouponRow(row: any): Coupon {
+  return {
+    code: row.code,
+    discountType: (row.discount_type as 'percentage' | 'fixed') || 'percentage',
+    discountValue: Number(row.discount_value ?? row.discount_percent ?? 0),
+    minOrderValue: Number(row.min_order_amount ?? 0),
+    isActive: Boolean(row.is_active),
+    description: row.description || `${row.discount_percent || row.discount_value || 0}% off promotional discount`,
+    maxDiscount: row.max_discount != null ? Number(row.max_discount) : undefined,
+    usageLimit: row.usage_limit != null ? Number(row.usage_limit) : undefined,
+    usageCount: Number(row.usage_count || 0),
+    validFrom: row.valid_from ? new Date(row.valid_from).toISOString() : undefined,
+    validUntil: row.valid_until ? new Date(row.valid_until).toISOString() : undefined,
+  };
 }
 
 /**
@@ -1818,111 +1771,6 @@ export async function uploadHomeImageToSupabase(file: File, prefix = 'homepage')
     reader.onerror = (err) => reject(err);
     reader.readAsDataURL(file);
   });
-}
-
-/**
- * Fetch Home Middle Section items from Supabase
- */
-export async function getHomeMiddleSectionsFromSupabase(): Promise<HomeMiddleSection[]> {
-  if (!isSupabaseConfigured || !supabase) return [];
-  try {
-    const { data, error } = await supabase
-      .from('banners')
-      .select('*')
-      .eq('category', 'home-middle-section')
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      console.warn('Supabase getHomeMiddleSections error:', error);
-      return [];
-    }
-    if (!data || data.length === 0) return [];
-
-    return data.map((b: any) => {
-      let parsed: any = {};
-      try {
-        if (b.subtitle && b.subtitle.startsWith('{')) {
-          parsed = JSON.parse(b.subtitle);
-        }
-      } catch { }
-
-      return {
-        id: b.id,
-        tag: parsed.tag || b.cta_text || 'THE PURNYA STANDARD',
-        title: b.title || '',
-        description: parsed.description || b.subtitle || '',
-        imageUrl: b.image || '',
-        features: Array.isArray(parsed.features) ? parsed.features : [],
-        primaryButtonText: parsed.primaryButtonText || b.cta_text || 'SHOP COMPLETE CATALOG',
-        primaryButtonLink: b.cta_link || parsed.primaryButtonLink || '/catalog',
-        secondaryButtonText: parsed.secondaryButtonText || 'EXPLORE OTHER 4 WORLDS',
-        secondaryButtonLink: parsed.secondaryButtonLink || '/worlds',
-        isActive: b.is_active ?? true,
-      };
-    });
-  } catch (err) {
-    console.warn('Supabase getHomeMiddleSections exception:', err);
-    return [];
-  }
-}
-
-/**
- * Upsert Home Middle Section item to Supabase
- */
-export async function upsertHomeMiddleSectionToSupabase(item: HomeMiddleSection): Promise<{ success: boolean; error?: string }> {
-  if (!isSupabaseConfigured || !supabase) return { success: false, error: 'Supabase credentials not configured' };
-  try {
-    const subtitlePayload = JSON.stringify({
-      tag: item.tag,
-      description: item.description,
-      features: item.features,
-      primaryButtonText: item.primaryButtonText,
-      primaryButtonLink: item.primaryButtonLink,
-      secondaryButtonText: item.secondaryButtonText,
-      secondaryButtonLink: item.secondaryButtonLink,
-    });
-
-    const { error } = await supabase.from('banners').upsert(
-      {
-        id: item.id,
-        title: item.title,
-        subtitle: subtitlePayload,
-        category: 'home-middle-section',
-        image: item.imageUrl,
-        cta_text: item.primaryButtonText || item.tag,
-        cta_link: item.primaryButtonLink || '/catalog',
-        is_active: item.isActive,
-      },
-      { onConflict: 'id' }
-    );
-
-    if (error) {
-      console.warn('Supabase upsertHomeMiddleSection error:', error);
-      return { success: false, error: error.message };
-    }
-    return { success: true };
-  } catch (err: any) {
-    console.warn('Supabase upsertHomeMiddleSection exception:', err);
-    return { success: false, error: err?.message || 'Failed to save middle section' };
-  }
-}
-
-/**
- * Delete Home Middle Section item from Supabase
- */
-export async function deleteHomeMiddleSectionFromSupabase(id: string): Promise<boolean> {
-  if (!isSupabaseConfigured || !supabase) return false;
-  try {
-    const { error } = await supabase.from('banners').delete().eq('id', id);
-    if (error) {
-      console.warn('Supabase deleteHomeMiddleSection error:', error);
-      return false;
-    }
-    return true;
-  } catch (err) {
-    console.warn('Supabase deleteHomeMiddleSection exception:', err);
-    return false;
-  }
 }
 
 /**

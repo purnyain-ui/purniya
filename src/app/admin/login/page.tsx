@@ -8,7 +8,6 @@ import {
   Eye,
   EyeOff,
   ArrowRight,
-  KeyRound,
   CheckCircle2,
   AlertCircle,
 } from 'lucide-react';
@@ -16,55 +15,23 @@ import { useStore } from '../../../context/StoreContext';
 import { signInWithSupabase, isSupabaseConfigured, supabase } from '../../../lib/supabase';
 import {
   AdminSession,
-  AdminPermissionKey,
-  ALL_ADMIN_PERMISSIONS,
+  AdminUserRecord,
+  sessionFromAdminRecord,
   writeAdminSession,
   isAdminEmail,
 } from '../../../lib/adminPermissions';
 
 
-// Shape of a row in public.admin_users
-interface AdminUserRow {
-  id: string;
-  email: string;
-  full_name: string;
-  role: string | null;
-  is_active: boolean | null;
-  password: string | null;
-  permissions: string[] | null;
-}
-
-async function fetchAdminRecord(email: string): Promise<AdminUserRow | null> {
+async function fetchAdminRecord(email: string): Promise<AdminUserRecord | null> {
   if (!supabase) return null;
   const { data, error } = await supabase
     .from('admin_users')
-    .select('id, email, full_name, role, is_active, password, permissions')
+    .select('id, email, full_name, role, is_active, permissions')
     .eq('email', email.toLowerCase())
-    .single();
+    .maybeSingle();
 
   if (error || !data) return null;
-  return data as AdminUserRow;
-}
-
-function buildSession(
-  record: AdminUserRow,
-  authMethod: AdminSession['authMethod']
-): AdminSession {
-  const role = record.role || 'Sub Administrator';
-  const isSuper = role.trim().toLowerCase() === 'super administrator';
-  return {
-    id: record.id,
-    email: record.email,
-    fullName: record.full_name,
-    role,
-    permissions: isSuper
-      ? ALL_ADMIN_PERMISSIONS
-      : Array.isArray(record.permissions)
-      ? (record.permissions as unknown as AdminPermissionKey[])
-      : [],
-    loginTime: new Date().toISOString(),
-    authMethod,
-  };
+  return data as AdminUserRecord;
 }
 
 async function touchLastLogin(id: string) {
@@ -123,70 +90,30 @@ export default function AdminLoginPage() {
     setIsLoading(true);
     const email = adminEmail.trim();
 
-    // 1. Try Supabase Auth verification if configured
-    if (isSupabaseConfigured && email.includes('@')) {
-      const res = await signInWithSupabase(email, adminPassword);
-
-      if (res.success && res.user) {
-        // admin_users is the source of truth for role + permissions
-        const adminRecord = await fetchAdminRecord(email);
-
-        if (!adminRecord || !adminRecord.is_active) {
-          setIsLoading(false);
-          setErrorMsg('Access denied. This account does not have administrator privileges.');
-          return;
-        }
-
-        const session = buildSession(adminRecord, 'supabase');
-        await touchLastLogin(adminRecord.id);
-        setIsLoading(false);
-        completeLogin(session);
-        return;
-      }
-
-      // Supabase auth failed — show the actual error, unless we can fall back below
-      if (res.error && !isSupabaseConfigured === false) {
-        // fall through to local admin_users password check as a backup path
-      }
-    }
-
-    // 2. Fallback: direct admin_users lookup (Supabase not configured, or as a backup
-    //    for accounts that only exist in admin_users and not in Supabase Auth yet)
-    if (supabase) {
-      const adminRecord = await fetchAdminRecord(email);
-      if (adminRecord && adminRecord.is_active && adminRecord.password) {
-        const passwordMatches = adminRecord.password === adminPassword;
-        // NOTE: admin_users.password is compared in plaintext here to match the schema
-        // you shared. Storing/comparing plaintext passwords is not safe for production —
-        // hash them (e.g. bcrypt) and compare hashes instead. Flagging this for you to fix.
-        if (passwordMatches) {
-          const session = buildSession(adminRecord, 'local');
-          await touchLastLogin(adminRecord.id);
-          setIsLoading(false);
-          completeLogin(session);
-          return;
-        }
-      }
-    }
-
-    // 3. Preset dev credentials ONLY when Supabase is not configured at all
+    // Admins sign in with their Supabase Auth login; admin_users decides whether
+    // that login has admin access and with which permissions.
     if (!isSupabaseConfigured) {
-      const isPresetAdmin =
-        adminEmail.toLowerCase() === 'admin@purnya.com' && adminPassword === 'purnya2026';
+      setIsLoading(false);
+      setErrorMsg('Admin sign-in is unavailable: Supabase is not configured.');
+      return;
+    }
 
-      if (isPresetAdmin) {
-        const session: AdminSession = {
-          email: adminEmail.trim(),
-          fullName: 'Super Administrator',
-          role: 'Super Administrator',
-          permissions: ALL_ADMIN_PERMISSIONS,
-          loginTime: new Date().toISOString(),
-          authMethod: 'dev',
-        };
+    const res = await signInWithSupabase(email, adminPassword);
+
+    if (res.success && res.user) {
+      const adminRecord = await fetchAdminRecord(email);
+
+      if (!adminRecord || !adminRecord.is_active) {
         setIsLoading(false);
-        completeLogin(session);
+        setErrorMsg('Access denied. This account does not have administrator privileges.');
         return;
       }
+
+      const session = sessionFromAdminRecord(adminRecord, 'supabase');
+      await touchLastLogin(adminRecord.id);
+      setIsLoading(false);
+      completeLogin(session);
+      return;
     }
 
     setIsLoading(false);
@@ -321,23 +248,6 @@ export default function AdminLoginPage() {
               )}
             </button>
 
-            {/* Quick Access for Testing */}
-            <button
-              type="button"
-              onClick={() => {
-                setAdminEmail('admin@purnya.com');
-                setAdminPassword('purnya2026');
-                setTimeout(() => {
-                  const form = document.querySelector('form');
-                  if (form) form.requestSubmit();
-                }, 150);
-              }}
-              disabled={isLoading || isSuccess}
-              className="w-full py-2 px-4 rounded-xl bg-white/5 hover:bg-white/10 text-[#8BAAA0] hover:text-white text-[11px] font-semibold tracking-wide transition-all flex items-center justify-center gap-2 border border-white/10 hover:border-[#C5A059]/40 disabled:opacity-40 cursor-pointer"
-            >
-              <KeyRound className="w-3.5 h-3.5 text-[#C5A059]" />
-              <span>Quick Access · Dev Testing</span>
-            </button>
           </form>
         </div>
       </div>

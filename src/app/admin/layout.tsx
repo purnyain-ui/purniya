@@ -35,8 +35,9 @@ import {
   hasPermission,
   isSuperAdmin,
   permissionKeyForPath,
-  readAdminSession,
   clearAdminSession,
+  sessionFromAdminRecord,
+  writeAdminSession,
   getProductAccess,
   getInventoryAccess,
 } from '../../lib/adminPermissions';
@@ -106,31 +107,16 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    const localSession = readAdminSession();
-    const localFlag =
-      typeof window !== 'undefined' &&
-      localStorage.getItem('purnya_admin_authenticated') === 'true';
-
-    // Sessions created via the plaintext admin_users fallback or the dev
-    // "Quick Access" button never created a real Supabase Auth session, so
-    // verifyAdminSession() (which checks Supabase) will always report
-    // "not authenticated" for them a moment after login. Trust the locally
-    // stored session directly for those auth methods instead of calling it.
-    if (localFlag && localSession && localSession.authMethod !== 'supabase') {
-      setIsAuthenticated(true);
-      setAdminSession(localSession);
-      return;
-    }
-
     let isCancelled = false;
     verifyAdminSession().then((res) => {
       if (isCancelled) return;
-      if (res.authenticated) {
+      if (res.authenticated && res.record) {
+        // Role and permissions always come from admin_users, never from what
+        // the browser has stored. Pages that read the stored copy get this one.
+        const session = sessionFromAdminRecord(res.record, 'supabase');
+        writeAdminSession(session);
+        setAdminSession(session);
         setIsAuthenticated(true);
-        setAdminSession(readAdminSession());
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('purnya_admin_authenticated', 'true');
-        }
       } else {
         setIsAuthenticated(false);
         clearAdminSession();
@@ -294,7 +280,6 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
 
   const homeSubItems = [
     { name: 'Festival Banner', href: '/admin/home/festival-banner' },
-    { name: 'Middle Section', href: '/admin/home/middle-section' },
   ];
 
   // Products Catalog and Inventory & Stock are pulled out of the flat list

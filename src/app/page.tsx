@@ -10,8 +10,6 @@ import {
   ShieldCheck,
   RotateCcw,
   Headphones,
-  CheckCircle2,
-  ArrowUpRight,
   Gem,
   Flame,
   Home,
@@ -23,30 +21,7 @@ import {
 } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import { getSubcategoryImage } from '../data/mockData';
-import { HomeMiddleSection } from '../types';
-import { getHomeMiddleSectionsFromSupabase } from '../lib/supabase';
 import ProductCard from '../components/ProductCard';
-
-const defaultMiddleFallback: HomeMiddleSection = {
-  id: 'homepage-middle-standard',
-  tag: 'THE PURNYA STANDARD',
-  title: 'Artisanal Metallurgy & Anti-Tarnish Elegance',
-  description: 'Every piece of Purnya Jewellery is cast from premium hypoallergenic alloys, finished with lustrous 18K micro-gold plating and sealed with an invisible protective nano-ceramic barrier to guard against moisture, perfume, and daily wear.',
-  imageUrl: 'https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?w=1000&fit=crop&auto=format',
-  features: [
-    'Skin-Safe Hypoallergenic & Nickel Free',
-    'Anti-Tarnish Protective Ceramic Seal',
-    'Ethically Sourced Genuine Freshwater Pearls',
-    'Hand-Set AAA Cubic Zirconia & Gemstones'
-  ],
-  primaryButtonText: 'SHOP COMPLETE CATALOG',
-  primaryButtonLink: '/catalog',
-  secondaryButtonText: 'EXPLORE OTHER 4 WORLDS',
-  secondaryButtonLink: '/worlds',
-  isActive: true,
-};
-
-
 
 function getCategoryIcon(cat: { slug?: string; title?: string }) {
   const s = `${cat.slug || ''} ${cat.title || ''}`.toLowerCase();
@@ -103,28 +78,7 @@ export default function HomePage() {
     preference.addEventListener('change', update);
     return () => preference.removeEventListener('change', update);
   }, []);
-  const [middleSection, setMiddleSection] = useState<HomeMiddleSection | null>(null);
   const catRowRefs = useRef<Record<string, HTMLDivElement | null>>({});
-
-  useEffect(() => {
-    let isMounted = true;
-    async function loadSections() {
-      try {
-        const mid = await getHomeMiddleSectionsFromSupabase();
-        if (!isMounted) return;
-        const activeMid = mid.find((m) => m.isActive) || mid[0] || null;
-        if (activeMid) setMiddleSection(activeMid);
-      } catch (err) {
-        console.warn('Error fetching dynamic sections from Supabase:', err);
-      }
-    }
-    loadSections();
-    return () => {
-      isMounted = false;
-    };
-  }, []);
-
-  const activeMiddle = middleSection || defaultMiddleFallback;
 
   const activeBanners = [...banners]
     .filter((b) => b.active)
@@ -603,70 +557,6 @@ export default function HomePage() {
                 </h4>
                 <p className="text-xs text-[#2C4A3E]">Direct customer care +91 7892297609</p>
               </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* 4. EDITORIAL BRAND STORY / MIDDLE SECTION */}
-      <section className="w-full px-2 sm:px-3">
-        <div className="relative rounded-3xl overflow-hidden bg-[#0C3B2E] text-[#FAF8F5] p-6 sm:p-10 lg:p-12 shadow-2xl">
-          <div data-motion-stagger className="grid grid-cols-1 lg:grid-cols-[1.3fr_1fr] gap-8 lg:gap-12 items-center">
-            <div className="space-y-5">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 text-[#D4AF37] text-[10px] font-bold tracking-widest uppercase border border-[#D4AF37]/30">
-                {activeMiddle.tag || 'The Purnya Philosophy'}
-              </div>
-              <h2 data-motion className="font-serif-title text-3xl sm:text-4xl font-bold leading-tight">
-                {activeMiddle.title}
-              </h2>
-              <p className="text-sm text-[#B4C9BF] leading-relaxed">
-                {activeMiddle.description}
-              </p>
-
-              {activeMiddle.features && activeMiddle.features.length > 0 && (
-                <div data-motion-stagger className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
-                  {activeMiddle.features.map((feat, idx) => (
-                    <div key={idx} className="p-3 rounded-xl bg-white/5 border border-white/10 flex items-center gap-2">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-[#D4AF37] shrink-0" />
-                      <span className="text-[11px] sm:text-xs text-[#FAF8F5]">{feat}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              <div className="flex flex-wrap items-center gap-3 pt-2">
-                <Link
-                  href={activeMiddle.primaryButtonLink || '/catalog'}
-                  className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-gradient-to-r from-[#D4AF37] to-[#C5A059] text-[#08281F] font-bold text-[11px] uppercase tracking-widest transition-all shadow-lg hover:scale-105"
-                >
-                  <span>{activeMiddle.primaryButtonText || 'Shop Complete Catalog'}</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </Link>
-                {activeMiddle.secondaryButtonText && (
-                  <Link
-                    href={activeMiddle.secondaryButtonLink || '/worlds'}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 px-5 py-3 rounded-full border border-white/30 text-white font-semibold text-[11px] uppercase tracking-widest hover:bg-white/10 transition-all"
-                  >
-                    <span>{activeMiddle.secondaryButtonText}</span>
-                    <ArrowUpRight className="w-3.5 h-3.5 text-[#D4AF37]" />
-                  </Link>
-                )}
-              </div>
-            </div>
-
-            <div className="relative aspect-[4/3] rounded-2xl overflow-hidden shadow-2xl border border-white/15 bg-[#071a13]">
-              <img
-                loading="lazy"
-                decoding="async"
-                src={activeMiddle.imageUrl || 'https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?w=1000&fit=crop&auto=format'}
-                alt={activeMiddle.title}
-                onError={(e) => {
-                  e.currentTarget.src = 'https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?w=1000&fit=crop&auto=format';
-                }}
-                className="w-full h-full object-cover"
-              />
             </div>
           </div>
         </div>

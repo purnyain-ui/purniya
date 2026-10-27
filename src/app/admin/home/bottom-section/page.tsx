@@ -7,7 +7,7 @@ export default function AdminBottomSectionPage() {
   const router = useRouter();
 
   useEffect(() => {
-    router.replace('/admin/home/middle-section');
+    router.replace('/admin/home/festival-banner');
   }, [router]);
 
   return (

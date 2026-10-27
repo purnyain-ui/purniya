@@ -24,13 +24,29 @@ interface SubAdmin {
   full_name: string;
   email: string;
   role: string;
-  password?: string;
   permissions: string[];
   is_active: boolean;
   created_at: string;
 }
 
 type CategoryLite = { id: string; slug: string; title: string };
+
+// All admin_users reads and writes go through /api/admin/users, which checks
+// on the server that the caller is an admin allowed to manage admins.
+async function callAdminUsersApi(method: string, init: { body?: unknown; query?: string } = {}) {
+  const { data: { session } } = await supabase.auth.getSession();
+  const res = await fetch(`/api/admin/users${init.query ?? ''}`, {
+    method,
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${session?.access_token ?? ''}`,
+    },
+    body: init.body === undefined ? undefined : JSON.stringify(init.body),
+  });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok || !json.success) throw new Error(json.error || `Request failed (${res.status})`);
+  return json;
+}
 
 // Tabs that are NOT split by category. Products Catalog and Inventory &
 // Stock are configured separately with dedicated category access controls.
@@ -71,17 +87,12 @@ export default function AdminManagementPage() {
     'products',
   ]);
 
-  // Fetch SubAdmins from Supabase table on load
+  // Fetch SubAdmins on load
   const fetchSubAdmins = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('admin_users')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setSubAdmins(data || []);
+      const { admins } = await callAdminUsersApi('GET');
+      setSubAdmins(admins || []);
     } catch (err: any) {
       console.error('Error fetching admin users:', err.message);
       showNotificationMsg('Failed to load subadmins from database.');
@@ -284,60 +295,28 @@ export default function AdminManagementPage() {
 
     setSaving(true);
     try {
-      if (editingId) {
-        // UPDATE record in Supabase
-        const updatePayload: any = {
-          full_name: name,
-          email,
-          role,
-          permissions: selectedPermissions,
-        };
-        if (password.trim()) {
-          updatePayload.password = password;
-        }
+      const payload = {
+        full_name: name,
+        email,
+        role,
+        permissions: selectedPermissions,
+        ...(password.trim() ? { password } : {}),
+      };
+      // The server also creates or updates their Supabase login.
+      const result = editingId
+        ? await callAdminUsersApi('PATCH', { body: { id: editingId, ...payload } })
+        : await callAdminUsersApi('POST', { body: payload });
 
-        const { data, error } = await supabase
-          .from('admin_users')
-          .update(updatePayload)
-          .eq('id', editingId)
-          .select();
-
-        if (error) throw error;
-
-        if (!data || data.length === 0) {
-          throw new Error(
-            'No matching subadmin record was found to update (id may be stale — refresh and try again).'
-          );
-        }
-
-        showNotificationMsg('Subadmin account successfully updated!');
-      } else {
-        // INSERT new record into Supabase
-        const newPayload = {
-          full_name: name,
-          email,
-          role,
-          password,
-          permissions: selectedPermissions,
-          is_active: true,
-        };
-
-        const { error } = await supabase.from('admin_users').insert([newPayload]);
-
-        if (error) throw error;
-        showNotificationMsg('New subadmin account created successfully!');
-      }
+      const done = editingId
+        ? 'Subadmin account successfully updated!'
+        : 'New subadmin account created successfully!';
+      showNotificationMsg(result.note ? `${done} ${result.note}` : done);
 
       setIsModalOpen(false);
       fetchSubAdmins();
     } catch (err: any) {
-      console.error('Database save error:', err.message);
-
-      if (err.code === '23505' || (err.message || '').includes('admin_users_email_key')) {
-        showNotificationMsg('That email is already used by another subadmin. Use a different email.');
-      } else {
-        showNotificationMsg(`Error: ${err.message}`);
-      }
+      console.error('Admin save error:', err.message);
+      showNotificationMsg(`Error: ${err.message}`);
     } finally {
       setSaving(false);
     }
@@ -346,8 +325,7 @@ export default function AdminManagementPage() {
   const deleteSubAdmin = async (id: string) => {
     if (confirm('Are you sure you want to revoke access and delete this subadmin from the database?')) {
       try {
-        const { error } = await supabase.from('admin_users').delete().eq('id', id);
-        if (error) throw error;
+        await callAdminUsersApi('DELETE', { query: `?id=${encodeURIComponent(id)}` });
 
         showNotificationMsg('Subadmin removed successfully.');
         fetchSubAdmins();
@@ -686,9 +664,10 @@ export default function AdminManagementPage() {
                 <input
                   type="password"
                   {...(!editingId ? { required: true } : {})}
+                  minLength={8}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
+                  placeholder="At least 8 characters"
                   className="w-full p-3 rounded-xl border border-[#E2DBD0] font-bold text-[#0B241C] bg-white focus:outline-none focus:border-[#C5A059]"
                 />
               </div>

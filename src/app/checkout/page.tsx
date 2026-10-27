@@ -17,6 +17,7 @@ import {
   getOrdersForCustomerFromSupabase,
   getAddressesFromSupabase,
 } from '../../lib/supabase';
+import { getCouponDiscount, sameAmount } from '../../lib/pricing';
 import type { Address, Order } from '../../types';
 
 declare global {
@@ -92,6 +93,8 @@ export default function CheckoutPage() {
     cartShipping,
     cartTotal,
     appliedCoupon,
+    removeCoupon,
+    syncCartPrices,
     user,
     isAuthLoading,
     placeOrder,
@@ -410,12 +413,41 @@ export default function CheckoutPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          amount: cartTotal,
+          items: cart.map((item) => ({
+            productId: item.product.id,
+            quantity: item.quantity,
+            variant: item.selectedVariant,
+          })),
+          couponCode: appliedCoupon?.code,
+          expectedTotal: cartTotal,
           receipt: `purnya_${Date.now()}`,
         }),
       });
 
       const orderData = await orderRes.json();
+
+      // The server prices the bag itself. If that differs from what's shown,
+      // update the bag and let the customer confirm the new total first.
+      if (orderData.priceChanged && orderData.pricing) {
+        const { pricing } = orderData;
+        syncCartPrices(pricing.unitPrices);
+        // Drop the coupon if it no longer applies, or if the copy held in the
+        // browser is out of date and would still give a different discount.
+        const couponStale =
+          appliedCoupon &&
+          (pricing.couponError ||
+            !sameAmount(getCouponDiscount(appliedCoupon, pricing.subtotal), pricing.discount));
+        if (couponStale) removeCoupon();
+        setPaymentError(
+          !couponStale
+            ? 'Some prices in your bag have changed. Please review your updated total and place the order again.'
+            : pricing.couponError
+            ? `Coupon ${appliedCoupon.code} could not be applied: ${pricing.couponError} Please review your updated total and place the order again.`
+            : `Coupon ${appliedCoupon.code} has changed and was removed. Please apply it again, then place the order.`
+        );
+        stopProcessing();
+        return;
+      }
 
       if (!orderRes.ok || !orderData.success) {
         throw new Error(
