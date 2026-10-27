@@ -352,41 +352,27 @@ export async function getCategoriesFromSupabase(): Promise<CategoryMeta[] | null
 }
 
 /**
- * Save new order to Supabase
+ * Shape an order as a row of the orders table. Orders are inserted by the
+ * server (lib/orderServer.ts) once payment is confirmed, never by the browser.
  */
-export async function saveOrderToSupabase(order: Order): Promise<boolean> {
-  if (!isSupabaseConfigured) return false;
-  try {
-    const { error } = await supabase.from('orders').insert([
-      {
-        id: order.id,
-        customer_name: order.customer.name,
-        customer_email: order.customer.email,
-        customer_phone: order.customer.phone,
-        total: order.total,
-        status: order.status,
-        tracking_number: order.trackingNumber,
-        courier: order.courierPartner || 'BlueDart Express',
-        items: order.items,
-        shipping_address: order.shippingAddress,
-        payment_method: order.paymentMethod,
-        razorpay_order_id: order.razorpayOrderId || null,
-        razorpay_payment_id: order.razorpayPaymentId || null,
-        razorpay_signature: order.razorpaySignature || null,
-        payment_status: order.paymentStatus || (order.razorpayPaymentId ? 'paid' : (order.paymentMethod === 'Cash on Delivery' ? 'cod' : 'pending')),
-        created_at: order.date,
-      },
-    ]);
-
-    if (error) {
-      console.warn('Supabase order insert error (will use local store):', error.message);
-      return false;
-    }
-    return true;
-  } catch (err) {
-    console.warn('Supabase saveOrder exception:', err);
-    return false;
-  }
+export function orderToRow(order: Order) {
+  return {
+    id: order.id,
+    customer_name: order.customer.name,
+    customer_email: order.customer.email,
+    customer_phone: order.customer.phone,
+    total: order.total,
+    status: order.status,
+    tracking_number: order.trackingNumber,
+    courier: order.courierPartner || 'BlueDart Express',
+    items: order.items,
+    shipping_address: order.shippingAddress,
+    payment_method: order.paymentMethod,
+    razorpay_order_id: order.razorpayOrderId || null,
+    razorpay_payment_id: order.razorpayPaymentId || null,
+    razorpay_signature: order.razorpaySignature || null,
+    payment_status: order.paymentStatus || (order.razorpayPaymentId ? 'paid' : (order.paymentMethod === 'Cash on Delivery' ? 'cod' : 'pending')),
+  };
 }
 
 /**
@@ -1284,29 +1270,7 @@ export async function getOrdersForCustomerFromSupabase(userEmail: string): Promi
       return [];
     }
 
-    return (data || []).map((row: any) => ({
-      id: row.id,
-      date: row.created_at ? new Date(row.created_at).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
-      status: row.status || 'New',
-      items: row.items || [],
-      subtotal: row.total || 0,
-      discount: 0,
-      shipping: 0,
-      total: row.total || 0,
-      customer: {
-        name: row.customer_name || 'Patron',
-        email: row.customer_email || userEmail,
-        phone: row.customer_phone || '',
-      },
-      shippingAddress: row.shipping_address || {},
-      paymentMethod: row.payment_method || 'Razorpay',
-      razorpayOrderId: row.razorpay_order_id || undefined,
-      razorpayPaymentId: row.razorpay_payment_id || undefined,
-      razorpaySignature: row.razorpay_signature || undefined,
-      paymentStatus: row.payment_status || (row.razorpay_payment_id ? 'paid' : (row.payment_method === 'Cash on Delivery' ? 'cod' : 'pending')),
-      trackingNumber: row.tracking_number,
-      courierPartner: row.courier || 'BlueDart Express',
-    }));
+    return (data || []).map(mapOrderRow);
   } catch (err) {
     console.warn('Supabase getOrdersForCustomer exception:', err);
     return [];
@@ -1552,7 +1516,8 @@ export async function getCustomersAndPatronsFromSupabase(): Promise<CustomerReco
 }
 
 /**
- * Fetch all orders across all customers from Supabase (for Admin)
+ * Fetch the orders the signed-in visitor may see. Row-level security decides:
+ * admins get every order, customers only their own, guests none.
  */
 export async function getAllOrdersFromSupabase(): Promise<Order[]> {
   if (!isSupabaseConfigured || !supabase) return [];
@@ -1567,33 +1532,37 @@ export async function getAllOrdersFromSupabase(): Promise<Order[]> {
       return [];
     }
 
-    return (data || []).map((row: any) => ({
-      id: row.id,
-      date: row.created_at ? new Date(row.created_at).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
-      status: row.status || 'New',
-      items: row.items || [],
-      subtotal: row.total || 0,
-      discount: 0,
-      shipping: 0,
-      total: Number(row.total) || 0,
-      customer: {
-        name: row.customer_name || 'Patron',
-        email: row.customer_email || '',
-        phone: row.customer_phone || '',
-      },
-      shippingAddress: row.shipping_address || {},
-      paymentMethod: row.payment_method || 'Razorpay',
-      razorpayOrderId: row.razorpay_order_id || undefined,
-      razorpayPaymentId: row.razorpay_payment_id || undefined,
-      razorpaySignature: row.razorpay_signature || undefined,
-      paymentStatus: row.payment_status || (row.razorpay_payment_id ? 'paid' : (row.payment_method === 'Cash on Delivery' ? 'cod' : 'pending')),
-      trackingNumber: row.tracking_number,
-      courierPartner: row.courier || 'BlueDart Express',
-    }));
+    return (data || []).map(mapOrderRow);
   } catch (err) {
     console.warn('Supabase getAllOrders exception:', err);
     return [];
   }
+}
+
+export function mapOrderRow(row: any): Order {
+  return {
+    id: row.id,
+    date: row.created_at ? new Date(row.created_at).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+    status: row.status || 'New',
+    items: row.items || [],
+    subtotal: row.total || 0,
+    discount: 0,
+    shipping: 0,
+    total: Number(row.total) || 0,
+    customer: {
+      name: row.customer_name || 'Patron',
+      email: row.customer_email || '',
+      phone: row.customer_phone || '',
+    },
+    shippingAddress: row.shipping_address || {},
+    paymentMethod: row.payment_method || 'Razorpay',
+    razorpayOrderId: row.razorpay_order_id || undefined,
+    razorpayPaymentId: row.razorpay_payment_id || undefined,
+    razorpaySignature: row.razorpay_signature || undefined,
+    paymentStatus: row.payment_status || (row.razorpay_payment_id ? 'paid' : (row.payment_method === 'Cash on Delivery' ? 'cod' : 'pending')),
+    trackingNumber: row.tracking_number,
+    courierPartner: row.courier || 'BlueDart Express',
+  };
 }
 
 /**
@@ -2152,14 +2121,14 @@ export async function updateCustomerProfile(params: {
       }
     }
 
-    // 3. If email changed, migrate customer's cloud records (cart, wishlist, addresses, orders)
+    // 3. If email changed, migrate customer's cloud records (cart, wishlist, addresses).
+    //    Orders stay linked through their user_id and can only be changed by the server.
     if (cleanOldEmail && cleanEmail && cleanOldEmail !== cleanEmail) {
       try {
         await Promise.allSettled([
           supabase.from('user_carts').update({ user_email: cleanEmail }).eq('user_email', cleanOldEmail),
           supabase.from('user_wishlists').update({ user_email: cleanEmail }).eq('user_email', cleanOldEmail),
           supabase.from('addresses').update({ user_email: cleanEmail }).eq('user_email', cleanOldEmail),
-          supabase.from('orders').update({ customer_email: cleanEmail }).eq('customer_email', cleanOldEmail),
         ]);
       } catch (migErr) {
         console.warn('Supabase patron email migration error:', migErr);

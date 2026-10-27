@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 import Razorpay from 'razorpay';
+import { finalizePaidOrder, humanizeMethod } from '../../../../lib/orderServer';
 
 function getRazorpay() {
   const key_id = process.env.RAZORPAY_KEY_ID || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
@@ -9,24 +10,6 @@ function getRazorpay() {
     throw new Error('Razorpay API keys are not configured.');
   }
   return new Razorpay({ key_id, key_secret });
-}
-
-// Turns Razorpay's internal method codes into a friendly label for storage/display.
-function humanizeMethod(method?: string): string {
-  switch (method) {
-    case 'upi':
-      return 'UPI';
-    case 'card':
-      return 'Card';
-    case 'netbanking':
-      return 'Netbanking';
-    case 'wallet':
-      return 'Wallet';
-    case 'emi':
-      return 'EMI';
-    default:
-      return 'Razorpay';
-  }
 }
 
 export async function POST(req: NextRequest) {
@@ -69,10 +52,22 @@ export async function POST(req: NextRequest) {
       console.warn('Could not fetch payment method detail:', fetchErr);
     }
 
-    return NextResponse.json({
-      success: true,
+    // Create the order on the server (or get it back if this payment was already processed).
+    const order = await finalizePaidOrder({
+      razorpayOrderId: razorpay_order_id,
+      razorpayPaymentId: razorpay_payment_id,
+      razorpaySignature: razorpay_signature,
       paymentMethod: humanizeMethod(method),
     });
+
+    if (!order) {
+      return NextResponse.json(
+        { success: false, error: 'Payment received, but the order could not be found.' },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({ success: true, order });
   } catch (err: any) {
     console.error('Razorpay verify-payment error:', err);
     return NextResponse.json(

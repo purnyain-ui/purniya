@@ -29,7 +29,6 @@ import {
   isSupabaseConfigured,
   getProductsFromSupabase,
   getCategoriesFromSupabase,
-  saveOrderToSupabase,
   updateOrderInSupabase,
   seedCatalogToSupabase,
   upsertProductToSupabase,
@@ -45,7 +44,6 @@ import {
   saveAddressToSupabase,
   updateAddressInSupabase,
   deleteAddressFromSupabase,
-  getOrdersForCustomerFromSupabase,
   getAllOrdersFromSupabase,
   getCouponsFromSupabase,
   saveCouponToSupabase,
@@ -127,14 +125,7 @@ interface StoreContextType {
   applyCoupon: (code: string) => { success: boolean; message: string };
   removeCoupon: () => void;
   syncCartPrices: (unitPrices: Record<string, number>) => void;
-  placeOrder: (details: {
-    customer: { name: string; email: string; phone: string };
-    shippingAddress: Address;
-    paymentMethod: Order['paymentMethod'];
-    razorpayOrderId?: string;
-    razorpayPaymentId?: string;
-    razorpaySignature?: string;
-  }) => Order;
+  recordPlacedOrder: (order: Order) => void;
 
   // Calculations
   cartSubtotal: number;
@@ -245,6 +236,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [cart, setCart] = useState<CartItem[]>([]);
   const [wishlist, setWishlist] = useState<Product[]>([]);
   const [orders, setOrders] = useState<Order[]>(initialOrders);
+
+  // Orders come only from the database. Row-level security decides what this
+  // visitor may see: admins every order, customers their own, guests none.
+  const loadOrders = () => {
+    getAllOrdersFromSupabase().then(dbOrders => setOrders(dbOrders));
+  };
   const [coupons, setCoupons] = useState<Coupon[]>(initialCoupons);
   const [banners, setBanners] = useState<HeroSlide[]>(() => isSupabaseConfigured ? [] : orderBanners(initialHeroSlides));
   const pathname = usePathname();
@@ -367,29 +364,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
     });
 
-    // Fetch all store orders from Supabase immediately on mount
-    getAllOrdersFromSupabase().then((dbOrders) => {
-      if (dbOrders && dbOrders.length > 0) {
-        setOrders(prev => {
-          const dbIds = new Set(dbOrders.map(o => o.id));
-          const localOnly = prev.filter(o => !dbIds.has(o.id));
-          const merged = [...dbOrders, ...localOnly].map(ord => {
-            const existing = prev.find(p => p.id === ord.id);
-            return {
-              ...ord,
-              razorpayPaymentId: ord.razorpayPaymentId || existing?.razorpayPaymentId,
-              razorpayOrderId: ord.razorpayOrderId || existing?.razorpayOrderId,
-              razorpaySignature: ord.razorpaySignature || existing?.razorpaySignature,
-              paymentStatus: ord.paymentStatus || existing?.paymentStatus,
-            };
-          });
-          try {
-            localStorage.setItem('purnya_orders', JSON.stringify(merged));
-          } catch { }
-          return merged;
-        });
-      }
-    });
+    loadOrders();
 
     checkSupabaseConnection().then((status) => {
       setSupabaseStatus(status);
@@ -455,6 +430,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 }
               }
             } catch { }
+            loadOrders();
             setIsAuthLoading(false);
             return;
           }
@@ -483,29 +459,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             }
           });
 
-          // Fetch customer cloud orders
-          getOrdersForCustomerFromSupabase(currentEmail).then((cloudOrders) => {
-            if (cloudOrders && cloudOrders.length > 0) {
-              setOrders(prev => {
-                const dbIds = new Set(cloudOrders.map(o => o.id));
-                const localOnly = prev.filter(o => !dbIds.has(o.id));
-                const merged = [...cloudOrders, ...localOnly].map(ord => {
-                  const existing = prev.find(p => p.id === ord.id);
-                  return {
-                    ...ord,
-                    razorpayPaymentId: ord.razorpayPaymentId || existing?.razorpayPaymentId,
-                    razorpayOrderId: ord.razorpayOrderId || existing?.razorpayOrderId,
-                    razorpaySignature: ord.razorpaySignature || existing?.razorpaySignature,
-                    paymentStatus: ord.paymentStatus || existing?.paymentStatus,
-                  };
-                });
-                try {
-                  localStorage.setItem('purnya_orders', JSON.stringify(merged));
-                } catch { }
-                return merged;
-              });
-            }
-          });
+          loadOrders();
         }
         setIsAuthLoading(false);
       }).catch(() => {
@@ -530,6 +484,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 }
               }
             } catch { }
+            loadOrders();
             setIsAuthLoading(false);
             return;
           }
@@ -557,31 +512,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             } catch { }
           }
 
-          const cloudOrders = await getOrdersForCustomerFromSupabase(currentEmail);
-          if (cloudOrders && cloudOrders.length > 0) {
-            setOrders(prev => {
-              const dbIds = new Set(cloudOrders.map(o => o.id));
-              const localOnly = prev.filter(o => !dbIds.has(o.id));
-              const merged = [...cloudOrders, ...localOnly].map(ord => {
-                const existing = prev.find(p => p.id === ord.id);
-                return {
-                  ...ord,
-                  razorpayPaymentId: ord.razorpayPaymentId || existing?.razorpayPaymentId,
-                  razorpayOrderId: ord.razorpayOrderId || existing?.razorpayOrderId,
-                  razorpaySignature: ord.razorpaySignature || existing?.razorpaySignature,
-                  paymentStatus: ord.paymentStatus || existing?.paymentStatus,
-                };
-              });
-              try {
-                localStorage.setItem('purnya_orders', JSON.stringify(merged));
-              } catch { }
-              return merged;
-            });
-          }
+          loadOrders();
         } else if (event === 'SIGNED_OUT') {
           // If customer signed out (and not an active admin session), clear storefront patron
           if (!readAdminSession()) {
             setUser({ id: undefined, name: '', email: '', phone: '' });
+            setOrders([]);
             try {
               localStorage.removeItem('purnya_user');
               localStorage.removeItem('purnya_addresses');
@@ -679,10 +615,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         try { setWishlist(JSON.parse(savedWishlist)); } catch { }
       }
 
-      const savedOrders = localStorage.getItem('purnya_orders');
-      if (savedOrders) {
-        try { setOrders(JSON.parse(savedOrders)); } catch { }
-      }
+      // Orders are no longer cached in the browser; drop any old copy.
+      localStorage.removeItem('purnya_orders');
 
       const savedAddresses = localStorage.getItem('purnya_addresses');
       if (savedAddresses) {
@@ -743,7 +677,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       try {
         if (e.key === 'purnya_cart') setCart(JSON.parse(e.newValue));
         if (e.key === 'purnya_wishlist') setWishlist(JSON.parse(e.newValue));
-        if (e.key === 'purnya_orders') setOrders(JSON.parse(e.newValue));
         if (e.key === 'purnya_user') setUser(JSON.parse(e.newValue));
         if (e.key === 'purnya_addresses') setAddresses(JSON.parse(e.newValue));
         if (e.key === 'purnya_products') setProducts(JSON.parse(e.newValue));
@@ -799,7 +732,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     safeSaveToLocalStorage('purnya_categories', categories);
     safeSaveToLocalStorage('purnya_cart', cart);
     safeSaveToLocalStorage('purnya_wishlist', wishlist);
-    safeSaveToLocalStorage('purnya_orders', orders);
     safeSaveToLocalStorage('purnya_coupons', coupons);
     if (isAdminPage && bannersLoaded && !bannersError) safeSaveToLocalStorage('purnya_banners', banners);
     safeSaveToLocalStorage('purnya_announcement', announcement);
@@ -941,107 +873,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     );
   };
 
-  // Place Order
-  const placeOrder = (details: {
-    customer: { name: string; email: string; phone: string };
-    shippingAddress: Address;
-    paymentMethod: Order['paymentMethod'];
-    razorpayOrderId?: string;
-    razorpayPaymentId?: string;
-    razorpaySignature?: string;
-  }): Order => {
-    const randomSuffix = Math.floor(1000 + Math.random() * 9000);
-    const newOrderId = `PUR-2026-${randomSuffix}`;
-    const today = new Date().toLocaleDateString('en-GB', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-    });
-
-    const orderItems = cart.map(c => ({
-      id: c.product.id,
-      name: c.product.name,
-      price: c.product.price,
-      quantity: c.quantity,
-      image: c.product.image,
-      category: c.product.category,
-      variant: c.selectedVariant ? Object.values(c.selectedVariant).join(', ') : undefined,
-    }));
-
-    const newOrder: Order = {
-      id: newOrderId,
-      date: today,
-      status: 'New',
-      items: orderItems,
-      subtotal: cartSubtotal,
-      discount: cartDiscount,
-      couponCode: appliedCoupon?.code,
-      shipping: cartShipping,
-      total: cartTotal,
-      customer: details.customer,
-      shippingAddress: details.shippingAddress,
-      paymentMethod: details.paymentMethod,
-      razorpayOrderId: details.razorpayOrderId,
-      razorpayPaymentId: details.razorpayPaymentId,
-      razorpaySignature: details.razorpaySignature,
-      paymentStatus: details.razorpayPaymentId ? 'paid' : 'pending',
-      trackingNumber: `BD-${randomSuffix}992IN`,
-      courierPartner: 'BlueDart Express',
-      estimatedDelivery: '3 - 5 Business Days',
-      trackingHistory: [
-        {
-          status: 'Order Placed & Confirmed',
-          time: `${today}, Just Now`,
-          location: 'Purnya.in Online Platform',
-          completed: true,
-        },
-        {
-          status: 'Order Verified & Preparing for Dispatch',
-          time: 'Upcoming',
-          location: 'Purnya Central Warehouse',
-          completed: false,
-        },
-        {
-          status: 'Dispatched with Courier',
-          time: 'Upcoming',
-          location: 'Bengaluru Logistics Hub',
-          completed: false,
-        },
-        {
-          status: 'Delivered',
-          time: 'Upcoming',
-          location: 'Customer Address',
-          completed: false,
-        },
-      ],
-    };
-
-    setOrders(prev => [newOrder, ...prev]);
-
-    // Increment coupon usage count
-    if (appliedCoupon) {
-      setCoupons(prev =>
-        prev.map(c => {
-          if (c.code === appliedCoupon.code) {
-            const nextCount = (c.usageCount || 0) + 1;
-            const updated = { ...c, usageCount: nextCount };
-            saveCouponToSupabase(updated).catch(() => { });
-            return updated;
-          }
-          return c;
-        })
-      );
-    }
-
+  // The server creates the order once payment is confirmed (lib/orderServer.ts);
+  // here we only show it and empty the bag.
+  const recordPlacedOrder = (order: Order) => {
+    setOrders(prev => [order, ...prev.filter(o => o.id !== order.id)]);
     clearCart();
-    showToast('Order Placed!', `Your Order #${newOrderId} has been confirmed.`, 'success');
-
-    // Sync order to Supabase cloud in background
-    saveOrderToSupabase(newOrder).catch(err =>
-      console.warn('Supabase saveOrder background sync:', err)
-    );
-
-    return newOrder;
+    showToast('Order Placed!', `Your Order #${order.id} has been confirmed.`, 'success');
   };
 
   // Admin Product Actions
@@ -1449,19 +1286,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           } catch { }
         }
       });
-      getOrdersForCustomerFromSupabase(profile.email).then((cloudOrders) => {
-        if (cloudOrders && cloudOrders.length > 0) {
-          setOrders(prev => {
-            const dbIds = new Set(cloudOrders.map(o => o.id));
-            const localOnly = prev.filter(o => !dbIds.has(o.id));
-            const merged = [...cloudOrders, ...localOnly];
-            try {
-              localStorage.setItem('purnya_orders', JSON.stringify(merged));
-            } catch { }
-            return merged;
-          });
-        }
-      });
+      loadOrders();
     }
     showToast('Welcome to Purnya', `Signed in as ${profile.name || profile.email}`);
   };
@@ -1495,7 +1320,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     showToast('Address Saved', 'New delivery address added.');
 
     if (user?.email) {
-      saveAddressToSupabase(newAddr, user.email).catch(err =>
+      saveAddressToSupabase(newAddr, user.email, user.id).catch(err =>
         console.warn('Supabase saveAddress error:', err)
       );
     }
@@ -1585,7 +1410,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         applyCoupon,
         removeCoupon,
         syncCartPrices,
-        placeOrder,
+        recordPlacedOrder,
         cartSubtotal,
         cartDiscount,
         cartShipping,

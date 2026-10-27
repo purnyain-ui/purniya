@@ -19,9 +19,18 @@ export interface CartLineInput {
   variant?: Record<string, string>;
 }
 
+export interface PricedLine {
+  productId: string;
+  name: string;
+  unitPrice: number;
+  quantity: number;
+  variant?: Record<string, string>;
+}
+
 export interface PricedCart {
   /** Unit price per product id, as the server will charge it. */
   unitPrices: Record<string, number>;
+  lines: PricedLine[];
   subtotal: number;
   discount: number;
   shipping: number;
@@ -56,8 +65,14 @@ function parseLines(raw: unknown): CartLineInput[] {
     if (!Number.isInteger(quantity) || quantity < 1 || quantity > MAX_QTY_PER_LINE) {
       throw new PricingError(`Quantity must be between 1 and ${MAX_QTY_PER_LINE}.`);
     }
-    const variant =
-      line.variant && typeof line.variant === 'object' ? (line.variant as Record<string, string>) : undefined;
+    // Variant labels end up on the saved order, so keep only short text pairs.
+    const variantEntries =
+      line.variant && typeof line.variant === 'object'
+        ? Object.entries(line.variant)
+            .filter(([k, v]) => typeof v === 'string' && k.length <= 40 && (v as string).length <= 80)
+            .slice(0, 5)
+        : [];
+    const variant = variantEntries.length > 0 ? (Object.fromEntries(variantEntries) as Record<string, string>) : undefined;
     return { productId: line.productId, quantity, variant };
   });
 }
@@ -101,6 +116,7 @@ export async function priceCart(rawLines: unknown, couponCode: unknown): Promise
   const sizeNames = new Map((sizesRes.data || []).map((s) => [s.id, s.name]));
 
   const unitPrices: Record<string, number> = {};
+  const pricedLines: PricedLine[] = [];
   let subtotal = 0;
 
   for (const line of lines) {
@@ -136,6 +152,13 @@ export async function priceCart(rawLines: unknown, couponCode: unknown): Promise
     }
 
     unitPrices[line.productId] = unitPrice;
+    pricedLines.push({
+      productId: line.productId,
+      name: product.name || product.title || 'Product',
+      unitPrice,
+      quantity: line.quantity,
+      variant: line.variant,
+    });
     subtotal += unitPrice * line.quantity;
   }
 
@@ -153,6 +176,7 @@ export async function priceCart(rawLines: unknown, couponCode: unknown): Promise
   const shipping = getShippingFee(subtotal, lines.length);
   return {
     unitPrices,
+    lines: pricedLines,
     subtotal,
     discount,
     shipping,

@@ -28,21 +28,31 @@ export function getCatalogSupabase(): SupabaseClient {
 }
 
 /**
- * Confirms the request comes from a signed-in, active admin who holds `permission`.
- * The caller sends its Supabase access token as `Authorization: Bearer <token>`.
+ * Returns the signed-in Supabase user behind a request. The caller sends its
+ * access token as `Authorization: Bearer <token>`.
  */
+export async function getRequestUser(
+  request: Request
+): Promise<{ user: { id: string; email: string } } | { error: string; status: number }> {
+  const token = request.headers.get('authorization')?.replace(/^Bearer\s+/i, '').trim();
+  if (!token) return { error: 'Not signed in.', status: 401 };
+
+  const { data, error } = await getServiceSupabase().auth.getUser(token);
+  const email = data?.user?.email?.toLowerCase();
+  if (error || !data?.user || !email) return { error: 'Your session has expired. Please sign in again.', status: 401 };
+  return { user: { id: data.user.id, email } };
+}
+
+/** Confirms the request comes from a signed-in, active admin who holds `permission`. */
 export async function requireAdmin(
   request: Request,
   permission: AdminPermissionKey
 ): Promise<{ session: AdminSession } | { error: string; status: number }> {
-  const token = request.headers.get('authorization')?.replace(/^Bearer\s+/i, '').trim();
-  if (!token) return { error: 'Not signed in.', status: 401 };
+  const auth = await getRequestUser(request);
+  if ('error' in auth) return auth;
+  const email = auth.user.email;
 
   const db = getServiceSupabase();
-  const { data: userData, error: userError } = await db.auth.getUser(token);
-  const email = userData?.user?.email?.toLowerCase();
-  if (userError || !email) return { error: 'Your session has expired. Please sign in again.', status: 401 };
-
   const { data: record } = await db
     .from('admin_users')
     .select('id, email, full_name, role, is_active, permissions')

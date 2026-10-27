@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { useStore } from '../../context/StoreContext';
 import {
+  supabase,
   getOrdersForCustomerFromSupabase,
   getAddressesFromSupabase,
 } from '../../lib/supabase';
@@ -97,7 +98,7 @@ export default function CheckoutPage() {
     syncCartPrices,
     user,
     isAuthLoading,
-    placeOrder,
+    recordPlacedOrder,
     showToast,
     openAuthModal,
   } = useStore();
@@ -409,15 +410,27 @@ export default function CheckoutPage() {
     let orderFinalized = false;
 
     try {
+      // The server ties the order to this signed-in account.
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
       const orderRes = await fetch('/api/razorpay/create-order', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session?.access_token ?? ''}`,
+        },
         body: JSON.stringify({
           items: cart.map((item) => ({
             productId: item.product.id,
             quantity: item.quantity,
             variant: item.selectedVariant,
+            image: item.product.image,
+            category: item.product.category,
           })),
+          customer,
+          shippingAddress: deliveryAddress,
           couponCode: appliedCoupon?.code,
           expectedTotal: cartTotal,
           receipt: `purnya_${Date.now()}`,
@@ -507,16 +520,9 @@ export default function CheckoutPage() {
             if (orderFinalized) return;
             orderFinalized = true;
 
-            const newOrder = placeOrder({
-              customer,
-              shippingAddress: deliveryAddress,
-              paymentMethod: verifyData.paymentMethod,
-              razorpayPaymentId: response.razorpay_payment_id,
-              razorpayOrderId: response.razorpay_order_id,
-              razorpaySignature: response.razorpay_signature,
-            });
-
-            setConfirmedOrder(newOrder);
+            // The server has already saved the order; just show it.
+            recordPlacedOrder(verifyData.order);
+            setConfirmedOrder(verifyData.order);
             stopProcessing();
           } catch {
             setPaymentError(

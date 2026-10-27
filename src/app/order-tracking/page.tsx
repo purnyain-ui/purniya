@@ -22,37 +22,62 @@ function OrderTrackingContent() {
 
   const { orders } = useStore();
   const [searchQuery, setSearchQuery] = useState(initialId);
+  const [contact, setContact] = useState('');
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [errorMsg, setErrorMsg] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
+
+  // A signed-in customer's own orders are already loaded, so they can track by ID alone.
+  const findOwnOrder = (query: string) => {
+    const q = query.trim().toLowerCase();
+    if (!q) return null;
+    return orders.find((o) => o.id.toLowerCase() === q || o.trackingNumber?.toLowerCase() === q) || null;
+  };
 
   useEffect(() => {
-    if (initialId) {
-      const found = orders.find(
-        (o) => o.id.toLowerCase() === initialId.toLowerCase()
-      );
-      if (found) {
-        setSelectedOrder(found);
-      } else {
-        setErrorMsg(`No active consignment found matching Order ID "${initialId}".`);
-      }
+    if (!initialId) return;
+    const found = findOwnOrder(initialId);
+    if (found) {
+      setSelectedOrder(found);
+      setErrorMsg('');
     }
   }, [initialId, orders]);
 
-  const handleSearch = (e: React.FormEvent) => {
+  const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
-    const query = searchQuery.trim().toLowerCase();
-    const match = orders.find(
-      (o) =>
-        o.id.toLowerCase() === query ||
-        o.trackingNumber?.toLowerCase() === query ||
-        o.customer.phone.includes(query)
-    );
-
-    if (match) {
-      setSelectedOrder(match);
+    const own = findOwnOrder(searchQuery);
+    if (own) {
+      setSelectedOrder(own);
       setErrorMsg('');
-    } else {
-      setErrorMsg('No active order found with that Order ID or tracking code.');
+      return;
+    }
+
+    // Anyone else must also give the email or phone the order was placed with.
+    if (!searchQuery.trim() || !contact.trim()) {
+      setSelectedOrder(null);
+      setErrorMsg('Enter your order ID and the email or phone number used for the order.');
+      return;
+    }
+
+    setIsSearching(true);
+    try {
+      const res = await fetch('/api/orders/track', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reference: searchQuery, contact }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setSelectedOrder(data.order);
+        setErrorMsg('');
+      } else {
+        setSelectedOrder(null);
+        setErrorMsg(data.error || 'No order found with those details.');
+      }
+    } catch {
+      setErrorMsg('Could not look up the order right now. Please try again.');
+    } finally {
+      setIsSearching(false);
     }
   };
 
@@ -67,26 +92,38 @@ function OrderTrackingContent() {
           Track Your Consignment
         </h1>
         <p className="text-xs sm:text-sm text-[#2C4A3E]">
-          Enter your Purnya Order ID (e.g. {orders[0]?.id || 'PUR-2026-8492'}) or tracking number.
+          Enter your Purnya Order ID or tracking number, and the email or phone number used for the order.
         </p>
       </div>
 
       {/* Search Input Box */}
-      <form onSubmit={handleSearch} className="max-w-md mx-auto">
+      <form onSubmit={handleSearch} className="max-w-md mx-auto space-y-2">
         <div className="flex items-center rounded-2xl bg-white border border-[#E2DBD0] p-1.5 shadow-sm focus-within:border-[#0C3B2E] transition-colors">
           <Search className="w-5 h-5 text-[#5A7469] ml-3" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Enter Order ID (e.g. PUR-2026-8492)"
+            placeholder="Order ID or tracking number"
+            aria-label="Order ID or tracking number"
             className="w-full px-3 py-2 text-xs sm:text-sm text-[#0B241C] focus:outline-none uppercase font-semibold"
+          />
+        </div>
+        <div className="flex items-center rounded-2xl bg-white border border-[#E2DBD0] p-1.5 shadow-sm focus-within:border-[#0C3B2E] transition-colors">
+          <input
+            type="text"
+            value={contact}
+            onChange={(e) => setContact(e.target.value)}
+            placeholder="Email or phone used for the order"
+            aria-label="Email or phone used for the order"
+            className="w-full px-3 py-2 text-xs sm:text-sm text-[#0B241C] focus:outline-none font-semibold"
           />
           <button
             type="submit"
-            className="px-6 py-2.5 rounded-xl bg-[#0C3B2E] hover:bg-[#164E3D] text-white font-bold text-xs uppercase tracking-wider transition-colors shadow-xs"
+            disabled={isSearching}
+            className="px-6 py-2.5 rounded-xl bg-[#0C3B2E] hover:bg-[#164E3D] text-white font-bold text-xs uppercase tracking-wider transition-colors shadow-xs disabled:opacity-60"
           >
-            Track
+            {isSearching ? 'Searching…' : 'Track'}
           </button>
         </div>
         {errorMsg && <p className="text-xs text-rose-600 mt-2 text-center">{errorMsg}</p>}
