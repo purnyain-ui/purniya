@@ -163,7 +163,7 @@ export default function AdminBannersPage() {
             type="text"
             value={announcementText}
             onChange={(e) => setAnnouncementText(e.target.value)}
-            placeholder="e.g. Free Express Shipping on Orders Above ₹999 | Cash on Delivery Available"
+            placeholder="e.g. Free Express Shipping on Orders Above ₹999 | Secure Online Payments"
             className="flex-1 p-3.5 rounded-xl border border-[#E2DBD0] text-xs font-medium text-[#0B241C] focus:outline-none focus:border-[#C5A059]"
           />
           <button

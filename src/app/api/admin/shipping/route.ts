@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
     if (!row) return fail('Order not found.', 404);
     const order = mapOrderRow(row);
     if (!['New', 'Processing'].includes(order.status)) return fail('Only new or processing orders can be booked for shipping.', 409);
-    if (order.paymentMethod !== 'Cash on Delivery' && order.paymentStatus !== 'paid') return fail('Payment must be captured before shipping.', 409);
+    if (order.paymentStatus !== 'paid') return fail('Payment must be captured before shipping.', 409);
     const { data: existing, error: readError } = await db.from('shiprocket_shipments').select('*').eq('order_id', order.id).maybeSingle();
     if (readError) return fail('Run the Shiprocket SQL migration before shipping.');
 

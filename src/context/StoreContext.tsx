@@ -1,6 +1,7 @@
 'use client';
 
 import { usePathname } from 'next/navigation';
+import { PREPAID_ANNOUNCEMENT, prepaidAnnouncement } from '../lib/paymentPolicy';
 import { getStorefrontBanners } from '../lib/storefrontBanners';
 import React, { createContext, useContext, useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
@@ -298,9 +299,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       window.removeEventListener('online', retryOnConnection);
     };
   }, [retryBanners]);
-  const [announcement, setAnnouncement] = useState<string>(
-    'Free Express Shipping on Orders Above ₹999  |  Cash on Delivery Available Pan-India'
-  );
+  const [announcement, setAnnouncementState] = useState<string>(PREPAID_ANNOUNCEMENT);
+  const setAnnouncement = (text: string | null) => setAnnouncementState(prepaidAnnouncement(text));
   const [user, setUser] = useState<UserProfile>(initialUser);
   const [addresses, setAddresses] = useState<Address[]>(initialAddresses);
   const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
@@ -403,7 +403,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               } catch { }
             } else {
               // Seed default announcement into Supabase
-              saveAnnouncementToSupabase('Free Express Shipping on Orders Above ₹999  |  Cash on Delivery Available Pan-India');
+              saveAnnouncementToSupabase(PREPAID_ANNOUNCEMENT);
             }
           });
 

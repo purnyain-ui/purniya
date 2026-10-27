@@ -93,7 +93,7 @@ export interface Order {
     phone: string;
   };
   shippingAddress: Address;
-  paymentMethod: 'UPI' | 'Credit / Debit Card' | 'Net Banking' | 'Razorpay' | 'Cash on Delivery';
+  paymentMethod: 'UPI' | 'Credit / Debit Card' | 'Net Banking' | 'Razorpay';
   razorpayOrderId?: string;
   razorpayPaymentId?: string;
   razorpaySignature?: string;

@@ -43,9 +43,10 @@ test('payload preserves packed measurements, names, quantities and actual discou
   assert.equal(payload.breadth, parcel.breadth);
   assert.equal(payload.pickup_location, parcel.pickupLocation);
   assert.notEqual(payload.order_id, order.id);
-  const cod = buildShiprocketOrder({ ...order, total: 1099, paymentMethod: 'Cash on Delivery' }, parcel);
-  assert.equal(cod.payment_method, 'COD');
-  assert.equal(cod.sub_total + cod.shipping_charges - cod.total_discount, 1099);
+  const withShipping = buildShiprocketOrder({ ...order, total: 1099 }, parcel);
+  assert.equal(withShipping.payment_method, 'Prepaid');
+  assert.equal(withShipping.sub_total + withShipping.shipping_charges - withShipping.total_discount, 1099);
+  assert.throws(() => buildShiprocketOrder({ ...order, paymentMethod: 'Cash on Delivery' }, parcel));
   assert.notEqual(payload.order_items[0].sku, buildShiprocketOrder({ ...order, items: [{ ...order.items[0], variant: 'Silver' }] }, parcel).order_items[0].sku);
 });
 

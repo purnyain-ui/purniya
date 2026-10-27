@@ -531,7 +531,7 @@ export default function HomePage() {
                 <h4 className="font-serif-title text-sm sm:text-base font-bold text-[#0B241C]">
                   100% Secure Checkout
                 </h4>
-                <p className="text-xs text-[#2C4A3E]">UPI, Cards & Cash on Delivery</p>
+                <p className="text-xs text-[#2C4A3E]">UPI &amp; Cards</p>
               </div>
             </div>
 

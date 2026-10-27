@@ -35,7 +35,7 @@ See https://apidocs.shiprocket.in/ for the account/API requirements.
 ## Where to enter measurements
 
 1. Open **Admin → Shipping** (`/admin/shipping`), or expand an order in **Admin → Orders** and click **Ship with Shiprocket**.
-2. Select a paid order (or an eligible COD order).
+2. Select an order with a captured online payment.
 3. Enter the **exact pickup location name already saved in Shiprocket**.
 4. Enter total **packed weight in kg** and outer package **length, width/breadth and height in cm**. Example: 0.5 kg, 15 × 12 × 6 cm.
 5. Click **Create in Shiprocket**.

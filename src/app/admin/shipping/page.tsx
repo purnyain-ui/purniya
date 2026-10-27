@@ -60,7 +60,7 @@ export default function AdminShippingPage() {
   }, [load]);
 
   const eligible = orders.filter(order => ['New', 'Processing'].includes(order.status) &&
-    (order.paymentStatus === 'paid' || order.paymentMethod === 'Cash on Delivery') &&
+    order.paymentStatus === 'paid' &&
     !shipments.some(shipment => shipment.order_id === order.id));
   const selected = eligible.find(order => order.id === selectedId);
 

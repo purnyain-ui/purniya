@@ -1,3 +1,4 @@
+import { prepaidAnnouncement } from './paymentPolicy';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { Product, CategoryMeta, Order, HeroSlide, Address, Coupon, HomeBottomSection, CartItem } from '../types';
 import { getSubcategoryImage } from '../data/mockData';
@@ -371,7 +372,7 @@ export function orderToRow(order: Order) {
     razorpay_order_id: order.razorpayOrderId || null,
     razorpay_payment_id: order.razorpayPaymentId || null,
     razorpay_signature: order.razorpaySignature || null,
-    payment_status: order.paymentStatus || (order.razorpayPaymentId ? 'paid' : (order.paymentMethod === 'Cash on Delivery' ? 'cod' : 'pending')),
+    payment_status: order.paymentStatus || (order.razorpayPaymentId ? 'paid' : 'pending'),
   };
 }
 
@@ -988,7 +989,7 @@ export async function getAnnouncementFromSupabase(): Promise<string | null> {
       console.warn('Supabase getAnnouncement error:', error);
       return null;
     }
-    return data?.title || null;
+    return data?.title ? prepaidAnnouncement(data.title) : null;
   } catch (err) {
     console.warn('Supabase getAnnouncement exception:', err);
     return null;
@@ -1004,7 +1005,7 @@ export async function saveAnnouncementToSupabase(text: string): Promise<boolean>
     const { error } = await supabase.from('banners').upsert(
       {
         id: 'announcement-bar-main',
-        title: text,
+        title: prepaidAnnouncement(text),
         category: 'announcement',
         image: 'announcement',
         is_active: true,
@@ -1463,7 +1464,7 @@ export async function getCustomersAndPatronsFromSupabase(): Promise<CustomerReco
         razorpayOrderId: o.razorpay_order_id || undefined,
         razorpayPaymentId: o.razorpay_payment_id || undefined,
         razorpaySignature: o.razorpay_signature || undefined,
-        paymentStatus: o.payment_status || (o.razorpay_payment_id ? 'paid' : (o.payment_method === 'Cash on Delivery' ? 'cod' : 'pending')),
+        paymentStatus: o.payment_status || (o.razorpay_payment_id ? 'paid' : 'pending'),
         trackingNumber: o.tracking_number,
         courierPartner: o.courier || '',
       };
@@ -1559,7 +1560,7 @@ export function mapOrderRow(row: any): Order {
     razorpayOrderId: row.razorpay_order_id || undefined,
     razorpayPaymentId: row.razorpay_payment_id || undefined,
     razorpaySignature: row.razorpay_signature || undefined,
-    paymentStatus: row.payment_status || (row.razorpay_payment_id ? 'paid' : (row.payment_method === 'Cash on Delivery' ? 'cod' : 'pending')),
+    paymentStatus: row.payment_status || (row.razorpay_payment_id ? 'paid' : 'pending'),
     trackingNumber: row.tracking_number,
     courierPartner: row.courier || '',
   };

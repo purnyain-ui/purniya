@@ -28,6 +28,9 @@ export function shippingReference(orderId: string) {
 }
 
 export function buildShiprocketOrder(order: Order, parcel: Parcel) {
+  if (!['UPI', 'Credit / Debit Card', 'Net Banking', 'Razorpay', 'Card', 'Netbanking', 'Wallet', 'EMI'].includes(order.paymentMethod)) {
+    throw new ShippingInputError('Only prepaid online orders can be shipped.');
+  }
   const address = order.shippingAddress;
   const phone = (address.phone || order.customer.phone || '').replace(/\D/g, '').replace(/^91(?=\d{10}$)/, '');
   if (!address.fullName || !address.addressLine || !address.city || !address.state || !/^[1-9]\d{5}$/.test(address.pincode) || !/^[6-9]\d{9}$/.test(phone)) {
@@ -51,7 +54,7 @@ export function buildShiprocketOrder(order: Order, parcel: Parcel) {
     order_items: order.items.map(item => ({ name: item.name + (item.variant ? ` (${item.variant})` : ''),
       sku: `${item.id}${item.variant ? '-' + createHash('sha256').update(item.variant).digest('hex').slice(0, 10) : ''}`,
       units: item.quantity, selling_price: item.price })),
-    payment_method: order.paymentMethod === 'Cash on Delivery' ? 'COD' : 'Prepaid',
+    payment_method: 'Prepaid',
     // Legacy orders don't store shipping/discount separately: derive their net adjustment
     // so Shiprocket's payable total always equals the actual order total.
     sub_total: subtotal,

@@ -7,7 +7,6 @@ import {
   CreditCard,
   CheckCircle2,
   Clock,
-  Banknote,
   ExternalLink,
   Copy,
   Check,
@@ -25,38 +24,27 @@ type OrderWithPayment = Order & {
   razorpaySignature?: string;
 };
 
-type PaymentStatus = 'Paid' | 'Pending' | 'COD';
+type PaymentStatus = 'Paid' | 'Pending';
 
 function getEffectivePaymentId(order: OrderWithPayment): string | undefined {
   if (order.razorpayPaymentId && order.razorpayPaymentId.trim()) return order.razorpayPaymentId;
-  // If online payment method, provide deterministic fallback identifier if not yet captured
-  if ((order.paymentMethod as string) !== 'Cash on Delivery') {
-    if (order.razorpayOrderId) {
-      return `pay_${order.razorpayOrderId.replace('order_', '')}`;
-    }
-    const cleanId = order.id.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
-    return `pay_${cleanId}`;
-  }
+
   return undefined;
 }
 
 function getPaymentStatus(order: OrderWithPayment): PaymentStatus {
-  if ((order.paymentMethod as string) === 'Cash on Delivery') return 'COD';
   if (order.razorpayPaymentId || order.paymentStatus === 'paid') return 'Paid';
-  if ((order.paymentMethod as string) !== 'Cash on Delivery' && order.status !== 'Cancelled') return 'Paid';
   return 'Pending';
 }
 
 const statusColors: Record<PaymentStatus, string> = {
   Paid: 'bg-emerald-100 text-emerald-800 border-emerald-300',
   Pending: 'bg-amber-100 text-amber-800 border-amber-300',
-  COD: 'bg-slate-100 text-slate-700 border-slate-300',
 };
 
 const statusIcons: Record<PaymentStatus, React.ReactNode> = {
   Paid: <CheckCircle2 className="w-3 h-3" />,
   Pending: <Clock className="w-3 h-3" />,
-  COD: <Banknote className="w-3 h-3" />,
 };
 
 function CopyableId({ value }: { value: string }) {
@@ -95,7 +83,7 @@ export default function AdminPaymentsPage() {
   const paymentOrders = orders as OrderWithPayment[];
 
   const counts = useMemo(() => {
-    const c: Record<PaymentStatus, number> = { Paid: 0, Pending: 0, COD: 0 };
+    const c: Record<PaymentStatus, number> = { Paid: 0, Pending: 0 };
     paymentOrders.forEach((o) => {
       c[getPaymentStatus(o)] += 1;
     });
@@ -137,7 +125,7 @@ export default function AdminPaymentsPage() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="bg-white p-5 rounded-3xl border border-[#E2DBD0] shadow-sm">
           <p className="text-[10px] uppercase tracking-wider font-bold text-[#5A7469]">Captured Revenue</p>
           <p className="font-serif-title text-2xl font-bold text-[#0B241C] mt-1">
@@ -152,10 +140,7 @@ export default function AdminPaymentsPage() {
           <p className="text-[10px] uppercase tracking-wider font-bold text-[#5A7469]">Pending / Unverified</p>
           <p className="font-serif-title text-2xl font-bold text-amber-700 mt-1">{counts.Pending}</p>
         </div>
-        <div className="bg-white p-5 rounded-3xl border border-[#E2DBD0] shadow-sm">
-          <p className="text-[10px] uppercase tracking-wider font-bold text-[#5A7469]">Cash on Delivery</p>
-          <p className="font-serif-title text-2xl font-bold text-slate-700 mt-1">{counts.COD}</p>
-        </div>
+
       </div>
 
       {/* Tabs & Search */}
@@ -165,7 +150,6 @@ export default function AdminPaymentsPage() {
             { id: 'all', label: `All Transactions (${paymentOrders.length})` },
             { id: 'paid', label: `Paid (${counts.Paid})` },
             { id: 'pending', label: `Pending (${counts.Pending})` },
-            { id: 'cod', label: `Cash on Delivery (${counts.COD})` },
           ].map((tab) => (
             <button
               key={tab.id}
@@ -240,7 +224,7 @@ export default function AdminPaymentsPage() {
                         return paymentId ? (
                           <CopyableId value={paymentId} />
                         ) : (
-                          <span className="text-[11px] text-[#5A7469]">— (COD)</span>
+                          <span className="text-[11px] text-[#5A7469]">Pending</span>
                         );
                       })()}
                     </td>
@@ -331,7 +315,7 @@ export default function AdminPaymentsPage() {
                     return paymentId ? (
                       <CopyableId value={paymentId} />
                     ) : (
-                      <span className="text-[#5A7469]">Not applicable (COD)</span>
+                      <span className="text-[#5A7469]">Pending</span>
                     );
                   })()}
                 </div>
@@ -345,8 +329,8 @@ export default function AdminPaymentsPage() {
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-[#5A7469]">Signature / Verification</span>
-                  <span className={selectedOrder.razorpaySignature || selectedOrder.razorpayPaymentId || selectedOrder.paymentMethod !== 'Cash on Delivery' ? 'text-emerald-700 font-semibold' : 'text-[#5A7469]'}>
-                    {selectedOrder.razorpaySignature || selectedOrder.razorpayPaymentId || selectedOrder.paymentMethod !== 'Cash on Delivery' ? 'Verified' : 'Pending'}
+                  <span className={getPaymentStatus(selectedOrder) === 'Paid' ? 'text-emerald-700 font-semibold' : 'text-[#5A7469]'}>
+                    {getPaymentStatus(selectedOrder) === 'Paid' ? 'Verified' : 'Pending'}
                   </span>
                 </div>
 
