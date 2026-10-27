@@ -87,8 +87,8 @@ function buildOrder(id: string, snapshot: CheckoutSnapshot, payment: ConfirmedPa
     razorpayPaymentId: payment.razorpayPaymentId,
     razorpaySignature: payment.razorpaySignature,
     paymentStatus: 'paid',
-    trackingNumber: `BD-${id.slice(-6)}IN`,
-    courierPartner: 'BlueDart Express',
+    trackingNumber: '',
+    courierPartner: '',
     estimatedDelivery: '3 - 5 Business Days',
     trackingHistory: [
       { status: 'Order Placed & Confirmed', time: `${today}, Just Now`, location: 'Purnya.in Online Platform', completed: true },

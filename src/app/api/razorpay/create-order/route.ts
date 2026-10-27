@@ -91,6 +91,7 @@ export async function POST(req: NextRequest) {
     const order = await razorpay.orders.create({
       amount: amountInPaise,
       currency: 'INR',
+      payment: { capture: 'automatic', capture_options: { automatic_expiry_period: 12, manual_expiry_period: 7200, refund_speed: 'normal' } },
       receipt: typeof receipt === 'string' && receipt ? receipt.slice(0, 40) : `purnya_receipt_${Date.now()}`,
     });
 
@@ -126,7 +127,7 @@ export async function POST(req: NextRequest) {
       })),
     });
 
-    return NextResponse.json({ success: true, order, pricing });
+    return NextResponse.json({ success: true, order, pricing, keyId: process.env.RAZORPAY_KEY_ID || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID });
   } catch (err: any) {
     console.error('Razorpay create-order error:', err);
     return NextResponse.json(

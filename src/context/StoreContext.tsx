@@ -79,6 +79,7 @@ interface StoreContextType {
   cart: CartItem[];
   wishlist: Product[];
   orders: Order[];
+  refreshOrders: () => Promise<void>;
   coupons: Coupon[];
   banners: HeroSlide[];
   heroBanners: HeroSlide[];
@@ -239,9 +240,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // Orders come only from the database. Row-level security decides what this
   // visitor may see: admins every order, customers their own, guests none.
-  const loadOrders = () => {
-    getAllOrdersFromSupabase().then(dbOrders => setOrders(dbOrders));
-  };
+  const loadOrders = useCallback(async () => {
+    const dbOrders = await getAllOrdersFromSupabase();
+    setOrders(dbOrders);
+  }, []);
   const [coupons, setCoupons] = useState<Coupon[]>(initialCoupons);
   const [banners, setBanners] = useState<HeroSlide[]>(() => isSupabaseConfigured ? [] : orderBanners(initialHeroSlides));
   const pathname = usePathname();
@@ -1379,6 +1381,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         cart,
         wishlist,
         orders,
+        refreshOrders: loadOrders,
         coupons,
         banners,
         heroBanners,

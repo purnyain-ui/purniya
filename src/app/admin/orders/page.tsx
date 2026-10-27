@@ -10,6 +10,7 @@ import {
   X,
 } from 'lucide-react';
 import jsPDF from 'jspdf';
+import Link from 'next/link';
 import { useStore } from '../../../context/StoreContext';
 import { Order, OrderStatus } from '../../../types';
 
@@ -49,7 +50,7 @@ export default function AdminOrdersPage() {
 
   const openTrackingModal = (ord: Order) => {
     setEditingTrackingOrder(ord);
-    setCourierName(ord.courierPartner || 'BlueDart Express');
+    setCourierName(ord.courierPartner || '');
     setTrackingNumber(ord.trackingNumber || '');
   };
 
@@ -405,6 +406,9 @@ export default function AdminOrdersPage() {
                         </div>
                       </div>
 
+                      <Link href={`/admin/shipping?order=${encodeURIComponent(ord.id)}`} className="block rounded-xl bg-[#0B241C] p-3 text-center text-xs font-bold text-white">
+                        Ship with Shiprocket
+                      </Link>
                       <button
                         type="button"
                         onClick={(e) => handleDownloadInvoice(ord, e)}

@@ -364,7 +364,7 @@ export function orderToRow(order: Order) {
     total: order.total,
     status: order.status,
     tracking_number: order.trackingNumber,
-    courier: order.courierPartner || 'BlueDart Express',
+    courier: order.courierPartner || '',
     items: order.items,
     shipping_address: order.shippingAddress,
     payment_method: order.paymentMethod,
@@ -1465,7 +1465,7 @@ export async function getCustomersAndPatronsFromSupabase(): Promise<CustomerReco
         razorpaySignature: o.razorpay_signature || undefined,
         paymentStatus: o.payment_status || (o.razorpay_payment_id ? 'paid' : (o.payment_method === 'Cash on Delivery' ? 'cod' : 'pending')),
         trackingNumber: o.tracking_number,
-        courierPartner: o.courier || 'BlueDart Express',
+        courierPartner: o.courier || '',
       };
 
       let cust = map.get(emailKey);
@@ -1561,7 +1561,7 @@ export function mapOrderRow(row: any): Order {
     razorpaySignature: row.razorpay_signature || undefined,
     paymentStatus: row.payment_status || (row.razorpay_payment_id ? 'paid' : (row.payment_method === 'Cash on Delivery' ? 'cod' : 'pending')),
     trackingNumber: row.tracking_number,
-    courierPartner: row.courier || 'BlueDart Express',
+    courierPartner: row.courier || '',
   };
 }
 

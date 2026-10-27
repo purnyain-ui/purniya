@@ -25,14 +25,6 @@ function InstagramIcon({ className = 'w-3.5 h-3.5' }: { className?: string }) {
   );
 }
 
-function FacebookIcon({ className = 'w-3.5 h-3.5' }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="currentColor">
-      <path d="M9.101 23.691v-7.98H6.627v-3.667h2.474v-1.58c0-4.085 1.848-5.978 5.858-5.978.401 0 .955.042 1.468.103a8.68 8.68 0 0 1 1.141.195v3.325a8.623 8.623 0 0 0-.653-.036 26.805 26.805 0 0 0-.733-.009c-1.874 0-2.388 1.142-2.388 2.857v1.129h3.843l-.531 3.668h-3.312v7.98H9.101z" />
-    </svg>
-  );
-}
-
 function WhatsAppIcon({ className = 'w-3.5 h-3.5' }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="currentColor">
@@ -147,25 +139,14 @@ export default function Footer() {
               </h5>
               <div className="flex flex-wrap items-center gap-2 text-xs sm:text-sm text-[#B4C9BF]">
                 <a
-                  href="https://www.instagram.com/rashviartistry?igsh=dGhpc3BmN200OGFi"
+                  href="https://www.instagram.com/purnya.in/"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="hover:text-[#D4AF37] transition-colors inline-flex items-center gap-1.5"
-                  title="Follow Rashvi Artistry on Instagram"
+                  title="Follow Purnya on Instagram"
                 >
                   <InstagramIcon className="w-3.5 h-3.5" />
                   <span>Instagram</span>
-                </a>
-                <span className="text-[#5A7469]">·</span>
-                <a
-                  href="https://www.facebook.com/people/Rashvi-Artistry/61590783270567/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="hover:text-[#D4AF37] transition-colors inline-flex items-center gap-1.5"
-                  title="Follow Rashvi Artistry on Facebook"
-                >
-                  <FacebookIcon className="w-3.5 h-3.5" />
-                  <span>Facebook</span>
                 </a>
                 <span className="text-[#5A7469]">·</span>
                 <a

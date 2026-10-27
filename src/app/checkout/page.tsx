@@ -471,9 +471,7 @@ export default function CheckoutPage() {
       const { order } = orderData;
 
       const options = {
-        key:
-          process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID ||
-          'rzp_test_TJeWi2eGUrJwHC',
+        key: orderData.keyId,
         amount: order.amount,
         currency: order.currency,
         name: 'Purnya',

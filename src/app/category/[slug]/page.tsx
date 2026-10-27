@@ -1057,14 +1057,14 @@ function CategoryContent({ slug }: { slug: string }) {
                   Style Inspiration
                 </p>
                 <a
-                  href="https://www.instagram.com/rashviartistry?igsh=dGhpc3BmN200OGFi"
+                  href="https://www.instagram.com/purnya.in/"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="group inline-flex items-center gap-2 hover:opacity-95 transition-opacity"
-                  title="Follow Rashvi Artistry on Instagram"
+                  title="Follow Purnya on Instagram"
                 >
                   <h2 data-motion className="font-serif-title text-3xl sm:text-4xl font-bold text-white mt-1 group-hover:text-[#D4AF37] transition-colors">
-                    @rashviartistry on Instagram
+                    @purnya.in on Instagram
                   </h2>
                 </a>
               </div>
