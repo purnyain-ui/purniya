@@ -22,6 +22,8 @@ export interface CheckoutSnapshot {
   couponCode?: string;
   shipping: number;
   total: number;
+  /** What to take out of stock once paid (absent on checkouts started before stock tracking). */
+  stockLines?: { productId: string; variantId?: string; quantity: number }[];
 }
 
 export interface ConfirmedPayment {
@@ -107,6 +109,39 @@ async function orderExists(db: SupabaseClient, orderId: string): Promise<boolean
   return false;
 }
 
+/**
+ * Takes sold quantities out of stock: product_variants.stock for variant
+ * products, products.stock otherwise. Each update only applies if the stock
+ * hasn't changed since it was read, so two orders landing at once can't
+ * overwrite each other's reduction.
+ */
+async function reduceStock(db: SupabaseClient, lines: NonNullable<CheckoutSnapshot['stockLines']>) {
+  for (const line of lines) {
+    const table = line.variantId ? 'product_variants' : 'products';
+    const id = line.variantId || line.productId;
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const { data, error } = await db.from(table).select('stock').eq('id', id).maybeSingle();
+      if (error) throw new Error(`Could not read stock for ${table} ${id}: ${error.message}`);
+      if (!data || data.stock == null) break; // not stock-tracked
+
+      const current = Number(data.stock);
+      if (current < line.quantity) {
+        // Checkout checks stock, but two customers can pay for the last piece at once.
+        console.warn(`Oversold ${table} ${id}: had ${current}, sold ${line.quantity}`);
+      }
+      const { data: updated, error: updateError } = await db
+        .from(table)
+        .update({ stock: Math.max(0, current - line.quantity) })
+        .eq('id', id)
+        .eq('stock', current)
+        .select('id');
+      if (updateError) throw new Error(`Could not update stock for ${table} ${id}: ${updateError.message}`);
+      if (updated && updated.length > 0) break;
+      // Stock changed between read and write: read again and retry.
+    }
+  }
+}
+
 async function bumpCouponUsage(db: SupabaseClient, code: string) {
   const { data } = await db.from('coupons').select('usage_count').eq('code', code).maybeSingle();
   if (!data) return;
@@ -169,6 +204,12 @@ export async function finalizePaidOrder(payment: ConfirmedPayment): Promise<Orde
   if (snapshot.couponCode) {
     await bumpCouponUsage(db, snapshot.couponCode).catch((err) =>
       console.warn('Coupon usage update failed:', err)
+    );
+  }
+  // The order is already saved; a stock hiccup shouldn't fail the customer's confirmation.
+  if (snapshot.stockLines?.length) {
+    await reduceStock(db, snapshot.stockLines).catch((err) =>
+      console.error('Stock update failed for order', order.id, err)
     );
   }
   return order;

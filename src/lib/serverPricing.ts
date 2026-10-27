@@ -25,6 +25,8 @@ export interface PricedLine {
   unitPrice: number;
   quantity: number;
   variant?: Record<string, string>;
+  /** The product_variants row being sold, when the product has variants. */
+  variantId?: string;
 }
 
 export interface PricedCart {
@@ -86,7 +88,7 @@ export async function priceCart(rawLines: unknown, couponCode: unknown): Promise
     db.from('products').select('*').in('id', productIds),
     db
       .from('product_variants')
-      .select('id,product_id,color_id,size_id,price,selling_price')
+      .select('id,product_id,color_id,size_id,price,selling_price,stock')
       .in('product_id', productIds)
       .eq('is_active', true),
   ]);
@@ -130,6 +132,7 @@ export async function priceCart(rawLines: unknown, couponCode: unknown): Promise
     // Same rule as the product page: the lower of price / selling_price, taken
     // from the selected colour/size variant when the product has variants.
     let unitPrice: number | null = null;
+    let soldVariant: any = null;
     const productVariants = product.has_variants
       ? variants.filter((v: any) => v.product_id === product.id)
       : [];
@@ -142,13 +145,32 @@ export async function priceCart(rawLines: unknown, couponCode: unknown): Promise
           (wantSize === undefined || sameLabel(sizeNames.get(v.size_id), wantSize))
       );
       const candidates = matching.length > 0 ? matching : productVariants;
-      unitPrice = lowestPositive(...candidates.map((v: any) => lowestPositive(v.price, v.selling_price)));
+      // If the bag doesn't pin down a single variant, sell one that has enough stock.
+      const available = candidates.filter((v: any) => v.stock == null || Number(v.stock) >= line.quantity);
+      for (const v of available.length > 0 ? available : candidates) {
+        const price = lowestPositive(v.price, v.selling_price);
+        if (price !== null && (unitPrice === null || price < unitPrice)) {
+          unitPrice = price;
+          soldVariant = v;
+        }
+      }
     }
     if (unitPrice === null) {
       unitPrice = lowestPositive(product.price, product.selling_price ?? product.offer_price);
     }
     if (unitPrice === null) {
       throw new PricingError(`"${product.name || 'An item'}" can't be purchased right now. Please remove it and try again.`);
+    }
+
+    // An empty stock value means the item isn't stock-tracked.
+    const stock = soldVariant ? soldVariant.stock : product.stock;
+    if (stock != null && Number(stock) < line.quantity) {
+      const name = product.name || 'An item';
+      throw new PricingError(
+        Number(stock) <= 0
+          ? `"${name}" is out of stock. Please remove it from your bag.`
+          : `Only ${Number(stock)} left of "${name}". Please reduce the quantity in your bag.`
+      );
     }
 
     unitPrices[line.productId] = unitPrice;
@@ -158,6 +180,7 @@ export async function priceCart(rawLines: unknown, couponCode: unknown): Promise
       unitPrice,
       quantity: line.quantity,
       variant: line.variant,
+      variantId: soldVariant?.id,
     });
     subtotal += unitPrice * line.quantity;
   }

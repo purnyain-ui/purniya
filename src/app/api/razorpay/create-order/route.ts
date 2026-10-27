@@ -119,6 +119,11 @@ export async function POST(req: NextRequest) {
       couponCode: pricing.discount > 0 && typeof couponCode === 'string' ? couponCode.trim().toUpperCase() : undefined,
       shipping: pricing.shipping,
       total: pricing.total,
+      stockLines: pricing.lines.map((line) => ({
+        productId: line.productId,
+        variantId: line.variantId,
+        quantity: line.quantity,
+      })),
     });
 
     return NextResponse.json({ success: true, order, pricing });
