@@ -249,19 +249,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [banners, setBanners] = useState<HeroSlide[]>(() => isSupabaseConfigured ? [] : orderBanners(initialHeroSlides));
   const pathname = usePathname();
   const isAdminPage = pathname.startsWith('/admin');
-  const [isGlobalLoading, setIsGlobalLoading] = useState(true);
-  const [fadeOutLoading, setFadeOutLoading] = useState(false);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setFadeOutLoading(true);
-      setTimeout(() => {
-        setIsGlobalLoading(false);
-      }, 500);
-    }, 2400);
-    return () => clearTimeout(timer);
-  }, []);
-
   const [heroBanners, setHeroBanners] = useState<HeroSlide[]>(() => isSupabaseConfigured ? [] : orderBanners(initialHeroSlides));
   const [heroReady, setHeroReady] = useState(false);
   const markHeroReady = useCallback(() => setHeroReady(true), []);
@@ -346,11 +333,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (cats && cats.length > 0) {
         const enriched = enrichCategories(cats);
         setCategories(enriched);
-        try {
-          localStorage.setItem('purnya_categories', JSON.stringify(enriched));
-        } catch (e) {
-          console.warn('LocalStorage save error:', e);
-        }
       }
     });
 
@@ -358,58 +340,13 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     getProductsFromSupabase().then((prods) => {
       if (prods && prods.length > 0) {
         setProducts(prods);
-        try {
-          localStorage.setItem('purnya_products', JSON.stringify(prods));
-        } catch (e) {
-          console.warn('LocalStorage save error:', e);
-        }
       }
     });
 
-    loadOrders();
-
-    checkSupabaseConnection().then((status) => {
-      setSupabaseStatus(status);
-      if (status.connected) {
-        getCategoriesFromSupabase().then((cats) => {
-          if (cats && cats.length > 0) {
-            const enriched = enrichCategories(cats);
-            setCategories(enriched);
-            try {
-              localStorage.setItem('purnya_categories', JSON.stringify(enriched));
-            } catch (e) {
-              console.warn('LocalStorage save error:', e);
-            }
-          }
-        });
-
-        if (status.tablesFound?.includes('products')) {
-          getProductsFromSupabase().then((prods) => {
-            if (prods && prods.length > 0) {
-              setProducts(prods);
-              try {
-                localStorage.setItem('purnya_products', JSON.stringify(prods));
-              } catch { }
-            }
-          });
-        }
-
-        if (status.tablesFound?.includes('banners')) {
-          getAnnouncementFromSupabase().then((dbAnnouncement) => {
-            if (dbAnnouncement && dbAnnouncement.trim()) {
-              setAnnouncement(dbAnnouncement);
-              try {
-                localStorage.setItem('purnya_announcement', dbAnnouncement);
-              } catch { }
-            } else {
-              // Seed default announcement into Supabase
-              saveAnnouncementToSupabase(PREPAID_ANNOUNCEMENT);
-            }
-          });
-
-
-        }
-      }
+    // Announcement loads independently; storefront startup needs no schema probes
+    // or a second copy of the complete catalog.
+    getAnnouncementFromSupabase().then((text) => {
+      if (text?.trim()) setAnnouncement(text);
     });
 
     // Real-time Supabase Auth state listener & sync
@@ -535,6 +472,15 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   }, []);
 
+  useEffect(() => {
+    if (!isAdminPage) return;
+    let cancelled = false;
+    checkSupabaseConnection().then(status => {
+      if (!cancelled) setSupabaseStatus(status);
+    });
+    return () => { cancelled = true; };
+  }, [isAdminPage]);
+
   const refreshCatalog = useCallback(async () => {
     try {
       const [prods, cats, dbBanners, dbAnnouncement, dbCoupons] = await Promise.all([
@@ -546,16 +492,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       ]);
       if (prods && prods.length > 0) {
         setProducts(prods);
-        try {
-          localStorage.setItem('purnya_products', JSON.stringify(prods));
-        } catch { }
       }
       if (cats && cats.length > 0) {
         const enriched = enrichCategories(cats);
         setCategories(enriched);
-        try {
-          localStorage.setItem('purnya_categories', JSON.stringify(enriched));
-        } catch { }
       }
       if (dbBanners && dbBanners.length > 0) {
         const ordered = orderBanners(dbBanners);
@@ -727,19 +667,19 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
-  // Save to localStorage when state changes
+  // Persist each collection only when it changes. Catalog serialization can be
+  // expensive on phones and should never run for a cart or order update.
+  useEffect(() => { if (mounted) safeSaveToLocalStorage('purnya_products', products); }, [mounted, products]);
+  useEffect(() => { if (mounted) safeSaveToLocalStorage('purnya_categories', categories); }, [mounted, categories]);
+  useEffect(() => { if (mounted) safeSaveToLocalStorage('purnya_cart', cart); }, [mounted, cart]);
+  useEffect(() => { if (mounted) safeSaveToLocalStorage('purnya_wishlist', wishlist); }, [mounted, wishlist]);
+  useEffect(() => { if (mounted) safeSaveToLocalStorage('purnya_coupons', coupons); }, [mounted, coupons]);
   useEffect(() => {
-    if (!mounted) return;
-    safeSaveToLocalStorage('purnya_products', products);
-    safeSaveToLocalStorage('purnya_categories', categories);
-    safeSaveToLocalStorage('purnya_cart', cart);
-    safeSaveToLocalStorage('purnya_wishlist', wishlist);
-    safeSaveToLocalStorage('purnya_coupons', coupons);
-    if (isAdminPage && bannersLoaded && !bannersError) safeSaveToLocalStorage('purnya_banners', banners);
-    safeSaveToLocalStorage('purnya_announcement', announcement);
-    safeSaveToLocalStorage('purnya_addresses', addresses);
-    safeSaveToLocalStorage('purnya_user', user);
-  }, [mounted, isAdminPage, products, categories, cart, wishlist, orders, coupons, banners, bannersLoaded, bannersError, announcement, addresses, user]);
+    if (mounted && isAdminPage && bannersLoaded && !bannersError) safeSaveToLocalStorage('purnya_banners', banners);
+  }, [mounted, isAdminPage, banners, bannersLoaded, bannersError]);
+  useEffect(() => { if (mounted) safeSaveToLocalStorage('purnya_announcement', announcement); }, [mounted, announcement]);
+  useEffect(() => { if (mounted) safeSaveToLocalStorage('purnya_addresses', addresses); }, [mounted, addresses]);
+  useEffect(() => { if (mounted) safeSaveToLocalStorage('purnya_user', user); }, [mounted, user]);
 
   // Toast helper
   const showToast = (title: string, desc?: string, type: 'success' | 'info' | 'error' = 'success') => {
@@ -1449,56 +1389,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }}
     >
       {children}
-      {isGlobalLoading && !isAdminPage && (
-        <div
-          className={`fixed inset-0 z-[999999] bg-[#08281F] text-[#FAF8F5] flex flex-col items-center justify-center p-6 overflow-hidden select-none transition-opacity duration-500 ${
-            fadeOutLoading ? 'opacity-0 pointer-events-none' : 'opacity-100'
-          }`}
-        >
-          {/* Glowing atmospheric backdrop */}
-          <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-[#D4AF37]/15 rounded-full blur-[130px] pointer-events-none animate-pulse" />
-          <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-[#C5A059]/15 rounded-full blur-[130px] pointer-events-none animate-pulse" />
-
-          <div className="relative z-10 flex flex-col items-center text-center space-y-8 max-w-md mx-auto">
-            {/* Glowing Emblem Logo */}
-            <div className="relative">
-              <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-full bg-[#FAF8F5] p-1.5 border-2 border-[#D4AF37] shadow-[0_0_50px_rgba(212,175,55,0.4)] flex items-center justify-center animate-pulse">
-                <img
-                  src="/logoicon.png"
-                  alt="Purnya Emblem"
-                  className="w-full h-full object-contain"
-                />
-              </div>
-              {/* Outer Golden Spinner Ring */}
-              <div
-                className="absolute inset-0 -m-3 border-2 border-[#D4AF37] border-t-transparent border-b-transparent rounded-full animate-spin"
-                style={{ animationDuration: '3s' }}
-              />
-            </div>
-
-            {/* Brand Identity */}
-            <div className="space-y-2">
-              <h1 className="font-serif-title text-4xl sm:text-5xl font-bold tracking-[0.25em] text-white leading-none">
-                PURNYA
-              </h1>
-              <p className="text-[10px] sm:text-xs font-bold uppercase tracking-[0.2em] text-[#D4AF37]">
-                Thoughtfully · Curated · Beautifully Yours
-              </p>
-            </div>
-
-            {/* Progress Bar & Subtitle */}
-            <div className="space-y-4 pt-4 w-full">
-              <p className="text-xs sm:text-sm text-[#E8F0EC]/90 font-medium tracking-widest uppercase">
-                Opening Purnya Luxury Sanctuary...
-              </p>
-
-              <div className="w-64 sm:w-80 h-1.5 bg-[#144234] rounded-full overflow-hidden mx-auto p-0.5 shadow-inner">
-                <div className="h-full bg-gradient-to-r from-[#C5A059] via-[#D4AF37] to-[#E6C25B] rounded-full animate-pulse w-full transition-all duration-1000" />
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
     </StoreContext.Provider>
   );

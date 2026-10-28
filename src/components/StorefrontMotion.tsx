@@ -9,6 +9,8 @@ export default function StorefrontMotion({ children, className }: { children: Re
   useEffect(() => {
     const element = root.current;
     if (!element || !('IntersectionObserver' in window)) return;
+    // Keep mobile content visible immediately; avoid scanning and animating every card.
+    if (window.matchMedia('(max-width: 767px)').matches) return;
     const preference = window.matchMedia('(prefers-reduced-motion: reduce)');
     const registered = new Set<HTMLElement>();
     const selector = '[data-motion], [data-motion-stagger] > *';

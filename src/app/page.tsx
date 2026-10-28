@@ -66,6 +66,7 @@ function getCategoryCuratedDescription(cat: { slug?: string; title?: string; sub
 export default function HomePage() {
   const { categories, products, heroBanners: banners, markHeroReady, bannersLoaded, bannersError, retryBanners } = useStore();
   const [activeSlide, setActiveSlide] = useState(0);
+  const [visitedSlides, setVisitedSlides] = useState<Set<string>>(() => new Set());
   const [motionReduced, setMotionReduced] = useState(true);
   const [rotationPaused, setRotationPaused] = useState(false);
   const [heroHovered, setHeroHovered] = useState(false);
@@ -96,6 +97,11 @@ export default function HomePage() {
   useEffect(() => {
     setActiveSlide((previous) => previous % Math.max(displayedBanners.length, 1));
   }, [displayedBanners.length]);
+
+  useEffect(() => {
+    const slide = displayedBanners[activeSlide];
+    if (slide) setVisitedSlides(previous => previous.has(slide.id) ? previous : new Set(previous).add(slide.id));
+  }, [activeSlide, banners]);
 
   const nextSlide = () => {
     setActiveSlide((prev) => (prev + 1) % displayedBanners.length);
@@ -143,8 +149,12 @@ export default function HomePage() {
           idx === activeSlide ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'
         }`}
       >
-        {heroImage && <img
-          src={heroImage}
+        {heroImage && (idx === activeSlide || visitedSlides.has(slide.id)) && <img
+          src={heroImage.startsWith('/api/hero-banners/image?') ? `${heroImage}&width=960` : heroImage}
+          srcSet={heroImage.startsWith('/api/hero-banners/image?')
+            ? `${heroImage}&width=640 640w, ${heroImage}&width=960 960w, ${heroImage}&width=1680 1680w`
+            : undefined}
+          sizes="100vw"
           fetchPriority={idx === activeSlide ? 'high' : 'low'}
           loading={idx === activeSlide ? 'eager' : 'lazy'}
           decoding="async"

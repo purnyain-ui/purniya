@@ -40,6 +40,8 @@ export default function ProductCard({
     activeVariant?.options?.[0] || ''
   );
 
+  const [showAlternate, setShowAlternate] = React.useState(false);
+  const [alternateReady, setAlternateReady] = React.useState(false);
   const [hoveredIdx, setHoveredIdx] = React.useState<number | null>(null);
 
   const allImages = React.useMemo(() => {
@@ -73,24 +75,26 @@ export default function ProductCard({
     <div className="group relative bg-white rounded-2xl border border-[#E2DBD0] overflow-hidden flex flex-col transition-all duration-300 hover:shadow-xl hover:border-[#0C3B2E]/60 hover:-translate-y-1">
       {/* Image Container */}
       <div className="relative aspect-square w-full overflow-hidden bg-[#FAF8F5] border-b border-[#E2DBD0]/60">
-        <Link href={`/product/${product.id}`} onClick={handleProductClick} className="block w-full h-full relative bg-[#FAF8F5]">
+        <Link href={`/product/${product.id}`} onClick={handleProductClick} className="block w-full h-full relative bg-[#FAF8F5]"
+          onPointerEnter={(event) => { if (event.pointerType === 'mouse') setShowAlternate(true); }}>
           <img
             src={displayImg}
             alt={product.name}
             decoding="async"
             loading="lazy"
             className={`w-full h-full min-w-full min-h-full object-cover object-center transition-all duration-700 ease-out group-hover:scale-105 ${
-              hoveredIdx === null && secondImg ? 'group-hover:opacity-0' : 'opacity-100'
+              hoveredIdx === null && secondImg && alternateReady ? 'group-hover:opacity-0' : 'opacity-100'
             }`}
             onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
               const target = e.currentTarget;
               target.src = 'https://images.unsplash.com/photo-1515562141589-67f0d0953a8e?w=600&fit=crop&auto=format';
             }}
           />
-          {hoveredIdx === null && secondImg && (
+          {hoveredIdx === null && secondImg && showAlternate && (
             <img
               src={secondImg}
               alt={product.name + ' alternate view'}
+              onLoad={() => setAlternateReady(true)}
               decoding="async"
               loading="lazy"
               className="absolute inset-0 w-full h-full min-w-full min-h-full object-cover object-center transition-all duration-700 ease-out opacity-0 group-hover:opacity-100 group-hover:scale-105 pointer-events-none"
